@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 4.2</title>
+  <title>CortePro 4.3</title>
   <style>
     * {
       box-sizing: border-box;
@@ -156,6 +156,12 @@
       color: #6ee7b7;
     }
 
+    .status-box.warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fde68a;
+    }
+
     .download-btn {
       display: block;
       width: 100%;
@@ -170,6 +176,26 @@
       font-size: 15px;
       border: none;
       cursor: pointer;
+    }
+
+    .rescue-box {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      background-color: #2563eb;
+      color: #ffffff;
     }
 
     video {
@@ -237,7 +263,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 4.2 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 4.3 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -269,6 +295,13 @@
         ⬇️ Salvar Vídeo na Galeria (.MP4)
       </button>
       <video id="previewVideo" controls playsinline></video>
+    </div>
+
+    <!-- BOTÃO DE RESGATE INSTANTÂNEO -->
+    <div id="areaResgate" class="rescue-box hidden">
+      <button type="button" class="rescue-btn" id="btnTurboDirect">
+        🚀 Baixar Vídeo Instantaneamente (.MP4)
+      </button>
     </div>
   </div>
 
@@ -319,6 +352,7 @@
     const inputUrl = document.getElementById('videoUrl');
     const statusExtracao = document.getElementById('statusExtracao');
     const areaResultado = document.getElementById('areaResultado');
+    const areaResgate = document.getElementById('areaResgate');
     const previewVideo = document.getElementById('previewVideo');
     const btnBaixarDireto = document.getElementById('btnBaixarDireto');
 
@@ -338,6 +372,7 @@
     }
 
     async function extrairVideoDireto(rawUrl) {
+      // 1. TikTok
       if (rawUrl.includes('tiktok.com')) {
         try {
           const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
@@ -346,9 +381,10 @@
         } catch (e) {}
       }
 
+      // 2. Cobalt APIs em paralelo
       const apisCobalt = [
-        'https://cobalt-api.kwiatekmiki.com/',
-        'https://cobalt-backend.canine.tools/'
+        'https://cobalt.kwiatekmiki.com/',
+        'https://co.wuk.sh/api/json'
       ];
 
       for (const api of apisCobalt) {
@@ -365,6 +401,7 @@
         } catch (e) {}
       }
 
+      // 3. Fallback Microlink
       try {
         const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
         const json = await res.json();
@@ -382,33 +419,12 @@
       }
 
       areaResultado.classList.add('hidden');
+      areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração direta...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
-
-        // Se falhar no /share/ do Facebook, dispara o mecanismo direto de salvamento alternativo integrado
-        if (!videoFinal && rawUrl.includes('/share/')) {
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = 'https://fdown.net/download.php';
-          form.target = '_blank';
-
-          const inp = document.createElement('input');
-          inp.type = 'hidden';
-          inp.name = 'URLz';
-          inp.value = rawUrl;
-
-          form.appendChild(inp);
-          document.body.appendChild(form);
-          form.submit();
-          form.remove();
-
-          mostrarStatus(statusExtracao, '✅ Link enviado para o motor de conversão direta do Facebook!', 'success');
-          btnExtrair.disabled = false;
-          return;
-        }
 
         if (videoFinal) {
           mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
@@ -434,18 +450,47 @@
             }
           };
         } else {
+          // Se a rede social bloquear o fetch direto, ativa o botão de resgate instantâneo
           mostrarStatus(
             statusExtracao,
-            '❌ Não foi possível extrair o vídeo. Verifique se o link é público.',
-            'error'
+            '⚡ <b>Proteção de CORS detetada!</b><br>Toque no botão abaixo para concluir o download imediato:',
+            'warning'
           );
+          areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '❌ Erro ao processar o link.', 'error');
+        mostrarStatus(statusExtracao, '⚡ Toque no botão abaixo para concluir o download:', 'warning');
+        areaResgate.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
       }
     });
+
+    document.getElementById('btnTurboDirect').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = rawUrlFormAction(url);
+      form.target = '_blank';
+
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = url.includes('facebook') ? 'URLz' : 'url';
+      inp.value = url;
+
+      form.appendChild(inp);
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    });
+
+    function rawUrlFormAction(u) {
+      if (u.includes('facebook')) return 'https://fdown.net/download.php';
+      if (u.includes('instagram')) return 'https://snapinsta.app/';
+      return 'https://fdown.net/download.php';
+    }
 
     // =====================================================
     // ABA 2: DIVISOR DE VÍDEO LOCAL
