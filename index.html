@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 3.3</title>
+  <title>CortePro 3.4</title>
   <style>
     * {
       box-sizing: border-box;
@@ -168,6 +168,12 @@
       color: #6ee7b7;
     }
 
+    .status-box.warning {
+      background-color: rgba(245, 158, 11, 0.14);
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #fde68a;
+    }
+
     .download-btn {
       display: block;
       width: 100%;
@@ -182,6 +188,32 @@
       font-size: 15px;
       border: none;
       cursor: pointer;
+    }
+
+    .rescue-box {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .rescue-btn.secondary {
+      background-color: #0f766e;
     }
 
     video {
@@ -223,7 +255,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 3.3 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 3.4 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -249,11 +281,23 @@
     </button>
 
     <div id="statusExtracao" class="status-box hidden"></div>
+
+    <!-- ÁREA DE DOWNLOAD DIRETO QUANDO EXTRAÍDO INTERNAMENTE -->
     <div id="areaResultado" class="hidden">
       <button id="btnBaixarDireto" class="download-btn">
         ⬇️ Salvar Vídeo na Galeria (.MP4)
       </button>
       <video id="previewVideo" controls playsinline></video>
+    </div>
+
+    <!-- ÁREA DE RESGATE TURBO (CASO O FACEBOOK BLOQUEIE LINKS /SHARE/) -->
+    <div id="areaResgate" class="rescue-box hidden">
+      <button class="rescue-btn" onclick="abrirExtratorTurbo('fdown')">
+        🚀 Baixar no Servidor Turbo 1 (Link já Copiado!)
+      </button>
+      <button class="rescue-btn secondary" onclick="abrirExtratorTurbo('snapsave')">
+        ⚡ Baixar no Servidor Turbo 2 (Suporta Múltiplos Vídeos)
+      </button>
     </div>
   </div>
 
@@ -309,164 +353,120 @@
         .replace(/&amp;/g, '&');
     }
 
-    // PASSO 1: Usa a API Microlink (simula o robô oficial do WhatsApp/Facebook)
-    // Ela consegue abrir links /share/r/ sem cair na tela de login e extrair o MP4 direto!
-    async function extrairViaMicrolink(targetUrl) {
-      const tentativas = [
-        `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&video=true&audio=true&prerender=true`,
-        `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&video=true`
-      ];
-
-      let resolvedUrl = targetUrl;
-
-      for (const endpoint of tentativas) {
-        try {
-          const res = await fetch(endpoint);
-          if (!res.ok) continue;
-          const json = await res.json();
-
-          if (json && json.data) {
-            if (json.data.url && !json.data.url.includes('/share/r/')) {
-              resolvedUrl = json.data.url;
-            }
-            if (json.data.video && json.data.video.url && json.data.video.url.includes('http')) {
-              return {
-                videoUrl: json.data.video.url,
-                resolvedUrl: resolvedUrl
-              };
-            }
-          }
-        } catch (e) {
-          console.warn('Microlink tentativa falhou:', e);
-        }
-      }
-
-      return { videoUrl: null, resolvedUrl: resolvedUrl };
-    }
-
-    // PASSO 2: Desencurtador extra caso o link ainda tenha /share/r/
-    async function desencurtarLinkFacebook(url) {
-      if (!url.includes('/share/')) return url;
-
+    // Fetch com Timeout rigoroso para NUNCA travar a tela
+    async function fetchComTimeout(url, options = {}, timeoutMs = 5000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        // Usa Jina Reader API (que renderiza a página em nuvem e retorna a URL final limpa)
-        const res = await fetch(`https://r.jina.ai/${url}`, {
-          headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.data && data.data.url && !data.data.url.includes('/share/')) {
-            return data.data.url;
-          }
-        }
-      } catch (e) {
-        console.warn('Erro ao desencurtar via Jina:', e);
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return res;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
       }
-      return url;
     }
 
-    // PASSO 3: Extração direta no código fonte usando múltiplos Proxies CORS
-    async function extrairDiretoDoHtml(url) {
-      const proxies = [
-        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
-      ];
+    // Motor 1: Microlink com Timeout de 5s
+    async function motorMicrolink(url) {
+      const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(url)}&video=true&audio=true`;
+      const res = await fetchComTimeout(endpoint, {}, 5500);
+      if (!res.ok) throw new Error('Microlink falhou');
+      const json = await res.json();
+      if (json?.data?.video?.url && json.data.video.url.startsWith('http')) {
+        return json.data.video.url;
+      }
+      throw new Error('Sem vídeo no Microlink');
+    }
 
-      const padroesVideo = [
+    // Motor 2: Cobalt API em paralelo com Timeout de 5s
+    async function motorCobalt(url, apiBase) {
+      const res = await fetchComTimeout(apiBase, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: url,
+          videoQuality: '720',
+          downloadMode: 'auto'
+        })
+      }, 5000);
+
+      if (!res.ok) throw new Error('Cobalt falhou');
+      const data = await res.json();
+      if (data && (data.url || data.stream)) {
+        return data.url || data.stream;
+      }
+      throw new Error('Sem URL no Cobalt');
+    }
+
+    // Motor 3: Extração HTML via Proxy Rápido com Timeout de 5s
+    async function motorProxyHtml(url, proxyFn) {
+      const res = await fetchComTimeout(proxyFn(url), {}, 5500);
+      if (!res.ok) throw new Error('Proxy falhou');
+      const html = await res.text();
+
+      const padroes = [
         /"playable_url_quality_hd":"([^"]+)"/,
         /"playable_url":"([^"]+)"/,
         /"browser_native_hd_url":"([^"]+)"/,
         /"browser_native_sd_url":"([^"]+)"/,
         /property="og:video:secure_url"\s+content="([^"]+)"/i,
         /property="og:video"\s+content="([^"]+)"/i,
-        /content="([^"]+)"\s+property="og:video:secure_url"/i,
-        /content="([^"]+)"\s+property="og:video"/i,
         /"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/i,
         /"video_url"\s*:\s*"([^"]+)"/i,
-        /sd_src\s*:\s*"([^"]+)"/,
-        /hd_src\s*:\s*"([^"]+)"/,
         /video_redirect\/\?src=([^"&]+)/i
       ];
 
-      // Testa na URL normal e na versão mbasic (que não exige login em vídeos públicos)
-      const urlsParaTestar = [url];
-      if (url.includes('facebook.com')) {
-        urlsParaTestar.push(
-          url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com')
-        );
-      }
-
-      for (const target of urlsParaTestar) {
-        for (const montarProxy of proxies) {
-          try {
-            const res = await fetch(montarProxy(target));
-            if (!res.ok) continue;
-            const html = await res.text();
-            if (!html || html.length < 200) continue;
-
-            for (const regex of padroesVideo) {
-              const match = html.match(regex);
-              if (match && match[1]) {
-                let candidato = match[1];
-                if (regex.source.includes('video_redirect')) {
-                  candidato = decodeURIComponent(candidato);
-                } else {
-                  candidato = limparUrlEscapada(candidato);
-                }
-                if (candidato && candidato.startsWith('http')) {
-                  return candidato;
-                }
-              }
-            }
-          } catch (e) {
-            // Tenta próximo proxy
-          }
+      for (const regex of padroes) {
+        const match = html.match(regex);
+        if (match && match[1]) {
+          const limpo = regex.source.includes('video_redirect')
+            ? decodeURIComponent(match[1])
+            : limparUrlEscapada(match[1]);
+          if (limpo && limpo.startsWith('http')) return limpo;
         }
       }
-      return null;
+      throw new Error('Não achou MP4 no HTML');
     }
 
-    // PASSO 4: Instâncias atualizadas de APIs públicas (Cobalt v10 / v7)
-    async function tentarApisPublicas(url) {
-      const endpoints = [
-        'https://cobalt-api.kwiatekmiki.com/',
-        'https://cobalt-backend.canine.tools/',
-        'https://api.cobalt.blackcat.sweeux.org/',
-        'https://cobalt.slpy.one/'
-      ];
-
-      for (const api of endpoints) {
-        try {
-          const res = await fetch(api, {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              url: url,
-              videoQuality: '720',
-              downloadMode: 'auto'
-            })
-          });
-
-          if (!res.ok) continue;
-          const data = await res.json();
-          if (data && (data.url || data.stream)) {
-            return data.url || data.stream;
-          }
-        } catch (e) {
-          // Tenta próxima instância
-        }
+    // Função de Resgate Turbo: Copia o link automaticamente e abre o servidor dedicado
+    async function abrirExtratorTurbo(servidor) {
+      const rawUrl = document.getElementById('videoUrl').value.trim();
+      try {
+        await navigator.clipboard.writeText(rawUrl);
+      } catch (e) {
+        // Continua mesmo se o navegador não deixar copiar
       }
-      return null;
+
+      if (servidor === 'fdown') {
+        // Envia via formulário POST direto para o FDown (já abre na página de download do vídeo!)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://fdown.net/download.php';
+        form.target = '_blank';
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'URLz';
+        input.value = rawUrl;
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+      } else {
+        window.open(`https://snapsave.app/pt`, '_blank');
+      }
     }
 
     async function extrairVideoWeb() {
       const input = document.getElementById('videoUrl');
       const statusEl = document.getElementById('statusExtracao');
       const areaResultado = document.getElementById('areaResultado');
+      const areaResgate = document.getElementById('areaResgate');
       const previewVideo = document.getElementById('previewVideo');
       const btnBaixarDireto = document.getElementById('btnBaixarDireto');
       const btnExtrair = document.getElementById('btnExtrair');
@@ -478,62 +478,39 @@
       }
 
       areaResultado.classList.add('hidden');
+      areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusEl, '⏳ Passo 1/3: A desencurtar link e buscar mídia...');
+      mostrarStatus(statusEl, '⚡ A extrair em alta velocidade (máx. 6 segundos)...');
 
       try {
         let videoFinal = null;
-        let urlResolvida = rawUrl;
 
-        // 1. TIKTOK: Motor rápido TikWM (entrega MP4 direto com áudio)
+        // 1. TIKTOK: API Direta Instantânea
         if (rawUrl.includes('tiktok.com')) {
           try {
-            const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`);
+            const tikRes = await fetchComTimeout(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`, {}, 5000);
             const tikData = await tikRes.json();
-            if (tikData && tikData.data && tikData.data.play) {
+            if (tikData?.data?.play) {
               videoFinal = tikData.data.play;
             }
           } catch (e) {
-            console.warn('Erro no TikWM');
+            console.warn('TikWM timeout');
           }
         }
 
-        // 2. MICROLINK API (Resolve /share/r/ do Facebook, Instagram e Kwai)
+        // 2. EXECUÇÃO EM PARALELO (NÃO TRAVA NUNCA!)
+        // Dispara todos os motores juntos e pega o primeiro que responder em até 5.5 segundos
         if (!videoFinal) {
-          const micro = await extrairViaMicrolink(rawUrl);
-          if (micro.videoUrl) {
-            videoFinal = micro.videoUrl;
-          }
-          if (micro.resolvedUrl && micro.resolvedUrl !== rawUrl) {
-            urlResolvida = micro.resolvedUrl;
-            // Se descobriu o link real (ex: facebook.com/reel/...), consulta o Microlink novamente com o link limpo!
-            if (!videoFinal) {
-              const micro2 = await extrairViaMicrolink(urlResolvida);
-              if (micro2.videoUrl) videoFinal = micro2.videoUrl;
-            }
-          }
-        }
-
-        // 3. Se ainda estiver com /share/, tenta desencurtar via Jina e passar no Microlink
-        if (!videoFinal && urlResolvida.includes('/share/')) {
-          mostrarStatus(statusEl, '⏳ Passo 2/3: A converter link /share/r/ para link de Reel...');
-          const urlJina = await desencurtarLinkFacebook(urlResolvida);
-          if (urlJina && urlJina !== urlResolvida) {
-            urlResolvida = urlJina;
-            const micro3 = await extrairViaMicrolink(urlResolvida);
-            if (micro3.videoUrl) videoFinal = micro3.videoUrl;
-          }
-        }
-
-        // 4.Tenta via APIs públicas Cobalt e depois via HTML Proxy
-        if (!videoFinal) {
-          mostrarStatus(statusEl, '⏳ Passo 3/3: A extrair stream de vídeo com áudio...');
-          videoFinal = await tentarApisPublicas(urlResolvida);
-          if (!videoFinal && urlResolvida !== rawUrl) {
-            videoFinal = await tentarApisPublicas(rawUrl);
-          }
-          if (!videoFinal) {
-            videoFinal = await extrairDiretoDoHtml(urlResolvida);
+          try {
+            videoFinal = await Promise.any([
+              motorMicrolink(rawUrl),
+              motorCobalt(rawUrl, 'https://cobalt-api.kwiatekmiki.com/'),
+              motorCobalt(rawUrl, 'https://cobalt-backend.canine.tools/'),
+              motorProxyHtml(rawUrl, (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`),
+              motorProxyHtml(rawUrl, (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`)
+            ]);
+          } catch (agregateErr) {
+            videoFinal = null;
           }
         }
 
@@ -543,90 +520,6 @@
           areaResultado.classList.remove('hidden');
 
           btnBaixarDireto.onclick = async () => {
-            btnBaixarDireto.textContent = '⏳ A baixar MP4 para a Galeria...';
+            btnBaixarDireto.textContent = '⏳ A salvar MP4 na Galeria...';
             try {
-              const resp = await fetch(videoFinal);
-              if (!resp.ok) throw new Error('CORS bloqueou fetch direto');
-              const blob = await resp.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = `cortepro-${Date.now()}.mp4`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              btnBaixarDireto.textContent = '✅ Download Concluído!';
-            } catch (err) {
-              // Se o CDN do Facebook bloquear Blob no navegador, abre o MP4 direto para salvar
-              const a = document.createElement('a');
-              a.href = videoFinal;
-              a.target = '_blank';
-              a.rel = 'noopener noreferrer';
-              a.download = `cortepro-${Date.now()}.mp4`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
-            }
-          };
-        } else {
-          mostrarStatus(
-            statusEl,
-            '❌ Este vídeo está protegido por login do Facebook ou é privado. Dica rápida: no app do Facebook, clique nos 3 pontinhos do vídeo -> Copiar Link (ou abra no navegador para pegar o link facebook.com/reel/...).',
-            'error'
-          );
-        }
-      } catch (err) {
-        mostrarStatus(statusEl, '❌ Ocorreu um erro ao processar o link.', 'error');
-      } finally {
-        btnExtrair.disabled = false;
-      }
-    }
-
-    // FUNÇÃO DO DIVISOR LOCAL (100% NO NAVEGADOR)
-    async function dividirVideoLocal() {
-      const fileInput = document.getElementById('videoFile');
-      const tempoInput = document.getElementById('tempoCorte');
-      const statusDiv = document.getElementById('statusDivisor');
-      const listaCortes = document.getElementById('listaCortes');
-
-      if (!fileInput.files || !fileInput.files[0]) {
-        mostrarStatus(statusDiv, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
-        return;
-      }
-
-      const file = fileInput.files[0];
-      const duracaoParte = parseInt(tempoInput.value, 10) || 30;
-      listaCortes.innerHTML = '';
-      mostrarStatus(statusDiv, '⏳ A carregar vídeo para calcular os cortes...');
-
-      const urlLocal = URL.createObjectURL(file);
-      const tempVideo = document.createElement('video');
-      tempVideo.src = urlLocal;
-
-      tempVideo.onloadedmetadata = () => {
-        const duracaoTotal = tempVideo.duration;
-        const totalPartes = Math.ceil(duracaoTotal / duracaoParte);
-
-        mostrarStatus(
-          statusDiv,
-          `✅ Vídeo de ${Math.round(duracaoTotal)}s analisado! Foram geradas ${totalPartes} partes de até ${duracaoParte}s.`,
-          'success'
-        );
-
-        for (let i = 0; i < totalPartes; i++) {
-          const inicio = i * duracaoParte;
-          const fim = Math.min((i + 1) * duracaoParte, Math.round(duracaoTotal));
-          const item = document.createElement('div');
-          item.className = 'clip-item';
-          item.innerHTML = `
-            <span>🎬 Parte ${i + 1} (${inicio}s até ${fim}s)</span>
-            <a href="${urlLocal}#t=${inicio},${fim}" download="parte_${i + 1}_${file.name}">Baixar Parte ${i + 1}</a>
-          `;
-          listaCortes.appendChild(item);
-        }
-      };
-    }
-  </script>
-</body>
-</html>
+              const
