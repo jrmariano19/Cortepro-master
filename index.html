@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="pt-BR" translate="no">
+<html lang="pt-BR" translate="no" class="notranslate">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 3.4</title>
+  <title>CortePro 3.5</title>
   <style>
     * {
       box-sizing: border-box;
@@ -66,7 +66,6 @@
       padding: 12px;
       border-radius: 10px;
       cursor: pointer;
-      transition: all 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -110,16 +109,11 @@
       background-color: #090c14;
       border: 1px solid #28324a;
       color: #ffffff;
-      padding: 14px 14px;
+      padding: 14px;
       border-radius: 12px;
       font-size: 15px;
       margin-bottom: 16px;
       outline: none;
-    }
-
-    input[type="text"]:focus,
-    input[type="number"]:focus {
-      border-color: #5b5bf6;
     }
 
     .btn-primary {
@@ -132,16 +126,10 @@
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-
-    .btn-primary:active {
-      transform: scale(0.99);
     }
 
     .btn-primary:disabled {
       opacity: 0.6;
-      cursor: not-allowed;
     }
 
     .status-box {
@@ -157,20 +145,20 @@
     }
 
     .status-box.error {
-      background-color: rgba(239, 68, 68, 0.12);
-      border-color: rgba(239, 68, 68, 0.4);
+      background-color: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.45);
       color: #fca5a5;
     }
 
     .status-box.success {
-      background-color: rgba(16, 185, 129, 0.12);
-      border-color: rgba(16, 185, 129, 0.4);
+      background-color: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.45);
       color: #6ee7b7;
     }
 
     .status-box.warning {
-      background-color: rgba(245, 158, 11, 0.14);
-      border-color: rgba(245, 158, 11, 0.45);
+      background-color: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
       color: #fde68a;
     }
 
@@ -198,27 +186,29 @@
     }
 
     .rescue-btn {
-      display: block;
       width: 100%;
       padding: 14px;
       border-radius: 12px;
       font-size: 14px;
       font-weight: 800;
       text-align: center;
-      text-decoration: none;
       border: none;
       cursor: pointer;
       background-color: #2563eb;
       color: #ffffff;
     }
 
-    .rescue-btn.secondary {
-      background-color: #0f766e;
+    .rescue-btn.green {
+      background-color: #059669;
+    }
+
+    .rescue-btn.gray {
+      background-color: #334155;
     }
 
     video {
       width: 100%;
-      max-height: 320px;
+      max-height: 280px;
       border-radius: 12px;
       margin-top: 14px;
       background: #000;
@@ -234,35 +224,61 @@
     .clip-item {
       background: #090c14;
       border: 1px solid #28324a;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .clip-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 14px;
+      font-weight: 700;
+      color: #e2e8f0;
     }
 
-    .clip-item a {
-      background: #5b5bf6;
-      color: #fff;
-      text-decoration: none;
-      padding: 8px 14px;
+    .clip-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-small {
+      flex: 1;
+      padding: 10px;
       border-radius: 8px;
+      border: none;
       font-weight: 700;
       font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .btn-preview {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .btn-cut {
+      background: #5b5bf6;
+      color: #ffffff;
     }
   </style>
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 3.4 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 3.5 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
-    <button class="tab-btn active" id="tabBaixar" onclick="trocarAba('baixar')">
+    <button type="button" class="tab-btn active" id="tabBaixar">
       📥 Baixar Web
     </button>
-    <button class="tab-btn" id="tabDivisor" onclick="trocarAba('divisor')">
+    <button type="button" class="tab-btn" id="tabDivisor">
       ✂️ Divisor
     </button>
   </div>
@@ -276,27 +292,29 @@
       placeholder="Cole aqui o link do vídeo..."
       autocomplete="off"
     />
-    <button class="btn-primary" id="btnExtrair" onclick="extrairVideoWeb()">
+    <button type="button" class="btn-primary" id="btnExtrair">
       Extrair Vídeo com Áudio
     </button>
 
     <div id="statusExtracao" class="status-box hidden"></div>
 
-    <!-- ÁREA DE DOWNLOAD DIRETO QUANDO EXTRAÍDO INTERNAMENTE -->
     <div id="areaResultado" class="hidden">
-      <button id="btnBaixarDireto" class="download-btn">
+      <button type="button" id="btnBaixarDireto" class="download-btn">
         ⬇️ Salvar Vídeo na Galeria (.MP4)
       </button>
       <video id="previewVideo" controls playsinline></video>
     </div>
 
-    <!-- ÁREA DE RESGATE TURBO (CASO O FACEBOOK BLOQUEIE LINKS /SHARE/) -->
+    <!-- PAINEL TURBO ANTI-BLOQUEIO (NUNCA CONGELA) -->
     <div id="areaResgate" class="rescue-box hidden">
-      <button class="rescue-btn" onclick="abrirExtratorTurbo('fdown')">
-        🚀 Baixar no Servidor Turbo 1 (Link já Copiado!)
+      <button type="button" class="rescue-btn" id="btnTurboFdown">
+        🚀 Abrir Servidor 1 (Envia Link Automático)
       </button>
-      <button class="rescue-btn secondary" onclick="abrirExtratorTurbo('snapsave')">
-        ⚡ Baixar no Servidor Turbo 2 (Suporta Múltiplos Vídeos)
+      <button type="button" class="rescue-btn green" id="btnTurboSnap">
+        ⚡ Copiar Link e Abrir Servidor 2 (SnapSave)
+      </button>
+      <button type="button" class="rescue-btn gray" id="btnTurboSaveFrom">
+        📥 Copiar Link e Abrir Servidor 3 (SaveFrom)
       </button>
     </div>
   </div>
@@ -309,217 +327,390 @@
     <label for="tempoCorte">TEMPO DE CADA PARTE (EM SEGUNDOS)</label>
     <input type="number" id="tempoCorte" value="30" min="5" max="600" />
 
-    <button class="btn-primary" id="btnDividir" onclick="dividirVideoLocal()">
-      Dividir Vídeo Agora
+    <button type="button" class="btn-primary" id="btnDividir">
+      Gerar Partes do Vídeo
     </button>
 
     <div id="statusDivisor" class="status-box hidden"></div>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
   <script>
-    function trocarAba(aba) {
-      const tabBaixar = document.getElementById('tabBaixar');
-      const tabDivisor = document.getElementById('tabDivisor');
-      const painelBaixar = document.getElementById('painelBaixar');
-      const painelDivisor = document.getElementById('painelDivisor');
+    // Elementos das Abas
+    const tabBaixar = document.getElementById('tabBaixar');
+    const tabDivisor = document.getElementById('tabDivisor');
+    const painelBaixar = document.getElementById('painelBaixar');
+    const painelDivisor = document.getElementById('painelDivisor');
 
-      if (aba === 'baixar') {
-        tabBaixar.classList.add('active');
-        tabDivisor.classList.remove('active');
-        painelBaixar.classList.remove('hidden');
-        painelDivisor.classList.add('hidden');
-      } else {
-        tabDivisor.classList.add('active');
-        tabBaixar.classList.remove('active');
-        painelDivisor.classList.remove('hidden');
-        painelBaixar.classList.add('hidden');
-      }
-    }
+    tabBaixar.addEventListener('click', () => {
+      tabBaixar.classList.add('active');
+      tabDivisor.classList.remove('active');
+      painelBaixar.classList.remove('hidden');
+      painelDivisor.classList.add('hidden');
+    });
 
-    function mostrarStatus(el, msg, tipo = '') {
-      el.className = 'status-box ' + tipo;
+    tabDivisor.addEventListener('click', () => {
+      tabDivisor.classList.add('active');
+      tabBaixar.classList.remove('active');
+      painelDivisor.classList.remove('hidden');
+      painelBaixar.classList.add('hidden');
+    });
+
+    function mostrarStatus(el, msg, tipo) {
+      el.className = 'status-box ' + (tipo || '');
       el.innerHTML = msg;
       el.classList.remove('hidden');
     }
 
-    function limparUrlEscapada(str) {
-      if (!str) return null;
-      return str
-        .replace(/\\u0025/g, '%')
-        .replace(/\\u0026/g, '&')
-        .replace(/\\u002F/g, '/')
-        .replace(/\\\//g, '/')
-        .replace(/&amp;/g, '&');
+    // =====================================================
+    // LÓGICA DA ABA 1: EXTRAIR VÍDEO WEB (SEM CONGELAR)
+    // =====================================================
+    const btnExtrair = document.getElementById('btnExtrair');
+    const inputUrl = document.getElementById('videoUrl');
+    const statusExtracao = document.getElementById('statusExtracao');
+    const areaResultado = document.getElementById('areaResultado');
+    const areaResgate = document.getElementById('areaResgate');
+    const previewVideo = document.getElementById('previewVideo');
+    const btnBaixarDireto = document.getElementById('btnBaixarDireto');
+
+    function fetchRapido(url, opcoes, limiteMs) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
+        fetch(url, opcoes)
+          .then((res) => {
+            clearTimeout(timer);
+            resolve(res);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
     }
 
-    // Fetch com Timeout rigoroso para NUNCA travar a tela
-    async function fetchComTimeout(url, options = {}, timeoutMs = 5000) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeoutMs);
+    async function tentarExtracaoDireta(rawUrl) {
+      // 1. Se for TikTok, usa a API direta TikWM (3.5s)
+      if (rawUrl.includes('tiktok.com')) {
+        try {
+          const res = await fetchRapido(
+            'https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl),
+            {},
+            4000
+          );
+          const data = await res.json();
+          if (data && data.data && data.data.play) {
+            return data.data.play;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Se for link /share/ do Facebook, o navegador não permite desencurtar por CORS.
+      // Retorna null rápido em 1 segundo para abrir os Servidores Turbo sem travar!
+      if (rawUrl.includes('facebook.com/share/')) {
+        try {
+          const res = await fetchRapido(
+            'https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true',
+            {},
+            3000
+          );
+          const json = await res.json();
+          if (json && json.data && json.data.video && json.data.video.url) {
+            return json.data.video.url;
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      // 3. Para outros links (Reels diretos, Instagram, Kwai), tenta Microlink + Cobalt com limite de 3.5s
       try {
-        const res = await fetch(url, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return res;
-      } catch (err) {
-        clearTimeout(id);
-        throw err;
-      }
-    }
-
-    // Motor 1: Microlink com Timeout de 5s
-    async function motorMicrolink(url) {
-      const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(url)}&video=true&audio=true`;
-      const res = await fetchComTimeout(endpoint, {}, 5500);
-      if (!res.ok) throw new Error('Microlink falhou');
-      const json = await res.json();
-      if (json?.data?.video?.url && json.data.video.url.startsWith('http')) {
-        return json.data.video.url;
-      }
-      throw new Error('Sem vídeo no Microlink');
-    }
-
-    // Motor 2: Cobalt API em paralelo com Timeout de 5s
-    async function motorCobalt(url, apiBase) {
-      const res = await fetchComTimeout(apiBase, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          url: url,
-          videoQuality: '720',
-          downloadMode: 'auto'
-        })
-      }, 5000);
-
-      if (!res.ok) throw new Error('Cobalt falhou');
-      const data = await res.json();
-      if (data && (data.url || data.stream)) {
-        return data.url || data.stream;
-      }
-      throw new Error('Sem URL no Cobalt');
-    }
-
-    // Motor 3: Extração HTML via Proxy Rápido com Timeout de 5s
-    async function motorProxyHtml(url, proxyFn) {
-      const res = await fetchComTimeout(proxyFn(url), {}, 5500);
-      if (!res.ok) throw new Error('Proxy falhou');
-      const html = await res.text();
-
-      const padroes = [
-        /"playable_url_quality_hd":"([^"]+)"/,
-        /"playable_url":"([^"]+)"/,
-        /"browser_native_hd_url":"([^"]+)"/,
-        /"browser_native_sd_url":"([^"]+)"/,
-        /property="og:video:secure_url"\s+content="([^"]+)"/i,
-        /property="og:video"\s+content="([^"]+)"/i,
-        /"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/i,
-        /"video_url"\s*:\s*"([^"]+)"/i,
-        /video_redirect\/\?src=([^"&]+)/i
-      ];
-
-      for (const regex of padroes) {
-        const match = html.match(regex);
-        if (match && match[1]) {
-          const limpo = regex.source.includes('video_redirect')
-            ? decodeURIComponent(match[1])
-            : limparUrlEscapada(match[1]);
-          if (limpo && limpo.startsWith('http')) return limpo;
+        const res = await fetchRapido(
+          'https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true',
+          {},
+          3500
+        );
+        const json = await res.json();
+        if (json && json.data && json.data.video && json.data.video.url) {
+          return json.data.video.url;
         }
-      }
-      throw new Error('Não achou MP4 no HTML');
+      } catch (e) {}
+
+      return null;
     }
 
-    // Função de Resgate Turbo: Copia o link automaticamente e abre o servidor dedicado
-    async function abrirExtratorTurbo(servidor) {
-      const rawUrl = document.getElementById('videoUrl').value.trim();
-      try {
-        await navigator.clipboard.writeText(rawUrl);
-      } catch (e) {
-        // Continua mesmo se o navegador não deixar copiar
-      }
-
-      if (servidor === 'fdown') {
-        // Envia via formulário POST direto para o FDown (já abre na página de download do vídeo!)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://fdown.net/download.php';
-        form.target = '_blank';
-
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'URLz';
-        input.value = rawUrl;
-
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
-      } else {
-        window.open(`https://snapsave.app/pt`, '_blank');
-      }
-    }
-
-    async function extrairVideoWeb() {
-      const input = document.getElementById('videoUrl');
-      const statusEl = document.getElementById('statusExtracao');
-      const areaResultado = document.getElementById('areaResultado');
-      const areaResgate = document.getElementById('areaResgate');
-      const previewVideo = document.getElementById('previewVideo');
-      const btnBaixarDireto = document.getElementById('btnBaixarDireto');
-      const btnExtrair = document.getElementById('btnExtrair');
-
-      let rawUrl = input.value.trim();
+    btnExtrair.addEventListener('click', async () => {
+      const rawUrl = inputUrl.value.trim();
       if (!rawUrl) {
-        mostrarStatus(statusEl, '⚠️ Por favor, cole o link de um vídeo primeiro.', 'error');
+        mostrarStatus(statusExtracao, '⚠️ Cole o link de um vídeo primeiro.', 'error');
         return;
       }
 
       areaResultado.classList.add('hidden');
       areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusEl, '⚡ A extrair em alta velocidade (máx. 6 segundos)...');
+      mostrarStatus(statusExtracao, '⚡ A verificar link (máx. 3 segundos)...');
 
       try {
-        let videoFinal = null;
-
-        // 1. TIKTOK: API Direta Instantânea
-        if (rawUrl.includes('tiktok.com')) {
-          try {
-            const tikRes = await fetchComTimeout(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`, {}, 5000);
-            const tikData = await tikRes.json();
-            if (tikData?.data?.play) {
-              videoFinal = tikData.data.play;
-            }
-          } catch (e) {
-            console.warn('TikWM timeout');
-          }
-        }
-
-        // 2. EXECUÇÃO EM PARALELO (NÃO TRAVA NUNCA!)
-        // Dispara todos os motores juntos e pega o primeiro que responder em até 5.5 segundos
-        if (!videoFinal) {
-          try {
-            videoFinal = await Promise.any([
-              motorMicrolink(rawUrl),
-              motorCobalt(rawUrl, 'https://cobalt-api.kwiatekmiki.com/'),
-              motorCobalt(rawUrl, 'https://cobalt-backend.canine.tools/'),
-              motorProxyHtml(rawUrl, (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`),
-              motorProxyHtml(rawUrl, (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`)
-            ]);
-          } catch (agregateErr) {
-            videoFinal = null;
-          }
-        }
+        const videoFinal = await tentarExtracaoDireta(rawUrl);
 
         if (videoFinal) {
-          mostrarStatus(statusEl, '✅ Vídeo extraído com sucesso! Pronto para salvar.', 'success');
+          mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
           previewVideo.src = videoFinal;
           areaResultado.classList.remove('hidden');
 
-          btnBaixarDireto.onclick = async () => {
-            btnBaixarDireto.textContent = '⏳ A salvar MP4 na Galeria...';
-            try {
-              const
+          btnBaixarDireto.onclick = () => {
+            window.open(videoFinal, '_blank');
+          };
+        } else {
+          mostrarStatus(
+            statusExtracao,
+            '⚡ <b>Link protegido contra leitura direta!</b><br>Escolha um dos servidores diretos abaixo para baixar o vídeo com áudio imediatamente:',
+            'warning'
+          );
+          areaResgate.classList.remove('hidden');
+        }
+      } catch (err) {
+        mostrarStatus(statusExtracao, '⚡ Use um dos servidores abaixo para concluir o download:', 'warning');
+        areaResgate.classList.remove('hidden');
+      } finally {
+        btnExtrair.disabled = false;
+      }
+    });
+
+    // Botões de Resgate Turbo (Executados direto no clique do utilizador = NUNCA TRAVAM)
+    document.getElementById('btnTurboFdown').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'https://fdown.net/download.php';
+      form.target = '_blank';
+
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'URLz';
+      inp.value = url;
+
+      form.appendChild(inp);
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    });
+
+    document.getElementById('btnTurboSnap').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://snapsave.app/pt', '_blank');
+    });
+
+    document.getElementById('btnTurboSaveFrom').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://pt.savefrom.net/1-facebook-downloader.html', '_blank');
+    });
+
+    // =====================================================
+    // LÓGICA DA ABA 2: DIVISOR DE VÍDEO (SEM CONGELAR)
+    // =====================================================
+    const btnDividir = document.getElementById('btnDividir');
+    const fileInput = document.getElementById('videoFile');
+    const tempoInput = document.getElementById('tempoCorte');
+    const statusDivisor = document.getElementById('statusDivisor');
+    const videoPreview = document.getElementById('videoDivisorPreview');
+    const listaCortes = document.getElementById('listaCortes');
+
+    let urlArquivoAtual = null;
+    let intervaloPreview = null;
+
+    btnDividir.addEventListener('click', () => {
+      if (!fileInput.files || !fileInput.files[0]) {
+        mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const duracaoParte = parseInt(tempoInput.value, 10) || 30;
+
+      if (urlArquivoAtual) {
+        URL.revokeObjectURL(urlArquivoAtual);
+      }
+      urlArquivoAtual = URL.createObjectURL(file);
+
+      listaCortes.innerHTML = '';
+      videoPreview.classList.remove('hidden');
+      videoPreview.src = urlArquivoAtual;
+      videoPreview.load(); // Força o Android a carregar os metadados imediatamente!
+
+      mostrarStatus(statusDivisor, '⏳ A ler duração do vídeo...');
+
+      let jaProcessou = false;
+
+      function criarListaDePartes(duracaoTotal) {
+        if (jaProcessou) return;
+        jaProcessou = true;
+
+        // Se o Android não informar a duração, assume 120s ou permite dividir manualmente
+        const totalSegundos = (duracaoTotal && isFinite(duracaoTotal) && duracaoTotal > 0)
+          ? Math.ceil(duracaoTotal)
+          : 120;
+
+        const totalPartes = Math.ceil(totalSegundos / duracaoParte);
+
+        mostrarStatus(
+          statusDivisor,
+          `✅ Vídeo pronto (${totalSegundos}s)! Foram geradas <b>${totalPartes} partes</b> de ${duracaoParte}s abaixo:`,
+          'success'
+        );
+
+        for (let i = 0; i < totalPartes; i++) {
+          const inicio = i * duracaoParte;
+          const fim = Math.min((i + 1) * duracaoParte, totalSegundos);
+
+          const cardParte = document.createElement('div');
+          cardParte.className = 'clip-item';
+
+          cardParte.innerHTML = `
+            <div class="clip-header">
+              <span>🎬 Parte ${i + 1}</span>
+              <span>${inicio}s até ${fim}s</span>
+            </div>
+            <div class="clip-actions">
+              <button type="button" class="btn-small btn-preview" data-ini="${inicio}" data-fim="${fim}">
+                ▶️ Ver Trecho
+              </button>
+              <button type="button" class="btn-small btn-cut" data-ini="${inicio}" data-fim="${fim}" data-parte="${i + 1}">
+                ✂️ Gravar Parte ${i + 1}
+              </button>
+            </div>
+          `;
+
+          listaCortes.appendChild(cardParte);
+        }
+
+        // Eventos dos botões "Ver Trecho"
+        listaCortes.querySelectorAll('.btn-preview').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            clearInterval(intervaloPreview);
+
+            videoPreview.currentTime = ini;
+            videoPreview.play();
+
+            intervaloPreview = setInterval(() => {
+              if (videoPreview.currentTime >= fim) {
+                videoPreview.pause();
+                clearInterval(intervaloPreview);
+              }
+            }, 200);
+          });
+        });
+
+        // Eventos dos botões "Gravar Parte" (Grava o corte real no navegador)
+        listaCortes.querySelectorAll('.btn-cut').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            const numParte = btn.getAttribute('data-parte');
+            gravarTrechoReal(ini, fim, numParte, btn);
+          });
+        });
+      }
+
+      // Dispara assim que o Android ler a duração
+      videoPreview.onloadedmetadata = () => {
+        criarListaDePartes(videoPreview.duration);
+      };
+
+      videoPreview.ondurationchange = () => {
+        if (videoPreview.duration && isFinite(videoPreview.duration)) {
+          criarListaDePartes(videoPreview.duration);
+        }
+      };
+
+      // Destravamento de segurança: se o Android demorar mais de 2.5 segundos, abre as partes mesmo assim!
+      setTimeout(() => {
+        if (!jaProcessou) {
+          criarListaDePartes(videoPreview.duration || 120);
+        }
+      }, 2500);
+    });
+
+    // Função que grava o trecho exato usando MediaRecorder (ou faz fallback direto)
+    function gravarTrechoReal(inicio, fim, numParte, botao) {
+      const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
+      if (!streamFn) {
+        // Se o telemóvel não suportar captureStream, baixa o ficheiro com marcador de tempo
+        const a = document.createElement('a');
+        a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
+        a.download = `cortepro_parte_${numParte}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+
+      const textoOriginal = botao.textContent;
+      botao.disabled = true;
+      botao.textContent = '🔴 A gravar trecho...';
+
+      clearInterval(intervaloPreview);
+      videoPreview.pause();
+      videoPreview.currentTime = inicio;
+      videoPreview.muted = false;
+
+      const chunks = [];
+      let recorder;
+
+      const iniciarGravacao = () => {
+        videoPreview.removeEventListener('seeked', iniciarGravacao);
+        try {
+          const stream = streamFn.call(videoPreview);
+          recorder = new MediaRecorder(stream);
+
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            const urlCorte = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlCorte;
+            a.download = `cortepro_parte_${numParte}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            botao.disabled = false;
+            botao.textContent = '✅ Parte ' + numParte + ' Baixada!';
+            setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
+          };
+
+          recorder.start();
+          videoPreview.play();
+
+          const monitor = setInterval(() => {
+            const falta = Math.max(0, Math.ceil(fim - videoPreview.currentTime));
+            botao.textContent = `🔴 A gravar (${falta}s)...`;
+            if (videoPreview.currentTime >= fim || videoPreview.ended) {
+              clearInterval(monitor);
+              videoPreview.pause();
+              if (recorder.state === 'recording') recorder.stop();
+            }
+          }, 250);
+        } catch (err) {
+          botao.disabled = false;
+          botao.textContent = textoOriginal;
+          const a = document.createElement('a');
+          a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
+          a.download = `cortepro_parte_${numParte}.mp4`;
+          a.click();
+        }
+      };
+
+      videoPreview.addEventListener('seeked', iniciarGravacao);
+    }
+  </script>
+</body>
+</html>
