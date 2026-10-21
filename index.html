@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 4.0</title>
+  <title>CortePro 4.1</title>
   <style>
     * {
       box-sizing: border-box;
@@ -237,7 +237,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 4.0 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 4.1 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -337,11 +337,26 @@
       });
     }
 
+    // Tenta desencurtar links do Facebook /share/ usando proxies de redirecionamento
+    async function desencurtarLink(url) {
+      if (!url.includes('/share/')) return url;
+      try {
+        const res = await fetchComTimeout('https://api.allorigins.win/get?url=' + encodeURIComponent(url), {}, 3000);
+        const data = await res.json();
+        if (data && data.status && data.status.url) {
+          return data.status.url;
+        }
+      } catch (e) {}
+      return url;
+    }
+
     async function extrairVideoDireto(rawUrl) {
+      let urlParaProcessar = await desencurtarLink(rawUrl);
+
       // 1. TikTok dedicado
-      if (rawUrl.includes('tiktok.com')) {
+      if (urlParaProcessar.includes('tiktok.com')) {
         try {
-          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
+          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(urlParaProcessar), {}, 3500);
           const data = await res.json();
           if (data?.data?.play) return data.data.play;
         } catch (e) {}
@@ -357,7 +372,7 @@
         const resp = await fetchComTimeout(api, {
           method: 'POST',
           headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
+          body: JSON.stringify({ url: urlParaProcessar, videoQuality: '720', downloadMode: 'auto' })
         }, 4000);
         if (!resp.ok) throw new Error();
         const json = await resp.json();
@@ -372,7 +387,7 @@
 
       // 3. Microlink Fallback
       try {
-        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(urlParaProcessar) + '&video=true', {}, 3500);
         const json = await res.json();
         if (json?.data?.video?.url) return json.data.video.url;
       } catch (e) {}
@@ -389,7 +404,7 @@
 
       areaResultado.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração direta...');
+      mostrarStatus(statusExtracao, '⏳ A desencurtar e extrair diretamente...');
 
       try {
         const videoFinal = await extrairVideoDireto(rawUrl);
@@ -399,7 +414,6 @@
           previewVideo.src = videoFinal;
           areaResultado.classList.remove('hidden');
 
-          // Download Direto por Blob (sem abrir aba)
           btnBaixarDireto.onclick = async () => {
             btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
             try {
@@ -421,7 +435,7 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '❌ Não foi possível extrair o vídeo diretamente. Se for do Facebook, abra o link completo no navegador e copie o endereço do Reel.',
+            '❌ Não foi possível extrair o vídeo. Verifique se o link é público e direto.',
             'error'
           );
         }
