@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 4.7</title>
+  <title>CortePro 4.8</title>
   <style>
     * {
       box-sizing: border-box;
@@ -194,8 +194,12 @@
       text-align: center;
       border: none;
       cursor: pointer;
-      background-color: #ec4899; /* Cor rosa para Instagram */
+      background-color: #ec4899;
       color: #ffffff;
+    }
+
+    .rescue-btn.blue {
+      background-color: #2563eb;
     }
 
     .link-limpo-box {
@@ -280,7 +284,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 4.7 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 4.8 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -320,10 +324,13 @@
       <video id="previewVideo" controls playsinline></video>
     </div>
 
-    <!-- BOTÃO DE RESGATE INSTANTÂNEO PARA INSTAGRAM -->
+    <!-- BOTÕES DE RESGATE OFICIAIS -->
     <div id="areaResgate" class="rescue-box hidden">
       <button type="button" class="rescue-btn" id="btnInstaResgate">
-        📸 Abrir Extrator Dedicado do Instagram
+        📸 Abrir Extrator de Instagram (SaveInsta)
+      </button>
+      <button type="button" class="rescue-btn blue" id="btnServerResgate">
+        🚀 Abrir Extrator Geral (SaveFrom)
       </button>
     </div>
   </div>
@@ -472,16 +479,15 @@
             }
           };
         } else {
-          // Se o Instagram bloquear a extração interna por CORS, exibe o botão de resgate imediato
           mostrarStatus(
             statusExtracao,
-            '⚡ <b>Proteção do Instagram detetada!</b><br>Toque no botão abaixo para baixar o vídeo instantaneamente:',
+            '⚡ <b>Proteção da rede social detetada!</b><br>Toque num dos botões oficiais abaixo para abrir o conversor e baixar instantaneamente:',
             'warning'
           );
           areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '⚡ Toque no botão abaixo para concluir o download:', 'warning');
+        mostrarStatus(statusExtracao, '⚡ Escolha um dos servidores abaixo:', 'warning');
         areaResgate.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
@@ -491,7 +497,13 @@
     document.getElementById('btnInstaResgate').addEventListener('click', () => {
       const url = inputUrl.value.trim();
       try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open('https://snapinsta.app/pt', '_blank');
+      window.open('https://saveinsta.app/pt', '_blank');
+    });
+
+    document.getElementById('btnServerResgate').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://pt.savefrom.net/', '_blank');
     });
 
     // =====================================================
@@ -546,7 +558,7 @@
           'success'
         );
 
-        for (let i = i = 0; i < totalPartes; i++) {
+        for (let i = 0; i < totalPartes; i++) {
           const inicio = i * duracaoParte;
           const fim = Math.min((i + 1) * duracaoParte, totalSegundos);
 
