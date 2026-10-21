@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 3.2</title>
+  <title>CortePro 3.3</title>
   <style>
     * {
       box-sizing: border-box;
@@ -223,7 +223,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 3.2 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 3.3 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -309,59 +309,70 @@
         .replace(/&amp;/g, '&');
     }
 
-    // Busca código fonte ou URL final usando proxies CORS públicos (sem servidor próprio)
-    async function buscarHtmlViaProxy(targetUrl) {
-      const proxies = [
-        (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+    // PASSO 1: Usa a API Microlink (simula o robô oficial do WhatsApp/Facebook)
+    // Ela consegue abrir links /share/r/ sem cair na tela de login e extrair o MP4 direto!
+    async function extrairViaMicrolink(targetUrl) {
+      const tentativas = [
+        `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&video=true&audio=true&prerender=true`,
+        `https://api.microlink.io/?url=${encodeURIComponent(targetUrl)}&video=true`
       ];
 
-      for (const montarProxy of proxies) {
+      let resolvedUrl = targetUrl;
+
+      for (const endpoint of tentativas) {
         try {
-          const res = await fetch(montarProxy(targetUrl));
+          const res = await fetch(endpoint);
           if (!res.ok) continue;
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            const data = await res.json();
-            if (data && data.contents) {
-              return {
-                html: data.contents,
-                finalUrl: (data.status && data.status.url) ? data.status.url : targetUrl
-              };
+          const json = await res.json();
+
+          if (json && json.data) {
+            if (json.data.url && !json.data.url.includes('/share/r/')) {
+              resolvedUrl = json.data.url;
             }
-          } else {
-            const text = await res.text();
-            if (text && text.length > 100) {
-              return { html: text, finalUrl: targetUrl };
+            if (json.data.video && json.data.video.url && json.data.video.url.includes('http')) {
+              return {
+                videoUrl: json.data.video.url,
+                resolvedUrl: resolvedUrl
+              };
             }
           }
         } catch (e) {
-          console.warn('Tentativa de proxy falhou, tentando próximo...');
+          console.warn('Microlink tentativa falhou:', e);
         }
       }
-      return null;
+
+      return { videoUrl: null, resolvedUrl: resolvedUrl };
     }
 
-    // Extrator dedicado para Facebook (/share/r/, /reel/, watch), Instagram e Kwai via HTML
-    async function extrairDiretoDoHtml(url) {
-      // Truque: usar mbasic / mobile no Facebook facilita encontrar o mp4 direto sem login
-      let urlParaBusca = url;
-      const dados = await buscarHtmlViaProxy(urlParaBusca);
-      if (!dados || !dados.html) return null;
+    // PASSO 2: Desencurtador extra caso o link ainda tenha /share/r/
+    async function desencurtarLinkFacebook(url) {
+      if (!url.includes('/share/')) return url;
 
-      let html = dados.html;
-      let finalUrl = dados.finalUrl || url;
-
-      // Verifica se o link /share/r/ tem um redirecionamento canónico ou og:url dentro do HTML
-      const ogUrlMatch =
-        html.match(/property="og:url"\s+content="([^"]+)"/i) ||
-        html.match(/rel="canonical"\s+href="([^"]+)"/i);
-
-      if (ogUrlMatch && ogUrlMatch[1]) {
-        finalUrl = limparUrlEscapada(ogUrlMatch[1]);
+      try {
+        // Usa Jina Reader API (que renderiza a página em nuvem e retorna a URL final limpa)
+        const res = await fetch(`https://r.jina.ai/${url}`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.data && data.data.url && !data.data.url.includes('/share/')) {
+            return data.data.url;
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao desencurtar via Jina:', e);
       }
+      return url;
+    }
 
-      // Procura URL direta de vídeo no HTML retornado
+    // PASSO 3: Extração direta no código fonte usando múltiplos Proxies CORS
+    async function extrairDiretoDoHtml(url) {
+      const proxies = [
+        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+      ];
+
       const padroesVideo = [
         /"playable_url_quality_hd":"([^"]+)"/,
         /"playable_url":"([^"]+)"/,
@@ -374,50 +385,60 @@
         /"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/i,
         /"video_url"\s*:\s*"([^"]+)"/i,
         /sd_src\s*:\s*"([^"]+)"/,
-        /hd_src\s*:\s*"([^"]+)"/
+        /hd_src\s*:\s*"([^"]+)"/,
+        /video_redirect\/\?src=([^"&]+)/i
       ];
 
-      for (const regex of padroesVideo) {
-        const match = html.match(regex);
-        if (match && match[1] && match[1].includes('http')) {
-          return { videoUrl: limparUrlEscapada(match[1]), resolvedUrl: finalUrl };
-        }
+      // Testa na URL normal e na versão mbasic (que não exige login em vídeos públicos)
+      const urlsParaTestar = [url];
+      if (url.includes('facebook.com')) {
+        urlsParaTestar.push(
+          url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com')
+        );
       }
 
-      // Se for Facebook e encontrou a URL do reel, tenta buscar na versão mbasic.facebook.com
-      if (finalUrl.includes('facebook.com')) {
-        const mbasicUrl = finalUrl.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com');
-        const dadosMbasic = await buscarHtmlViaProxy(mbasicUrl);
-        if (dadosMbasic && dadosMbasic.html) {
-          const mHtml = dadosMbasic.html;
-          // No mbasic, os vídeos costumam vir em video_redirect/?src=
-          const redirectMatch = mHtml.match(/video_redirect\/\?src=([^"&]+)/i);
-          if (redirectMatch && redirectMatch[1]) {
-            return { videoUrl: decodeURIComponent(redirectMatch[1]), resolvedUrl: finalUrl };
-          }
-          for (const regex of padroesVideo) {
-            const m = mHtml.match(regex);
-            if (m && m[1] && m[1].includes('http')) {
-              return { videoUrl: limparUrlEscapada(m[1]), resolvedUrl: finalUrl };
+      for (const target of urlsParaTestar) {
+        for (const montarProxy of proxies) {
+          try {
+            const res = await fetch(montarProxy(target));
+            if (!res.ok) continue;
+            const html = await res.text();
+            if (!html || html.length < 200) continue;
+
+            for (const regex of padroesVideo) {
+              const match = html.match(regex);
+              if (match && match[1]) {
+                let candidato = match[1];
+                if (regex.source.includes('video_redirect')) {
+                  candidato = decodeURIComponent(candidato);
+                } else {
+                  candidato = limparUrlEscapada(candidato);
+                }
+                if (candidato && candidato.startsWith('http')) {
+                  return candidato;
+                }
+              }
             }
+          } catch (e) {
+            // Tenta próximo proxy
           }
         }
       }
-
-      return { videoUrl: null, resolvedUrl: finalUrl };
+      return null;
     }
 
-    // Testa múltiplas instâncias públicas da API Cobalt (suporta FB, IG, TikTok, Kwai)
+    // PASSO 4: Instâncias atualizadas de APIs públicas (Cobalt v10 / v7)
     async function tentarApisPublicas(url) {
       const endpoints = [
-        'https://cobalt-api.kwiatekmiki.com',
-        'https://cobalt-backend.canine.tools',
-        'https://cbl.jsmsj.com'
+        'https://cobalt-api.kwiatekmiki.com/',
+        'https://cobalt-backend.canine.tools/',
+        'https://api.cobalt.blackcat.sweeux.org/',
+        'https://cobalt.slpy.one/'
       ];
 
       for (const api of endpoints) {
         try {
-          const res = await fetch(api + '/', {
+          const res = await fetch(api, {
             method: 'POST',
             headers: {
               'Accept': 'application/json',
@@ -432,11 +453,11 @@
 
           if (!res.ok) continue;
           const data = await res.json();
-          if (data && data.url) {
-            return data.url;
+          if (data && (data.url || data.stream)) {
+            return data.url || data.stream;
           }
         } catch (e) {
-          console.warn('API falhou:', api);
+          // Tenta próxima instância
         }
       }
       return null;
@@ -458,13 +479,13 @@
 
       areaResultado.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusEl, '⏳ A desencurtar link e a extrair vídeo com áudio...');
+      mostrarStatus(statusEl, '⏳ Passo 1/3: A desencurtar link e buscar mídia...');
 
       try {
         let videoFinal = null;
         let urlResolvida = rawUrl;
 
-        // 1. TIKTOK: Motor rápido TikWM (entrega MP4 direto sem marca d'água e com áudio)
+        // 1. TIKTOK: Motor rápido TikWM (entrega MP4 direto com áudio)
         if (rawUrl.includes('tiktok.com')) {
           try {
             const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`);
@@ -473,28 +494,46 @@
               videoFinal = tikData.data.play;
             }
           } catch (e) {
-            console.warn('Erro no TikWM, tentando fallback...');
+            console.warn('Erro no TikWM');
           }
         }
 
-        // 2. FACEBOOK / INSTAGRAM / KWAI: Desencurta /share/r/ e busca no HTML via Proxy
+        // 2. MICROLINK API (Resolve /share/r/ do Facebook, Instagram e Kwai)
         if (!videoFinal) {
-          const infoHtml = await extrairDiretoDoHtml(rawUrl);
-          if (infoHtml) {
-            if (infoHtml.videoUrl) {
-              videoFinal = infoHtml.videoUrl;
-            }
-            if (infoHtml.resolvedUrl) {
-              urlResolvida = infoHtml.resolvedUrl;
+          const micro = await extrairViaMicrolink(rawUrl);
+          if (micro.videoUrl) {
+            videoFinal = micro.videoUrl;
+          }
+          if (micro.resolvedUrl && micro.resolvedUrl !== rawUrl) {
+            urlResolvida = micro.resolvedUrl;
+            // Se descobriu o link real (ex: facebook.com/reel/...), consulta o Microlink novamente com o link limpo!
+            if (!videoFinal) {
+              const micro2 = await extrairViaMicrolink(urlResolvida);
+              if (micro2.videoUrl) videoFinal = micro2.videoUrl;
             }
           }
         }
 
-        // 3. FALLBACK: Tenta nas instâncias públicas Cobalt usando tanto a URL resolvida como a original
+        // 3. Se ainda estiver com /share/, tenta desencurtar via Jina e passar no Microlink
+        if (!videoFinal && urlResolvida.includes('/share/')) {
+          mostrarStatus(statusEl, '⏳ Passo 2/3: A converter link /share/r/ para link de Reel...');
+          const urlJina = await desencurtarLinkFacebook(urlResolvida);
+          if (urlJina && urlJina !== urlResolvida) {
+            urlResolvida = urlJina;
+            const micro3 = await extrairViaMicrolink(urlResolvida);
+            if (micro3.videoUrl) videoFinal = micro3.videoUrl;
+          }
+        }
+
+        // 4.Tenta via APIs públicas Cobalt e depois via HTML Proxy
         if (!videoFinal) {
+          mostrarStatus(statusEl, '⏳ Passo 3/3: A extrair stream de vídeo com áudio...');
           videoFinal = await tentarApisPublicas(urlResolvida);
           if (!videoFinal && urlResolvida !== rawUrl) {
             videoFinal = await tentarApisPublicas(rawUrl);
+          }
+          if (!videoFinal) {
+            videoFinal = await extrairDiretoDoHtml(urlResolvida);
           }
         }
 
@@ -504,9 +543,10 @@
           areaResultado.classList.remove('hidden');
 
           btnBaixarDireto.onclick = async () => {
-            btnBaixarDireto.textContent = '⏳ A preparar ficheiro MP4...';
+            btnBaixarDireto.textContent = '⏳ A baixar MP4 para a Galeria...';
             try {
               const resp = await fetch(videoFinal);
+              if (!resp.ok) throw new Error('CORS bloqueou fetch direto');
               const blob = await resp.blob();
               const blobUrl = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -515,17 +555,24 @@
               document.body.appendChild(a);
               a.click();
               a.remove();
-              btnBaixarDireto.textContent = '✅ Download Iniciado!';
+              btnBaixarDireto.textContent = '✅ Download Concluído!';
             } catch (err) {
-              // Se o servidor do vídeo bloquear Blob por CORS, abre o link direto do MP4
-              window.open(videoFinal, '_blank');
+              // Se o CDN do Facebook bloquear Blob no navegador, abre o MP4 direto para salvar
+              const a = document.createElement('a');
+              a.href = videoFinal;
+              a.target = '_blank';
+              a.rel = 'noopener noreferrer';
+              a.download = `cortepro-${Date.now()}.mp4`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
               btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
             }
           };
         } else {
           mostrarStatus(
             statusEl,
-            '❌ Erro: Não foi possível extrair o vídeo com áudio deste link. Se for do Facebook (/share/r/), tente abrir o vídeo no navegador e copiar o link no formato facebook.com/reel/...',
+            '❌ Este vídeo está protegido por login do Facebook ou é privado. Dica rápida: no app do Facebook, clique nos 3 pontinhos do vídeo -> Copiar Link (ou abra no navegador para pegar o link facebook.com/reel/...).',
             'error'
           );
         }
