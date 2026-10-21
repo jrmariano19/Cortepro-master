@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 4.5</title>
+  <title>CortePro 4.7</title>
   <style>
     * {
       box-sizing: border-box;
@@ -156,6 +156,12 @@
       color: #6ee7b7;
     }
 
+    .status-box.warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fde68a;
+    }
+
     .download-btn {
       display: block;
       width: 100%;
@@ -172,9 +178,46 @@
       cursor: pointer;
     }
 
+    .rescue-box {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      background-color: #ec4899; /* Cor rosa para Instagram */
+      color: #ffffff;
+    }
+
+    .link-limpo-box {
+      margin-top: 12px;
+      background: #090c14;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .link-limpo-box input {
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #38bdf8;
+      background: #131826;
+      border: 1px solid #1e293b;
+      padding: 8px;
+    }
+
     video {
       width: 100%;
-      max-height: 280px;
+      max-height: 260px;
       border-radius: 12px;
       margin-top: 14px;
       background: #000;
@@ -237,7 +280,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 4.5 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 4.7 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -268,7 +311,20 @@
       <button type="button" id="btnBaixarDireto" class="download-btn">
         ⬇️ Salvar Vídeo na Galeria (.MP4)
       </button>
+      
+      <div class="link-limpo-box">
+        <label for="inputLinkLimpo" style="font-size: 11px; margin-bottom: 4px;">🔗 Link Limpo Direto (.MP4):</label>
+        <input type="text" id="inputLinkLimpo" readonly onclick="this.select()" />
+      </div>
+
       <video id="previewVideo" controls playsinline></video>
+    </div>
+
+    <!-- BOTÃO DE RESGATE INSTANTÂNEO PARA INSTAGRAM -->
+    <div id="areaResgate" class="rescue-box hidden">
+      <button type="button" class="rescue-btn" id="btnInstaResgate">
+        📸 Abrir Extrator Dedicado do Instagram
+      </button>
     </div>
   </div>
 
@@ -319,8 +375,10 @@
     const inputUrl = document.getElementById('videoUrl');
     const statusExtracao = document.getElementById('statusExtracao');
     const areaResultado = document.getElementById('areaResultado');
+    const areaResgate = document.getElementById('areaResgate');
     const previewVideo = document.getElementById('previewVideo');
     const btnBaixarDireto = document.getElementById('btnBaixarDireto');
+    const inputLinkLimpo = document.getElementById('inputLinkLimpo');
 
     function fetchComTimeout(url, opcoes, limiteMs) {
       return new Promise((resolve, reject) => {
@@ -337,32 +395,15 @@
       });
     }
 
-    // Função para limpar e resolver links encurtados de forma totalmente integrada
-    async function limparEConverterLink(url) {
-      if (!url.includes('/share/')) return url;
-      try {
-        const res = await fetchComTimeout('https://api.allorigins.win/get?url=' + encodeURIComponent(url), {}, 3000);
-        const data = await res.json();
-        if (data && data.status && data.status.url) {
-          return data.status.url;
-        }
-      } catch (e) {}
-      return url;
-    }
-
     async function extrairVideoDireto(rawUrl) {
-      let urlLimpa = await limparEConverterLink(rawUrl);
-
-      // 1. TikTok
-      if (urlLimpa.includes('tiktok.com')) {
+      if (rawUrl.includes('tiktok.com')) {
         try {
-          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(urlLimpa), {}, 3500);
+          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
           const data = await res.json();
           if (data?.data?.play) return data.data.play;
         } catch (e) {}
       }
 
-      // 2. Cobalt APIs em paralelo
       const apisCobalt = [
         'https://cobalt-api.kwiatekmiki.com/',
         'https://cobalt-backend.canine.tools/'
@@ -373,7 +414,7 @@
           const resp = await fetchComTimeout(api, {
             method: 'POST',
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: urlLimpa, videoQuality: '720', downloadMode: 'auto' })
+            body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
           }, 4000);
           if (resp.ok) {
             const json = await resp.json();
@@ -382,9 +423,8 @@
         } catch (e) {}
       }
 
-      // 3. Fallback Microlink
       try {
-        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(urlLimpa) + '&video=true', {}, 3500);
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
         const json = await res.json();
         if (json?.data?.video?.url) return json.data.video.url;
       } catch (e) {}
@@ -400,14 +440,16 @@
       }
 
       areaResultado.classList.add('hidden');
+      areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A limpar link e a extrair vídeo...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
 
         if (videoFinal) {
           mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
+          inputLinkLimpo.value = videoFinal;
           previewVideo.src = videoFinal;
           areaResultado.classList.remove('hidden');
 
@@ -430,17 +472,26 @@
             }
           };
         } else {
+          // Se o Instagram bloquear a extração interna por CORS, exibe o botão de resgate imediato
           mostrarStatus(
             statusExtracao,
-            '❌ Não foi possível extrair o vídeo. Verifique se o link é público e direto.',
-            'error'
+            '⚡ <b>Proteção do Instagram detetada!</b><br>Toque no botão abaixo para baixar o vídeo instantaneamente:',
+            'warning'
           );
+          areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '❌ Erro ao processar o link.', 'error');
+        mostrarStatus(statusExtracao, '⚡ Toque no botão abaixo para concluir o download:', 'warning');
+        areaResgate.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
       }
+    });
+
+    document.getElementById('btnInstaResgate').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://snapinsta.app/pt', '_blank');
     });
 
     // =====================================================
@@ -495,7 +546,7 @@
           'success'
         );
 
-        for (let i = 0; i < totalPartes; i++) {
+        for (let i = i = 0; i < totalPartes; i++) {
           const inicio = i * duracaoParte;
           const fim = Math.min((i + 1) * duracaoParte, totalSegundos);
 
