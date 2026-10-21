@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="notranslate" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CortePro Master</title>
+<style>
+:root {
+--bg-base: #07090e;
+--bg-card: rgba(17, 24, 39, 0.95);
+--border-glass: rgba(255, 255, 255, 0.1);
+--primary: #6366f1;
+--primary-glow: rgba(99, 102, 241, 0.35);
+--text-main: #f8fafc;
+--text-muted: #94a3b8;
+--accent: #10b981;
+--accent-glow: rgba(16, 185, 129, 0.25);
+--radius-lg: 18px;
+--radius-md: 12px;
+--danger: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background-color: var(--bg-base); color: var(--text-main); padding: 16px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+.container { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 14px; }
+header { text-align: center; padding: 6px 0; }
+.logo-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); padding: 5px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; color: #818cf8; text-transform: uppercase; margin-bottom: 8px; }
+header h1 { font-size: 1.75rem; font-weight: 800; color: #fff; margin-bottom: 2px; }
+header p { font-size: 0.85rem; color: var(--text-muted); }
+
+.segmented-tabs { display: grid; grid-template-columns: 1fr 1fr; background: rgba(3, 7, 18, 0.8); border: 1px solid var(--border-glass); border-radius: 14px; padding: 4px; gap: 4px; }
+.tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 12px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 15px var(--primary-glow); }
+.tab-content { display: none; flex-direction: column; gap: 14px; }
+.tab-content.active { display: flex; }
+
+.card { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card-header { display: flex; align-items: center; gap: 12px; }
+.card-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.card-title h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
+.card-title p { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+.input-wrapper { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+input[type="text"], input[type="number"], input[type="file"], select { width: 100%; padding: 13px 14px; background: rgba(3, 7, 18, 0.9); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.92rem; }
+input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+.btn-primary { background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%); color: white; border: none; padding: 14px; border-radius: var(--radius-md); font-size: 0.98rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+.btn-accent { background: linear-gradient(135deg, var(--accent) 0%, #059669 100%); color: #030712; border: none; padding: 14px; border-radius: var(--radius-md); font-size: 0.98rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+.btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid var(--border-glass); padding: 12px; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; cursor: pointer; width: 100%; text-decoration: none; text-align: center; }
+
+.status-box { font-size: 0.85rem; color: #cbd5e1; text-align: center; min-height: 24px; padding: 8px 12px; border-radius: 8px; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; gap: 8px; line-height: 1.4; }
+.status-box.visible { display: flex; }
+.status-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+
+.result-container { display: none; flex-direction: column; gap: 12px; background: rgba(3, 7, 18, 0.95); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-md); padding: 14px; }
+.success-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-glow); color: var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; width: fit-content; }
+
+.clips-scroll { display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; }
+.clip-row { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-glass); padding: 14px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; }
+.clip-info { display: flex; justify-content: space-between; align-items: center; color: #fff; font-weight: 600; }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#errorBanner { display: none; background: #b91c1c; color: white; padding: 10px; border-radius: 8px; font-size: 0.8rem; word-break: break-all; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div id="errorBanner"></div>
+<header>
+<div class="logo-badge">⚡ CortePro Master Pro</div>
+<h1>CortePro</h1>
+<p>Download de Redes Sociais & Divisor de Vídeos</p>
+</header>
+
+<div class="segmented-tabs">
+<button id="btnTabDownload" class="tab-btn active">📥 Baixar Web</button>
+<button id="btnTabSplitter" class="tab-btn">✂️ Divisor</button>
+</div>
+
+<!-- ABA 1: BAIXAR WEB -->
+<div id="tab-download" class="tab-content active">
+<div class="card">
+<div class="card-header">
+<div class="card-icon">🌐</div>
+<div class="card-title"><h2>Redes Sociais</h2><p>TikTok, Kwai, Instagram e Facebook</p></div>
+</div>
+<div class="input-wrapper">
+<label for="videoUrl">Link da Publicação</label>
+<input type="text" id="videoUrl" placeholder="Cole o link aqui...">
+</div>
+<button class="btn-primary" id="btnDownload">Extrair Vídeo com Áudio</button>
+<div id="statusDownload" class="status-box"></div>
+<div id="downloadResult" class="result-container">
+<div class="success-badge">✨ Vídeo Pronto</div>
+<span id="videoTitle" style="font-size: 0.88rem; font-weight: 600;"></span>
+<video id="webVideoPreview" style="width:100%; max-height:220px; border-radius:8px; background:#000;" controls playsinline></video>
+<button class="btn-accent" id="saveBtn">💾 Guardar na Galeria / Partilhar</button>
+<a id="directLinkFallback" class="btn-secondary" href="#" target="_blank" download="video_cortepro.mp4">Descarregar Diretamente</a>
+</div>
+</div>
+</div>
+
+<!-- ABA 2: DIVISOR DE VÍDEO -->
+<div id="tab-splitter" class="tab-content">
+<div class="card">
+<div class="card-header">
+<div class="card-icon">✂️</div>
+<div class="card-title"><h2>Divisor de Vídeos</h2><p>Fatie vídeos da sua galeria sem travar</p></div>
+</div>
+<div class="input-wrapper">
+<label for="localVideo">Ficheiro de Vídeo</label>
+<input type="file" id="localVideo" accept="video/*">
+</div>
+<div class="input-wrapper">
+<label for="splitMode">Modo de Divisão</label>
+<select id="splitMode">
+<option value="parts">Por Número de Partes</option>
+<option value="duration">Por Tempo (Segundos)</option>
+</select>
+</div>
+<div class="input-wrapper" id="partsWrapper">
+<label for="totalParts">Número de Partes</label>
+<input type="number" id="totalParts" value="3" min="1" max="20">
+</div>
+<div class="input-wrapper" id="durationWrapper" style="display: none;">
+<label for="chunkDuration">Duração por parte (Segundos)</label>
+<input type="number" id="chunkDuration" value="30" min="5" max="300">
+</div>
+<button class="btn-primary" id="btnSplit">Dividir Vídeo Agora</button>
+<div id="statusSplit" class="status-box"></div>
+
+<div id="splitResultsContainer" class="result-container">
+<div class="success-badge">📦 Partes Prontas</div>
+<div id="clipsList" class="clips-scroll"></div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+window.onerror = function(msg, url, line) {
+const b = document.getElementById('errorBanner');
+if (b) {
+b.style.display = 'block';
+b.textContent = 'Erro no script: ' + msg + ' (Linha ' + line + ')';
+}
+};
+
+const BACKEND_API_URL = 'https://cortepro-master.onrender.com';
+let currentExtractedUrl = '';
+
+const btnTabDown = document.getElementById('btnTabDownload');
+const btnTabSplit = document.getElementById('btnTabSplitter');
+const tabDown = document.getElementById('tab-download');
+const tabSplit = document.getElementById('tab-splitter');
+
+btnTabDown.addEventListener('click', () => {
+btnTabDown.classList.add('active');
+btnTabSplit.classList.remove('active');
+tabDown.classList.add('active');
+tabSplit.classList.remove('active');
+});
+
+btnTabSplit.addEventListener('click', () => {
+btnTabSplit.classList.add('active');
+btnTabDown.classList.remove('active');
+tabSplit.classList.add('active');
+tabDown.classList.remove('active');
+});
+
+const splitMode = document.getElementById('splitMode');
+splitMode.addEventListener('change', () => {
+document.getElementById('durationWrapper').style.display = splitMode.value === 'duration' ? 'flex' : 'none';
+document.getElementById('partsWrapper').style.display = splitMode.value === 'parts' ? 'flex' : 'none';
+});
+
+const btnDownload = document.getElementById('btnDownload');
+btnDownload.addEventListener('click', async () => {
+const rawInput = document.getElementById('videoUrl').value.trim();
+const statusEl = document.getElementById('statusDownload');
+const resultBox = document.getElementById('downloadResult');
+const titleEl = document.getElementById('videoTitle');
+const previewEl = document.getElementById('webVideoPreview');
+const fallbackLink = document.getElementById('directLinkFallback');
+
+if (!rawInput) {
+alert('Por favor, cole um link de vídeo primeiro.');
+return;
+}
+
+btnDownload.disabled = true;
+statusEl.className = 'status-box visible';
+statusEl.innerHTML = '<div class="spinner"></div> A conectar ao servidor Render (aguarde até 30s)...';
+resultBox.style.display = 'none';
+
+let timerSeconds = 0;
+const interval = setInterval(() => {
+timerSeconds += 1;
+if (timerSeconds > 5) {
+statusEl.innerHTML = '<div class="spinner"></div> A acordar servidor Render (' + timerSeconds + 's)...';
+}
+}, 1000);
+
+try {
+const response = await fetch(${BACKEND_API_URL}/api/extract?url=${encodeURIComponent(rawInput)});
+clearInterval(interval);
+const data = await response.json();
+
+if (data.success && data.videoUrl) {
+currentExtractedUrl = data.videoUrl;
+const proxyUrl = ${BACKEND_API_URL}/api/download-proxy?url=${encodeURIComponent(data.videoUrl)};
+statusEl.innerHTML = '✅ Vídeo extraído com sucesso!';
+titleEl.textContent = data.title || 'Vídeo CortePro';
+previewEl.src = proxyUrl;
+fallbackLink.href = proxyUrl;
+resultBox.style.display = 'flex';
+} else {
+statusEl.className = 'status-box visible error';
+statusEl.textContent = data.error || 'Não foi possível extrair este link. Tente outro formato ou link público.';
+}
+} catch (err) {
+clearInterval(interval);
+statusEl.className = 'status-box visible error';
+statusEl.textContent = 'O servidor Render está a iniciar (demora até 50s no plano gratuito). Aguarde 15s e clique novamente.';
+} finally {
+btnDownload.disabled = false;
+}
+});
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+if (!currentExtractedUrl) return;
+const statusEl = document.getElementById('statusDownload');
+statusEl.className = 'status-box visible';
+statusEl.innerHTML = '<div class="spinner"></div> A descarregar vídeo...';
+const proxyUrl = ${BACKEND_API_URL}/api/download-proxy?url=${encodeURIComponent(currentExtractedUrl)};
+
+try {
+const res = await fetch(proxyUrl);
+const blob = await res.blob();
+const file = new File([blob], "video_cortepro.mp4", { type: "video/mp4" });
+
+if (navigator.canShare && navigator.canShare({ files: [file] })) {
+await navigator.share({ files: [file], title: 'Vídeo CortePro' });
+statusEl.innerHTML = '✅ Partilhado com sucesso!';
+} else {
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'video_cortepro.mp4';
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+statusEl.innerHTML = '✅ Guardado com sucesso!';
+}
+} catch (e) {
+window.open(proxyUrl, '_blank');
+statusEl.innerHTML = 'A abrir download direto...';
+}
+});
+
+document.getElementById('btnSplit').addEventListener('click', () => {
+const fileInput = document.getElementById('localVideo');
+const statusEl = document.getElementById('statusSplit');
+const resultsContainer = document.getElementById('splitResultsContainer');
+const clipsList = document.getElementById('clipsList');
+
+if (!fileInput.files || fileInput.files.length === 0) {
+alert('Selecione um ficheiro de vídeo da sua galeria primeiro.');
+return;
+}
+
+const file = fileInput.files[0];
+statusEl.className = 'status-box visible';
+statusEl.innerHTML = '<div class="spinner"></div> A processar vídeo da galeria...';
+resultsContainer.style.display = 'none';
+clipsList.innerHTML = '';
+
+const mode = splitMode.value;
+const totalBytes = file.size;
+
+let partCount = 3;
+if (mode === 'duration') {
+const sec = parseInt(document.getElementById('chunkDuration').value) || 30;
+partCount = Math.max(2, Math.min(10, Math.ceil(120 / sec)));
+} else {
+partCount = Math.max(1, parseInt(document.getElementById('totalParts').value) || 3);
+}
+
+setTimeout(() => {
+resultsContainer.style.display = 'flex';
+for (let i = 0; i < partCount; i++) {
+const startByte = Math.floor((i / partCount) * totalBytes);
+const endByte = Math.floor(((i + 1) / partCount) * totalBytes);
+const chunkBlob = file.slice(startByte, endByte, { type: 'video/mp4' });
+
+const row = document.createElement('div');
+row.className = 'clip-row';
+row.innerHTML = &lt;div class="clip-info"&gt; &lt;span&gt;Parte ${i + 1} de ${partCount} (${(chunkBlob.size / (1024 * 1024)).toFixed(1)} MB)</span>
+</div>
+<button class="btn-accent" style="padding:10px; font-size:0.85rem;">💾 Guardar Parte ${i + 1} na Galeria&lt;/button&gt;;
+const btn = row.querySelector('button');
+btn.addEventListener('click', async () => {
+const partFile = new File([chunkBlob], parte_${i + 1}.mp4, { type: 'video/mp4' }); if (navigator.canShare && navigator.canShare({ files: [partFile] })) { try { await navigator.share({ files: [partFile], title:Parte ${i + 1} });
+return;
+} catch (e) {}
+}
+const u = URL.createObjectURL(chunkBlob);
+const a = document.createElement('a');
+a.href = u;
+a.download = parte_${i + 1}.mp4; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u); }); clipsList.appendChild(row); } statusEl.innerHTML =✅ Pronto! ${partCount} partes geradas. Clique em cada botão para guardar na galeria.;
+}, 500);
+});
+</script>
+</body>
+</html>
