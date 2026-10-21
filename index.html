@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 3.8</title>
+  <title>CortePro 4.0</title>
   <style>
     * {
       box-sizing: border-box;
@@ -237,7 +237,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 3.8 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 4.0 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -338,6 +338,7 @@
     }
 
     async function extrairVideoDireto(rawUrl) {
+      // 1. TikTok dedicado
       if (rawUrl.includes('tiktok.com')) {
         try {
           const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
@@ -346,8 +347,32 @@
         } catch (e) {}
       }
 
+      // 2. Extração via Cobalt APIs integradas em paralelo
+      const apisCobalt = [
+        'https://cobalt-api.kwiatekmiki.com/',
+        'https://cobalt-backend.canine.tools/'
+      ];
+
+      const promessas = apisCobalt.map(async (api) => {
+        const resp = await fetchComTimeout(api, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
+        }, 4000);
+        if (!resp.ok) throw new Error();
+        const json = await resp.json();
+        if (json && (json.url || json.stream)) return json.url || json.stream;
+        throw new Error();
+      });
+
       try {
-        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 4000);
+        const urlVencedora = await Promise.any(promessas);
+        if (urlVencedora) return urlVencedora;
+      } catch (e) {}
+
+      // 3. Microlink Fallback
+      try {
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
         const json = await res.json();
         if (json?.data?.video?.url) return json.data.video.url;
       } catch (e) {}
@@ -374,13 +399,29 @@
           previewVideo.src = videoFinal;
           areaResultado.classList.remove('hidden');
 
-          btnBaixarDireto.onclick = () => {
-            window.open(videoFinal, '_blank');
+          // Download Direto por Blob (sem abrir aba)
+          btnBaixarDireto.onclick = async () => {
+            btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
+            try {
+              const resp = await fetch(videoFinal);
+              const blob = await resp.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = `cortepro-${Date.now()}.mp4`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              btnBaixarDireto.textContent = '✅ Download Concluído!';
+            } catch (err) {
+              window.open(videoFinal, '_blank');
+              btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
+            }
           };
         } else {
           mostrarStatus(
             statusExtracao,
-            '❌ Não foi possível extrair o vídeo diretamente. Certifique-se de que o link é público e direto.',
+            '❌ Não foi possível extrair o vídeo diretamente. Se for do Facebook, abra o link completo no navegador e copie o endereço do Reel.',
             'error'
           );
         }
