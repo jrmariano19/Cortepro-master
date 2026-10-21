@@ -1,170 +1,585 @@
 <!DOCTYPE html>
-<html lang="pt" translate="no" class="notranslate">
+<html lang="pt-BR" translate="no">
 <head>
-<meta charset="UTF-8">
-<meta name="google" content="notranslate">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CortePro v3</title>
-<script>
-const API_URL = 'https://cortepro-master.onrender.com';
-let videoExtraido = '';
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google" content="notranslate" />
+  <title>CortePro 3.2</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
-function mudarAba(aba) {
-document.getElementById('aba-web').style.display = (aba === 'web') ? 'flex' : 'none';
-document.getElementById('aba-divisor').style.display = (aba === 'divisor') ? 'flex' : 'none';
-document.getElementById('btn-aba-web').className = (aba === 'web') ? 'tab active' : 'tab';
-document.getElementById('btn-aba-div').className = (aba === 'divisor') ? 'tab active' : 'tab';
-}
+    body {
+      background-color: #0b0e17;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
 
-function mudarModo() {
-const modo = document.getElementById('modoCorte').value;
-document.getElementById('boxPartes').style.display = (modo === 'partes') ? 'block' : 'none';
-document.getElementById('boxTempo').style.display = (modo === 'tempo') ? 'block' : 'none';
-}
+    .badge {
+      background-color: #00b87c;
+      color: #05291c;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 6px 18px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      margin-bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-async function extrairWeb() {
-const url = document.getElementById('urlInput').value.trim();
-const status = document.getElementById('statusWeb');
-const resBox = document.getElementById('resWeb');
-if (!url) { alert('Cole o link primeiro!'); return; }
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: #f8fafc;
+    }
 
-status.style.display = 'block';
-status.textContent = '⏳ A conectar ao servidor Render (aguarde)...';
-resBox.style.display = 'none';
+    .tabs {
+      display: flex;
+      background-color: #131826;
+      border-radius: 14px;
+      padding: 5px;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 20px;
+      border: 1px solid #1e2638;
+    }
 
-let seg = 0;
-const timer = setInterval(() => {
-seg++;
-status.textContent = '⏳ A extrair vídeo no Render (' + seg + 's)...';
-}, 1000);
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
 
-try {
-const r = await fetch(API_URL + '/api/extract?url=' + encodeURIComponent(url));
-clearInterval(timer);
-const d = await r.json();
-if (d.success && d.videoUrl) {
-videoExtraido = d.videoUrl;
-const proxy = API_URL + '/api/download-proxy?url=' + encodeURIComponent(d.videoUrl);
-status.textContent = '✅ Vídeo pronto!';
-document.getElementById('playerWeb').src = proxy;
-document.getElementById('linkDireto').href = proxy;
-resBox.style.display = 'flex';
-} else {
-status.textContent = '❌ Erro: ' + (d.error || 'Link inválido ou privado.');
-}
-} catch (e) {
-clearInterval(timer);
-status.textContent = '⚠️ Servidor Render a despertar. Aguarde 15s e toque novamente no botão.';
-}
-}
+    .tab-btn.active {
+      background-color: #5b5bf6;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(91, 91, 246, 0.35);
+    }
 
-function cortarVideoLocal() {
-const input = document.getElementById('videoLocal');
-const status = document.getElementById('statusDiv');
-const lista = document.getElementById('listaCortes');
+    .card {
+      background-color: #131826;
+      border: 1px solid #1f293d;
+      border-radius: 18px;
+      padding: 22px 18px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
 
-if (!input.files || !input.files[0]) {
-alert('Toque em Escolher ficheiro e selecione um vídeo da galeria!');
-return;
-}
+    .hidden {
+      display: none !important;
+    }
 
-const file = input.files[0];
-status.style.display = 'block';
-status.textContent = '⏳ A dividir vídeo...';
-lista.innerHTML = '';
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #8b9bb4;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
 
-const modo = document.getElementById('modoCorte').value;
-let partes = 3;
-if (modo === 'partes') {
-partes = Math.max(1, parseInt(document.getElementById('numPartes').value) || 3);
-} else {
-const seg = Math.max(5, parseInt(document.getElementById('segTempo').value) || 30);
-partes = Math.max(2, Math.ceil(120 / seg));
-}
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      background-color: #090c14;
+      border: 1px solid #28324a;
+      color: #ffffff;
+      padding: 14px 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 16px;
+      outline: none;
+    }
 
-const total = file.size;
-for (let i = 0; i < partes; i++) {
-const ini = Math.floor((i / partes) * total);
-const fim = Math.floor(((i + 1) / partes) * total);
-const pedaco = file.slice(ini, fim, 'video/mp4');
-const urlBlob = URL.createObjectURL(pedaco);
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: #5b5bf6;
+    }
 
-const item = document.createElement('div');
-item.className = 'clip-item';
-item.innerHTML = '<span>🎬 Parte ' + (i + 1) + ' de ' + partes + ' (' + (pedaco.size / 1048576).toFixed(1) + ' MB)</span>' +
-'<a class="btn-verde" href="' + urlBlob + '" download="parte_' + (i + 1) + '.mp4">💾 Baixar Parte ' + (i + 1) + '</a>';
-lista.appendChild(item);
-}
-status.textContent = '✅ ' + partes + ' partes geradas com sucesso!';
-}
-</script>
-<style>
-• { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-body { background: #07090e; color: #fff; padding: 15px; display: flex; justify-content: center; }
-.box { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
-.badge { background: #10b981; color: #000; font-weight: bold; padding: 6px 12px; border-radius: 20px; font-size: 12px; text-align: center; width: fit-content; margin: 0 auto; }
-h1 { text-align: center; font-size: 26px; }
-.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #111827; padding: 5px; border-radius: 12px; }
-.tab { background: transparent; color: #94a3b8; border: none; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; }
-.tab.active { background: #6366f1; color: #fff; }
-.card { background: #111827; border: 1px solid #262f40; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-label { font-size: 12px; color: #94a3b8; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 5px; }
-input, select { width: 100%; padding: 12px; background: #030712; border: 1px solid #334155; color: #fff; border-radius: 10px; font-size: 15px; }
-.btn-roxo { background: #6366f1; color: #fff; border: none; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
-.btn-verde { background: #10b981; color: #000; text-decoration: none; text-align: center; padding: 13px; border-radius: 10px; font-weight: bold; font-size: 15px; display: block; width: 100%; }
-.status { background: #1e293b; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; display: none; }
-.clip-item { background: #1e293b; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; font-weight: bold; font-size: 14px; }
-</style>
+    .btn-primary {
+      width: 100%;
+      background-color: #5b5bf6;
+      color: #ffffff;
+      border: none;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.99);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status-box {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: center;
+      background-color: #1a2133;
+      border: 1px solid #2b354f;
+      color: #e2e8f0;
+    }
+
+    .status-box.error {
+      background-color: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .status-box.success {
+      background-color: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    .download-btn {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px;
+      background-color: #10b981;
+      color: #042f2e;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+    }
+
+    video {
+      width: 100%;
+      max-height: 320px;
+      border-radius: 12px;
+      margin-top: 14px;
+      background: #000;
+    }
+
+    .clips-list {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .clip-item {
+      background: #090c14;
+      border: 1px solid #28324a;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .clip-item a {
+      background: #5b5bf6;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+  </style>
 </head>
 <body>
-<div class="box">
-<div class="badge">⚡ VERSÃO 3.0 ATIVA</div>
-<h1>CortePro</h1>
 
-<div class="tabs">
-<button id="btn-aba-web" class="tab active" onclick="mudarAba('web')">📥 Baixar Web</button>
-<button id="btn-aba-div" class="tab" onclick="mudarAba('divisor')">✂️ Divisor</button>
-</div>
+  <div class="badge">⚡ VERSÃO 3.2 ATIVA</div>
+  <h1>CortePro</h1>
 
-<!-- ABA WEB -->
-<div id="aba-web" class="card">
-<div>
-<label>Link do Vídeo (TikTok, Kwai, Instagram, FB)</label>
-<input type="text" id="urlInput" placeholder="Cole o link aqui...">
-</div>
-<button class="btn-roxo" onclick="extrairWeb()">Extrair Vídeo com Áudio</button>
-<div id="statusWeb" class="status"></div>
-<div id="resWeb" style="display:none; flex-direction:column; gap:10px;">
-<video id="playerWeb" style="width:100%; max-height:200px; border-radius:8px; background:#000;" controls playsinline></video>
-<a id="linkDireto" class="btn-verde" href="#" target="_blank" download="video_cortepro.mp4">💾 Baixar Vídeo na Galeria</a>
-</div>
-</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBaixar" onclick="trocarAba('baixar')">
+      📥 Baixar Web
+    </button>
+    <button class="tab-btn" id="tabDivisor" onclick="trocarAba('divisor')">
+      ✂️ Divisor
+    </button>
+  </div>
 
-<!-- ABA DIVISOR -->
-<div id="aba-divisor" class="card" style="display:none;">
-<div>
-<label>1. Escolha o Vídeo do Telemóvel</label>
-<input type="file" id="videoLocal" accept="video/*">
-</div>
-<div>
-<label>2. Modo de Divisão</label>
-<select id="modoCorte" onchange="mudarModo()">
-<option value="partes">Dividir por Quantidade de Partes</option>
-<option value="tempo">Dividir por Segundos</option>
-</select>
-</div>
-<div id="boxPartes">
-<label>Quantidade de Partes</label>
-<input type="number" id="numPartes" value="3" min="1" max="20">
-</div>
-<div id="boxTempo" style="display:none;">
-<label>Segundos por Parte</label>
-<input type="number" id="segTempo" value="30" min="5" max="300">
-</div>
-<button class="btn-roxo" onclick="cortarVideoLocal()">✂️ Dividir Vídeo Agora</button>
-<div id="statusDiv" class="status"></div>
-<div id="listaCortes" style="display:flex; flex-direction:column; gap:10px;"></div>
-</div>
-</div>
+  <!-- ABA 1: BAIXAR DA WEB -->
+  <div class="card" id="painelBaixar">
+    <label for="videoUrl">LINK DO VÍDEO (TIKTOK, KWAI, INSTAGRAM, FB)</label>
+    <input
+      type="text"
+      id="videoUrl"
+      placeholder="Cole aqui o link do vídeo..."
+      autocomplete="off"
+    />
+    <button class="btn-primary" id="btnExtrair" onclick="extrairVideoWeb()">
+      Extrair Vídeo com Áudio
+    </button>
+
+    <div id="statusExtracao" class="status-box hidden"></div>
+    <div id="areaResultado" class="hidden">
+      <button id="btnBaixarDireto" class="download-btn">
+        ⬇️ Salvar Vídeo na Galeria (.MP4)
+      </button>
+      <video id="previewVideo" controls playsinline></video>
+    </div>
+  </div>
+
+  <!-- ABA 2: DIVISOR DE VÍDEOS LOCAL -->
+  <div class="card hidden" id="painelDivisor">
+    <label for="videoFile">ESCOLHA O VÍDEO DA SUA GALERIA</label>
+    <input type="file" id="videoFile" accept="video/*" />
+
+    <label for="tempoCorte">TEMPO DE CADA PARTE (EM SEGUNDOS)</label>
+    <input type="number" id="tempoCorte" value="30" min="5" max="600" />
+
+    <button class="btn-primary" id="btnDividir" onclick="dividirVideoLocal()">
+      Dividir Vídeo Agora
+    </button>
+
+    <div id="statusDivisor" class="status-box hidden"></div>
+    <div id="listaCortes" class="clips-list"></div>
+  </div>
+
+  <script>
+    function trocarAba(aba) {
+      const tabBaixar = document.getElementById('tabBaixar');
+      const tabDivisor = document.getElementById('tabDivisor');
+      const painelBaixar = document.getElementById('painelBaixar');
+      const painelDivisor = document.getElementById('painelDivisor');
+
+      if (aba === 'baixar') {
+        tabBaixar.classList.add('active');
+        tabDivisor.classList.remove('active');
+        painelBaixar.classList.remove('hidden');
+        painelDivisor.classList.add('hidden');
+      } else {
+        tabDivisor.classList.add('active');
+        tabBaixar.classList.remove('active');
+        painelDivisor.classList.remove('hidden');
+        painelBaixar.classList.add('hidden');
+      }
+    }
+
+    function mostrarStatus(el, msg, tipo = '') {
+      el.className = 'status-box ' + tipo;
+      el.innerHTML = msg;
+      el.classList.remove('hidden');
+    }
+
+    function limparUrlEscapada(str) {
+      if (!str) return null;
+      return str
+        .replace(/\\u0025/g, '%')
+        .replace(/\\u0026/g, '&')
+        .replace(/\\u002F/g, '/')
+        .replace(/\\\//g, '/')
+        .replace(/&amp;/g, '&');
+    }
+
+    // Busca código fonte ou URL final usando proxies CORS públicos (sem servidor próprio)
+    async function buscarHtmlViaProxy(targetUrl) {
+      const proxies = [
+        (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+      ];
+
+      for (const montarProxy of proxies) {
+        try {
+          const res = await fetch(montarProxy(targetUrl));
+          if (!res.ok) continue;
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data && data.contents) {
+              return {
+                html: data.contents,
+                finalUrl: (data.status && data.status.url) ? data.status.url : targetUrl
+              };
+            }
+          } else {
+            const text = await res.text();
+            if (text && text.length > 100) {
+              return { html: text, finalUrl: targetUrl };
+            }
+          }
+        } catch (e) {
+          console.warn('Tentativa de proxy falhou, tentando próximo...');
+        }
+      }
+      return null;
+    }
+
+    // Extrator dedicado para Facebook (/share/r/, /reel/, watch), Instagram e Kwai via HTML
+    async function extrairDiretoDoHtml(url) {
+      // Truque: usar mbasic / mobile no Facebook facilita encontrar o mp4 direto sem login
+      let urlParaBusca = url;
+      const dados = await buscarHtmlViaProxy(urlParaBusca);
+      if (!dados || !dados.html) return null;
+
+      let html = dados.html;
+      let finalUrl = dados.finalUrl || url;
+
+      // Verifica se o link /share/r/ tem um redirecionamento canónico ou og:url dentro do HTML
+      const ogUrlMatch =
+        html.match(/property="og:url"\s+content="([^"]+)"/i) ||
+        html.match(/rel="canonical"\s+href="([^"]+)"/i);
+
+      if (ogUrlMatch && ogUrlMatch[1]) {
+        finalUrl = limparUrlEscapada(ogUrlMatch[1]);
+      }
+
+      // Procura URL direta de vídeo no HTML retornado
+      const padroesVideo = [
+        /"playable_url_quality_hd":"([^"]+)"/,
+        /"playable_url":"([^"]+)"/,
+        /"browser_native_hd_url":"([^"]+)"/,
+        /"browser_native_sd_url":"([^"]+)"/,
+        /property="og:video:secure_url"\s+content="([^"]+)"/i,
+        /property="og:video"\s+content="([^"]+)"/i,
+        /content="([^"]+)"\s+property="og:video:secure_url"/i,
+        /content="([^"]+)"\s+property="og:video"/i,
+        /"contentUrl"\s*:\s*"([^"]+\.mp4[^"]*)"/i,
+        /"video_url"\s*:\s*"([^"]+)"/i,
+        /sd_src\s*:\s*"([^"]+)"/,
+        /hd_src\s*:\s*"([^"]+)"/
+      ];
+
+      for (const regex of padroesVideo) {
+        const match = html.match(regex);
+        if (match && match[1] && match[1].includes('http')) {
+          return { videoUrl: limparUrlEscapada(match[1]), resolvedUrl: finalUrl };
+        }
+      }
+
+      // Se for Facebook e encontrou a URL do reel, tenta buscar na versão mbasic.facebook.com
+      if (finalUrl.includes('facebook.com')) {
+        const mbasicUrl = finalUrl.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com');
+        const dadosMbasic = await buscarHtmlViaProxy(mbasicUrl);
+        if (dadosMbasic && dadosMbasic.html) {
+          const mHtml = dadosMbasic.html;
+          // No mbasic, os vídeos costumam vir em video_redirect/?src=
+          const redirectMatch = mHtml.match(/video_redirect\/\?src=([^"&]+)/i);
+          if (redirectMatch && redirectMatch[1]) {
+            return { videoUrl: decodeURIComponent(redirectMatch[1]), resolvedUrl: finalUrl };
+          }
+          for (const regex of padroesVideo) {
+            const m = mHtml.match(regex);
+            if (m && m[1] && m[1].includes('http')) {
+              return { videoUrl: limparUrlEscapada(m[1]), resolvedUrl: finalUrl };
+            }
+          }
+        }
+      }
+
+      return { videoUrl: null, resolvedUrl: finalUrl };
+    }
+
+    // Testa múltiplas instâncias públicas da API Cobalt (suporta FB, IG, TikTok, Kwai)
+    async function tentarApisPublicas(url) {
+      const endpoints = [
+        'https://cobalt-api.kwiatekmiki.com',
+        'https://cobalt-backend.canine.tools',
+        'https://cbl.jsmsj.com'
+      ];
+
+      for (const api of endpoints) {
+        try {
+          const res = await fetch(api + '/', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              url: url,
+              videoQuality: '720',
+              downloadMode: 'auto'
+            })
+          });
+
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data && data.url) {
+            return data.url;
+          }
+        } catch (e) {
+          console.warn('API falhou:', api);
+        }
+      }
+      return null;
+    }
+
+    async function extrairVideoWeb() {
+      const input = document.getElementById('videoUrl');
+      const statusEl = document.getElementById('statusExtracao');
+      const areaResultado = document.getElementById('areaResultado');
+      const previewVideo = document.getElementById('previewVideo');
+      const btnBaixarDireto = document.getElementById('btnBaixarDireto');
+      const btnExtrair = document.getElementById('btnExtrair');
+
+      let rawUrl = input.value.trim();
+      if (!rawUrl) {
+        mostrarStatus(statusEl, '⚠️ Por favor, cole o link de um vídeo primeiro.', 'error');
+        return;
+      }
+
+      areaResultado.classList.add('hidden');
+      btnExtrair.disabled = true;
+      mostrarStatus(statusEl, '⏳ A desencurtar link e a extrair vídeo com áudio...');
+
+      try {
+        let videoFinal = null;
+        let urlResolvida = rawUrl;
+
+        // 1. TIKTOK: Motor rápido TikWM (entrega MP4 direto sem marca d'água e com áudio)
+        if (rawUrl.includes('tiktok.com')) {
+          try {
+            const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`);
+            const tikData = await tikRes.json();
+            if (tikData && tikData.data && tikData.data.play) {
+              videoFinal = tikData.data.play;
+            }
+          } catch (e) {
+            console.warn('Erro no TikWM, tentando fallback...');
+          }
+        }
+
+        // 2. FACEBOOK / INSTAGRAM / KWAI: Desencurta /share/r/ e busca no HTML via Proxy
+        if (!videoFinal) {
+          const infoHtml = await extrairDiretoDoHtml(rawUrl);
+          if (infoHtml) {
+            if (infoHtml.videoUrl) {
+              videoFinal = infoHtml.videoUrl;
+            }
+            if (infoHtml.resolvedUrl) {
+              urlResolvida = infoHtml.resolvedUrl;
+            }
+          }
+        }
+
+        // 3. FALLBACK: Tenta nas instâncias públicas Cobalt usando tanto a URL resolvida como a original
+        if (!videoFinal) {
+          videoFinal = await tentarApisPublicas(urlResolvida);
+          if (!videoFinal && urlResolvida !== rawUrl) {
+            videoFinal = await tentarApisPublicas(rawUrl);
+          }
+        }
+
+        if (videoFinal) {
+          mostrarStatus(statusEl, '✅ Vídeo extraído com sucesso! Pronto para salvar.', 'success');
+          previewVideo.src = videoFinal;
+          areaResultado.classList.remove('hidden');
+
+          btnBaixarDireto.onclick = async () => {
+            btnBaixarDireto.textContent = '⏳ A preparar ficheiro MP4...';
+            try {
+              const resp = await fetch(videoFinal);
+              const blob = await resp.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = `cortepro-${Date.now()}.mp4`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              btnBaixarDireto.textContent = '✅ Download Iniciado!';
+            } catch (err) {
+              // Se o servidor do vídeo bloquear Blob por CORS, abre o link direto do MP4
+              window.open(videoFinal, '_blank');
+              btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
+            }
+          };
+        } else {
+          mostrarStatus(
+            statusEl,
+            '❌ Erro: Não foi possível extrair o vídeo com áudio deste link. Se for do Facebook (/share/r/), tente abrir o vídeo no navegador e copiar o link no formato facebook.com/reel/...',
+            'error'
+          );
+        }
+      } catch (err) {
+        mostrarStatus(statusEl, '❌ Ocorreu um erro ao processar o link.', 'error');
+      } finally {
+        btnExtrair.disabled = false;
+      }
+    }
+
+    // FUNÇÃO DO DIVISOR LOCAL (100% NO NAVEGADOR)
+    async function dividirVideoLocal() {
+      const fileInput = document.getElementById('videoFile');
+      const tempoInput = document.getElementById('tempoCorte');
+      const statusDiv = document.getElementById('statusDivisor');
+      const listaCortes = document.getElementById('listaCortes');
+
+      if (!fileInput.files || !fileInput.files[0]) {
+        mostrarStatus(statusDiv, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const duracaoParte = parseInt(tempoInput.value, 10) || 30;
+      listaCortes.innerHTML = '';
+      mostrarStatus(statusDiv, '⏳ A carregar vídeo para calcular os cortes...');
+
+      const urlLocal = URL.createObjectURL(file);
+      const tempVideo = document.createElement('video');
+      tempVideo.src = urlLocal;
+
+      tempVideo.onloadedmetadata = () => {
+        const duracaoTotal = tempVideo.duration;
+        const totalPartes = Math.ceil(duracaoTotal / duracaoParte);
+
+        mostrarStatus(
+          statusDiv,
+          `✅ Vídeo de ${Math.round(duracaoTotal)}s analisado! Foram geradas ${totalPartes} partes de até ${duracaoParte}s.`,
+          'success'
+        );
+
+        for (let i = 0; i < totalPartes; i++) {
+          const inicio = i * duracaoParte;
+          const fim = Math.min((i + 1) * duracaoParte, Math.round(duracaoTotal));
+          const item = document.createElement('div');
+          item.className = 'clip-item';
+          item.innerHTML = `
+            <span>🎬 Parte ${i + 1} (${inicio}s até ${fim}s)</span>
+            <a href="${urlLocal}#t=${inicio},${fim}" download="parte_${i + 1}_${file.name}">Baixar Parte ${i + 1}</a>
+          `;
+          listaCortes.appendChild(item);
+        }
+      };
+    }
+  </script>
 </body>
 </html>
