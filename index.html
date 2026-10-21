@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 3.5</title>
+  <title>CortePro 3.6</title>
   <style>
     * {
       box-sizing: border-box;
@@ -198,14 +198,6 @@
       color: #ffffff;
     }
 
-    .rescue-btn.green {
-      background-color: #059669;
-    }
-
-    .rescue-btn.gray {
-      background-color: #334155;
-    }
-
     video {
       width: 100%;
       max-height: 280px;
@@ -271,7 +263,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 3.5 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 3.6 ATIVA</div>
   <h1>CortePro</h1>
 
   <div class="tabs">
@@ -305,16 +297,10 @@
       <video id="previewVideo" controls playsinline></video>
     </div>
 
-    <!-- PAINEL TURBO ANTI-BLOQUEIO (NUNCA CONGELA) -->
+    <!-- BOTÃO DE EMERGÊNCIA CASO O SERVIDOR EXTERNO DEMORE -->
     <div id="areaResgate" class="rescue-box hidden">
       <button type="button" class="rescue-btn" id="btnTurboFdown">
-        🚀 Abrir Servidor 1 (Envia Link Automático)
-      </button>
-      <button type="button" class="rescue-btn green" id="btnTurboSnap">
-        ⚡ Copiar Link e Abrir Servidor 2 (SnapSave)
-      </button>
-      <button type="button" class="rescue-btn gray" id="btnTurboSaveFrom">
-        📥 Copiar Link e Abrir Servidor 3 (SaveFrom)
+        🚀 Abrir no Servidor Externo (FDown)
       </button>
     </div>
   </div>
@@ -337,7 +323,6 @@
   </div>
 
   <script>
-    // Elementos das Abas
     const tabBaixar = document.getElementById('tabBaixar');
     const tabDivisor = document.getElementById('tabDivisor');
     const painelBaixar = document.getElementById('painelBaixar');
@@ -364,7 +349,7 @@
     }
 
     // =====================================================
-    // LÓGICA DA ABA 1: EXTRAIR VÍDEO WEB (SEM CONGELAR)
+    // ABA 1: EXTRAIR VÍDEO WEB COM MOTORES COBALT INTEGRADOS
     // =====================================================
     const btnExtrair = document.getElementById('btnExtrair');
     const inputUrl = document.getElementById('videoUrl');
@@ -374,7 +359,7 @@
     const previewVideo = document.getElementById('previewVideo');
     const btnBaixarDireto = document.getElementById('btnBaixarDireto');
 
-    function fetchRapido(url, opcoes, limiteMs) {
+    function fetchComTimeout(url, opcoes, limiteMs) {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
         fetch(url, opcoes)
@@ -389,50 +374,47 @@
       });
     }
 
-    async function tentarExtracaoDireta(rawUrl) {
-      // 1. Se for TikTok, usa a API direta TikWM (3.5s)
+    async function tentarMotoresIntegrados(rawUrl) {
+      // 1. TikTok dedicado
       if (rawUrl.includes('tiktok.com')) {
         try {
-          const res = await fetchRapido(
-            'https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl),
-            {},
-            4000
-          );
+          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 4000);
           const data = await res.json();
-          if (data && data.data && data.data.play) {
-            return data.data.play;
-          }
+          if (data?.data?.play) return data.data.play;
         } catch (e) {}
       }
 
-      // 2. Se for link /share/ do Facebook, o navegador não permite desencurtar por CORS.
-      // Retorna null rápido em 1 segundo para abrir os Servidores Turbo sem travar!
-      if (rawUrl.includes('facebook.com/share/')) {
-        try {
-          const res = await fetchRapido(
-            'https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true',
-            {},
-            3000
-          );
-          const json = await res.json();
-          if (json && json.data && json.data.video && json.data.video.url) {
-            return json.data.video.url;
-          }
-        } catch (e) {}
-        return null;
-      }
+      // 2. Múltiplas instâncias da API Cobalt em paralelo (suportam FB /share/, Reels, IG, Kwai)
+      const apisCobalt = [
+        'https://cobalt-api.kwiatekmiki.com/',
+        'https://cobalt-backend.canine.tools/',
+        'https://api.cobalt.blackcat.sweeux.org/'
+      ];
 
-      // 3. Para outros links (Reels diretos, Instagram, Kwai), tenta Microlink + Cobalt com limite de 3.5s
-      try {
-        const res = await fetchRapido(
-          'https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true',
-          {},
-          3500
-        );
-        const json = await res.json();
-        if (json && json.data && json.data.video && json.data.video.url) {
-          return json.data.video.url;
+      const promessas = apisCobalt.map(async (api) => {
+        const resp = await fetchComTimeout(api, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
+        }, 5000);
+        if (!resp.ok) throw new Error('Falha na API');
+        const json = await resp.json();
+        if (json && (json.url || json.stream)) {
+          return json.url || json.stream;
         }
+        throw new Error('Sem URL');
+      });
+
+      try {
+        const urlVencedora = await Promise.any(promessas);
+        if (urlVencedora) return urlVencedora;
+      } catch (e) {}
+
+      // 3. Fallback Microlink
+      try {
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 4000);
+        const json = await res.json();
+        if (json?.data?.video?.url) return json.data.video.url;
       } catch (e) {}
 
       return null;
@@ -448,10 +430,10 @@
       areaResultado.classList.add('hidden');
       areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⚡ A verificar link (máx. 3 segundos)...');
+      mostrarStatus(statusExtracao, '⚡ A processar link diretamente na aplicação...');
 
       try {
-        const videoFinal = await tentarExtracaoDireta(rawUrl);
+        const videoFinal = await tentarMotoresIntegrados(rawUrl);
 
         if (videoFinal) {
           mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
@@ -464,20 +446,19 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '⚡ <b>Link protegido contra leitura direta!</b><br>Escolha um dos servidores diretos abaixo para baixar o vídeo com áudio imediatamente:',
+            '⚡ Este link do Facebook está altamente protegido. Use o botão abaixo para baixar instantaneamente:',
             'warning'
           );
           areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '⚡ Use um dos servidores abaixo para concluir o download:', 'warning');
+        mostrarStatus(statusExtracao, '⚡ Utilize o servidor de emergência abaixo:', 'warning');
         areaResgate.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
       }
     });
 
-    // Botões de Resgate Turbo (Executados direto no clique do utilizador = NUNCA TRAVAM)
     document.getElementById('btnTurboFdown').addEventListener('click', () => {
       const url = inputUrl.value.trim();
       try { navigator.clipboard.writeText(url); } catch (e) {}
@@ -498,20 +479,8 @@
       form.remove();
     });
 
-    document.getElementById('btnTurboSnap').addEventListener('click', () => {
-      const url = inputUrl.value.trim();
-      try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open('https://snapsave.app/pt', '_blank');
-    });
-
-    document.getElementById('btnTurboSaveFrom').addEventListener('click', () => {
-      const url = inputUrl.value.trim();
-      try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open('https://pt.savefrom.net/1-facebook-downloader.html', '_blank');
-    });
-
     // =====================================================
-    // LÓGICA DA ABA 2: DIVISOR DE VÍDEO (SEM CONGELAR)
+    // ABA 2: DIVISOR DE VÍDEO LOCAL
     // =====================================================
     const btnDividir = document.getElementById('btnDividir');
     const fileInput = document.getElementById('videoFile');
@@ -540,7 +509,7 @@
       listaCortes.innerHTML = '';
       videoPreview.classList.remove('hidden');
       videoPreview.src = urlArquivoAtual;
-      videoPreview.load(); // Força o Android a carregar os metadados imediatamente!
+      videoPreview.load();
 
       mostrarStatus(statusDivisor, '⏳ A ler duração do vídeo...');
 
@@ -550,7 +519,6 @@
         if (jaProcessou) return;
         jaProcessou = true;
 
-        // Se o Android não informar a duração, assume 120s ou permite dividir manualmente
         const totalSegundos = (duracaoTotal && isFinite(duracaoTotal) && duracaoTotal > 0)
           ? Math.ceil(duracaoTotal)
           : 120;
@@ -588,7 +556,6 @@
           listaCortes.appendChild(cardParte);
         }
 
-        // Eventos dos botões "Ver Trecho"
         listaCortes.querySelectorAll('.btn-preview').forEach((btn) => {
           btn.addEventListener('click', () => {
             const ini = parseFloat(btn.getAttribute('data-ini'));
@@ -607,7 +574,6 @@
           });
         });
 
-        // Eventos dos botões "Gravar Parte" (Grava o corte real no navegador)
         listaCortes.querySelectorAll('.btn-cut').forEach((btn) => {
           btn.addEventListener('click', () => {
             const ini = parseFloat(btn.getAttribute('data-ini'));
@@ -618,7 +584,6 @@
         });
       }
 
-      // Dispara assim que o Android ler a duração
       videoPreview.onloadedmetadata = () => {
         criarListaDePartes(videoPreview.duration);
       };
@@ -629,7 +594,6 @@
         }
       };
 
-      // Destravamento de segurança: se o Android demorar mais de 2.5 segundos, abre as partes mesmo assim!
       setTimeout(() => {
         if (!jaProcessou) {
           criarListaDePartes(videoPreview.duration || 120);
@@ -637,11 +601,9 @@
       }, 2500);
     });
 
-    // Função que grava o trecho exato usando MediaRecorder (ou faz fallback direto)
     function gravarTrechoReal(inicio, fim, numParte, botao) {
       const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
       if (!streamFn) {
-        // Se o telemóvel não suportar captureStream, baixa o ficheiro com marcador de tempo
         const a = document.createElement('a');
         a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
         a.download = `cortepro_parte_${numParte}.mp4`;
