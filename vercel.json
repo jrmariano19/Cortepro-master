@@ -1,4 +1,3 @@
-
 {
   "version": 2,
   "builds": [
@@ -7,14 +6,14 @@
       "use": "@vercel/static"
     },
     {
-      "src": "server.js",
+      "src": "servidor.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/extrair",
-      "dest": "server.js"
+      "dest": "servidor.js"
     },
     {
       "src": "/(.*)",
