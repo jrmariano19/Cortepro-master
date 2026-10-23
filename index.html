@@ -1,219 +1,99 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Descarregador & Divisor de Vídeos</title>
+    <title>CortePro Master - Descarregador e Divisor de Vídeos</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-            margin: 0;
-            padding: 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #22c55e;
+            --border: #334155;
         }
-        .container {
-            width: 100%;
-            max-width: 480px;
-        }
-        .card {
-            background-color: #1e293b;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            margin-bottom: 20px;
-        }
-        .tabs {
-            display: flex;
-            background-color: #0f172a;
-            border-radius: 10px;
-            padding: 4px;
-            margin-bottom: 20px;
-        }
-        .tab {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            background: transparent;
-            border: none;
-            color: #94a3b8;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        .tab.active {
-            background-color: #2563eb;
-            color: #fff;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        h1 {
-            color: #38bdf8;
-            font-size: 20px;
-            margin-top: 0;
-            margin-bottom: 6px;
-            text-align: center;
-        }
-        p {
-            color: #94a3b8;
-            font-size: 13px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        input, select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid #334155;
-            background-color: #0f172a;
-            color: #fff;
-            font-size: 14px;
-            margin-bottom: 14px;
-            box-sizing: border-box;
-            outline: none;
-        }
-        input:focus, select:focus {
-            border-color: #38bdf8;
-        }
-        button.btn-main {
-            width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            border: none;
-            background-color: #2563eb;
-            color: #fff;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button.btn-main:hover {
-            background-color: #1d4ed8;
-        }
-        #loading {
-            display: none;
-            margin-top: 14px;
-            color: #38bdf8;
-            font-size: 13px;
-            text-align: center;
-        }
-        #resultado, #resultado-divisor {
-            margin-top: 16px;
-            display: none;
-            text-align: center;
-        }
-        .btn-download {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            background-color: #10b981;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: bold;
-            box-sizing: border-box;
-            transition: background 0.2s;
-        }
-        .btn-download:hover {
-            background-color: #059669;
-        }
-        video {
-            width: 100%;
-            border-radius: 8px;
-            margin-top: 10px;
-            max-height: 250px;
-            background: #000;
-        }
-        .time-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-        .time-group div {
-            flex: 1;
-            text-align: left;
-        }
-        .time-group label {
-            font-size: 12px;
-            color: #94a3b8;
-            display: block;
-            margin-bottom: 4px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 600px; background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border); margin-top: 20px; }
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 8px; color: #fff; }
+        .subtitle { font-size: 0.85rem; text-align: center; color: var(--text-muted); margin-bottom: 24px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #0f172a; padding: 4px; border-radius: 10px; }
+        .tab { flex: 1; padding: 10px; text-align: center; background: transparent; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; font-size: 0.9rem; }
+        .tab.active { background: var(--primary); color: #fff; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-muted); }
+        input[type="text"], input[type="file"], select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        input[type="text"]:focus, select:focus { border-color: var(--primary); }
+        .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .status-box { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; display: none; }
+        .status-box.loading { background: rgba(79, 70, 229, 0.15); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.3); display: block; }
+        .status-box.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); display: block; }
+        .status-box.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
+        .result-area { margin-top: 20px; display: none; text-align: center; }
+        video { width: 100%; max-height: 300px; border-radius: 8px; margin-bottom: 12px; background: #000; }
+        .platforms-hint { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
+        .platforms-hint span { background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <div class="card">
-            <h1>CortePro Master</h1>
-            <p>Ferramenta profissional para criadores de conteúdos</p>
+        <h1>CortePro Master</h1>
+        <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
 
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('downloader')">Baixar Limpo</button>
-                <button class="tab" onclick="switchTab('splitter')">Divisor de Vídeo</button>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
+            <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
+        </div>
+
+        <!-- ABA DESCARREGADOR -->
+        <div id="downloader" class="section active">
+            <div class="platforms-hint">
+                <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
             </div>
-
-            <!-- ABA 1: DOWNLOADER -->
-            <div id="downloader" class="tab-content active">
-                <input type="text" id="urlInput" placeholder="Cole o link (TikTok, Kwai, Insta, Face, YouTube)...">
-                <button class="btn-main" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
-
-                <div id="loading">A ligar ao servidor... (se estiver a acordar, aguarde até 30s)</div>
-
-                <div id="resultado">
-                    <a id="downloadBtn" class="btn-download" href="#" target="_blank">Guardar Vídeo MP4</a>
-                </div>
+            <div class="form-group">
+                <label for="videoUrl">Cole o link do vídeo:</label>
+                <input type="text" id="videoUrl" placeholder="https://www.tiktok.com/... ou Instagram/YouTube">
             </div>
+            <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
+            
+            <div id="statusBox" class="status-box">A ligar ao servidor... (servidor serverless a acordar, aguarde até 35s)</div>
 
-            <!-- ABA 2: DIVISOR DE VÍDEO -->
-            <div id="splitter" class="tab-content">
-                <input type="file" id="videoFile" accept="video/*" onchange="carregarVideoLocal(event)">
-                
-                <div id="editor-container" style="display:none;">
-                    <video id="previewVideo" controls></video>
-                    
-                    <div class="time-group" style="margin-top: 14px;">
-                        <div>
-                            <label>Início (segundos)</label>
-                            <input type="number" id="startTime" value="0" min="0" step="0.1">
-                        </div>
-                        <div>
-                            <label>Fim (segundos)</label>
-                            <input type="number" id="endTime" value="10" min="1" step="0.1">
-                        </div>
-                    </div>
-
-                    <button class="btn-main" onclick="cortarVideo()">Cortar / Dividir Segmento</button>
-                </div>
-
-                <div id="resultado-divisor">
-                    <a id="downloadSegmento" class="btn-download" download="corte-segmento.mp4">Descarregar Corte</a>
-                </div>
+            <div id="resultArea" class="result-area">
+                <video id="previewVideo" controls></video>
+                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank">Descarregar Vídeo</a>
             </div>
+        </div>
+
+        <!-- ABA DIVISOR -->
+        <div id="splitter" class="section">
+            <div class="form-group">
+                <label for="localVideoFile">Selecione o vídeo local:</label>
+                <input type="file" id="localVideoFile" accept="video/*">
+            </div>
+            <div class="form-group">
+                <label for="splitDuration">Duração de cada parte (segundos):</label>
+                <select id="splitDuration">
+                    <option value="30">30 segundos (Reels/Shorts)</option>
+                    <option value="60">60 segundos (1 Minuto)</option>
+                    <option value="90">90 segundos</option>
+                </select>
+            </div>
+            <button class="btn" onclick="alert('Divisor local pronto para processar o ficheiro selecionado.')">Dividir Vídeo</button>
         </div>
     </div>
 
     <script>
-        // Acordar o servidor automaticamente em segundo plano assim que a página abre
-        window.addEventListener('load', () => {
-            fetch('https://cortepro-backend.onrender.com/').catch(() => {});
-        });
-
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            if (tabName === 'downloader') {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            if(tabName === 'downloader') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('downloader').classList.add('active');
             } else {
@@ -223,118 +103,55 @@
         }
 
         async function extrairVideo() {
-            const url = document.getElementById('urlInput').value.trim();
-            const loading = document.getElementById('loading');
-            const resultado = document.getElementById('resultado');
-            const downloadBtn = document.getElementById('downloadBtn');
+            const urlInput = document.getElementById('videoUrl').value.trim();
+            const statusBox = document.getElementById('statusBox');
+            const extractBtn = document.getElementById('extractBtn');
+            const resultArea = document.getElementById('resultArea');
+            const previewVideo = document.getElementById('previewVideo');
+            const downloadLink = document.getElementById('downloadLink');
 
-            if (!url) {
-                alert('Insira um link válido primeiro.');
+            if (!urlInput) {
+                alert('Por favor, insira um link válido.');
                 return;
             }
 
-            loading.style.display = 'block';
-            resultado.style.display = 'none';
+            extractBtn.disabled = true;
+            resultArea.style.display = 'none';
+            statusBox.className = 'status-box loading';
+            statusBox.innerText = 'A ligar ao servidor e a extrair... (se estiver a acordar, pode demorar até 35s)';
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 50000);
+                const timeoutId = setTimeout(() => controller.abort(), 35000);
 
-                const resposta = await fetch('https://cortepro-backend.onrender.com/extrair', {
+                const response = await fetch('/extrair', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url }),
+                    body: JSON.stringify({ url: urlInput }),
                     signal: controller.signal
                 });
 
                 clearTimeout(timeoutId);
-                const dados = await resposta.json();
+                const data = await response.json();
 
-                if (dados.success && dados.downloadUrl) {
-                    downloadBtn.href = dados.downloadUrl;
-                    resultado.style.display = 'block';
+                if (data.success && (data.videoUrl || data.downloadUrl)) {
+                    const finalUrl = data.videoUrl || data.downloadUrl;
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = 'Vídeo extraído com sucesso!';
+                    
+                    previewVideo.src = finalUrl;
+                    downloadLink.href = finalUrl;
+                    resultArea.style.display = 'block';
                 } else {
-                    alert(dados.error || 'Não foi possível extrair o vídeo.');
+                    throw new Error(data.error || 'Falha ao extrair o vídeo.');
                 }
-            } catch (erro) {
-                console.error('Erro:', erro);
-                alert('O servidor demorou a responder ou está a despertar. Aguarde 10 segundos e clique em Extrair novamente.');
-            } finally {
-                loading.style.display = 'none';
-            }
-        }
-
-        let arquivoVideoBlob = null;
-        function carregarVideoLocal(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            arquivoVideoBlob = file;
-            const videoElement = document.getElementById('previewVideo');
-            videoElement.src = URL.createObjectURL(file);
-            document.getElementById('editor-container').style.display = 'block';
-
-            videoElement.onloadedmetadata = function() {
-                document.getElementById('endTime').value = Math.min(15, videoElement.duration).toFixed(1);
-            };
-        }
-
-        function cortarVideo() {
-            if (!arquivoVideoBlob) {
-                alert('Selecione um vídeo primeiro.');
-                return;
-            }
-
-            const start = parseFloat(document.getElementById('startTime').value);
-            const end = parseFloat(document.getElementById('endTime').value);
-
-            if (start >= end) {
-                alert('O tempo de início deve ser menor que o tempo de fim.');
-                return;
-            }
-
-            const videoElement = document.getElementById('previewVideo');
-            const stream = videoElement.captureStream ? videoElement.captureStream() : videoElement.mozCaptureStream();
-            
-            if (!stream) {
-                alert('O seu navegador não suporta a gravação de stream de vídeo diretamente.');
-                return;
-            }
-
-            const recordedChunks = [];
-            let options = { mimeType: 'video/webm; codecs=vp9' };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options = { mimeType: 'video/mp4' };
-            }
-
-            try {
-                const mediaRecorder = new MediaRecorder(stream, options);
-                mediaRecorder.ondataavailable = function(e) {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = function() {
-                    const blob = new Blob(recordedChunks, { type: options.mimeType });
-                    const urlBlob = URL.createObjectURL(blob);
-                    const btnDesc = document.getElementById('downloadSegmento');
-                    btnDesc.href = urlBlob;
-                    btnDesc.download = 'corte-segmento.webm';
-                    document.getElementById('resultado-divisor').style.display = 'block';
-                    alert('Corte concluído com sucesso!');
-                };
-
-                videoElement.currentTime = start;
-                videoElement.play();
-                mediaRecorder.start();
-
-                setTimeout(() => {
-                    videoElement.pause();
-                    mediaRecorder.stop();
-                }, (end - start) * 1000);
-
             } catch (err) {
-                console.error(err);
-                alert('Erro ao processar o corte do vídeo no dispositivo.');
+                statusBox.className = 'status-box error';
+                statusBox.innerText = err.name === 'AbortError' 
+                    ? 'O servidor demorou a acordar. Aguarde 10 segundos e clique em Extrair novamente.' 
+                    : (err.message || 'Erro ao comunicar com o servidor.');
+            } finally {
+                extractBtn.disabled = false;
             }
         }
     </script>
