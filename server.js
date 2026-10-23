@@ -6,12 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Rota principal (Link limpo)
 app.get('/', (req, res) => {
   res.status(200).send('CortePro Backend Ativo e Operacional!');
 });
 
-// Rota de extração de vídeos
 app.all('/extrair', async (req, res) => {
   try {
     const rawUrl = req.body.url || req.query.url;
@@ -22,7 +20,6 @@ app.all('/extrair', async (req, res) => {
     let targetUrl = rawUrl.trim();
     let videoUrl = null;
 
-    // Extração TikTok via API pública
     if (targetUrl.includes('tiktok.com')) {
       try {
         const tikRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}&hd=1`, { timeout: 6000 });
@@ -35,7 +32,6 @@ app.all('/extrair', async (req, res) => {
       } catch (e) {}
     }
 
-    // Extração geral via Cobalt API
     if (!videoUrl) {
       try {
         const altRes = await axios.post('https://api.cobalt.tools/api/json', {
@@ -62,7 +58,4 @@ app.all('/extrair', async (req, res) => {
   }
 });
 
-// Exportação obrigatória e segura para a Vercel
-module.exports = (req, res) => {
-  return app(req, res);
-};
+module.exports = app;
