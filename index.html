@@ -288,7 +288,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 5.0 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 5.1 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -332,7 +332,7 @@
     <!-- BOTÕES DE RESGATE OFICIAIS -->
     <div id="areaResgate" class="rescue-box hidden">
       <button type="button" class="rescue-btn" id="btnServerResgate">
-        🚀 Abrir Conversor Oficial Instantâneo
+        🚀 Abrir Alternativa Segura Sem Pop-ups
       </button>
     </div>
   </div>
@@ -489,7 +489,7 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão abaixo para abrir o conversor oficial instantâneo:',
+            '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão abaixo para usar a alternativa limpa:',
             'warning'
           );
           areaResgate.classList.remove('hidden');
@@ -510,7 +510,8 @@
       } else if (url.includes('instagram')) {
         window.open('https://saveinsta.app/pt', '_blank');
       } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        window.open('https://en.loader.to/', '_blank');
+        // Usando uma alternativa mais direta para o YouTube sem os pop-ups agressivos do loader.to
+        window.open('https://ssyoutube.com/en152/', '_blank');
       } else {
         window.open('https://pt.savefrom.net/', '_blank');
       }
