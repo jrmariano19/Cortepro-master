@@ -14,8 +14,26 @@ app.all('/extrair', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Nenhum link fornecido.' });
     }
 
-    const targetUrl = rawUrl.trim();
+    let targetUrl = rawUrl.trim();
     let videoUrl = null;
+
+    // Resolver links encurtados do Facebook (/share/v/ ou /share/r/)
+    if (targetUrl.includes('facebook.com/share/')) {
+      try {
+        const fbRedirectRes = await axios.get(targetUrl, {
+          maxRedirects: 5,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+          },
+          timeout: 8000
+        });
+        if (fbRedirectRes.request && fbRedirectRes.request.res && fbRedirectRes.request.res.responseUrl) {
+          targetUrl = fbRedirectRes.request.res.responseUrl;
+        } else if (fbRedirectRes.config && fbRedirectRes.config.url) {
+          targetUrl = fbRedirectRes.config.url;
+        }
+      } catch (e) {}
+    }
 
     // 1. TikTok via TikWM
     if (targetUrl.includes('tiktok.com')) {
@@ -30,10 +48,14 @@ app.all('/extrair', async (req, res) => {
       } catch (e) {}
     }
 
-    // 2. YouTube, Facebook, Instagram, Kwai via Cobalt
+    // 2. Universal (Facebook, Instagram, YouTube, Kwai, TikTok) via Cobalt API
     if (!videoUrl) {
-      const apis = ['https://api.cobalt.tools/api/json', 'https://co.wuk.sh/api/json'];
-      for (const api of apis) {
+      const cobaltApis = [
+        'https://api.cobalt.tools/api/json',
+        'https://co.wuk.sh/api/json'
+      ];
+
+      for (const api of cobaltApis) {
         if (videoUrl) break;
         try {
           const cobRes = await axios.post(api, {
@@ -41,7 +63,11 @@ app.all('/extrair', async (req, res) => {
             vQuality: '720',
             isNoTTWatermark: true
           }, {
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            },
             timeout: 8000
           });
           if (cobRes.data && cobRes.data.url) {
@@ -55,7 +81,7 @@ app.all('/extrair', async (req, res) => {
       return res.status(200).json({ success: true, videoUrl: videoUrl, downloadUrl: videoUrl });
     }
 
-    return res.status(400).json({ success: false, error: 'Não foi possível extrair este vídeo.' });
+    return res.status(400).json({ success: false, error: 'Não foi possível extrair o vídeo. Verifique se o vídeo é público.' });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Erro interno no servidor.' });
   }
