@@ -2,17 +2,22 @@
   "version": 2,
   "builds": [
     {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "servidor.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["index.html"]
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      "src": "/extrair",
+      "dest": "servidor.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/servidor.js"
+      "dest": "index.html"
     }
   ]
 }
