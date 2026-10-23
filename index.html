@@ -186,6 +186,38 @@
       cursor: pointer;
     }
 
+    .rescue-box {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .rescue-btn.insta {
+      background-color: #ec4899;
+    }
+
+    .rescue-btn.face {
+      background-color: #1d4ed8;
+    }
+
+    .rescue-btn.tube {
+      background-color: #dc2626;
+    }
+
     .link-limpo-box {
       margin-top: 12px;
       background: #090c14;
@@ -268,7 +300,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 5.2 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 5.3 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -287,7 +319,7 @@
     <input
       type="text"
       id="videoUrl"
-      placeholder="https://www.youtube.com/..."
+      placeholder="Cole aqui o link..."
       autocomplete="off"
     />
     <button type="button" class="btn-primary" id="btnExtrair">
@@ -307,6 +339,22 @@
       </div>
 
       <video id="previewVideo" controls playsinline></video>
+    </div>
+
+    <!-- BOTÕES DE RESGATE INTELIGENTE POR PLATAFORMA -->
+    <div id="areaResgate" class="rescue-box hidden">
+      <button type="button" class="rescue-btn tube hidden" id="btnResgateTube">
+        🔴 Baixar YouTube com Resgate Direto
+      </button>
+      <button type="button" class="rescue-btn face hidden" id="btnResgateFace">
+        📘 Baixar Facebook com Resgate Direto
+      </button>
+      <button type="button" class="rescue-btn insta hidden" id="btnResgateInsta">
+        📸 Baixar Instagram com Resgate Direto
+      </button>
+      <button type="button" class="rescue-btn hidden" id="btnResgateGeral">
+        🚀 Abrir Alternativa de Resgate
+      </button>
     </div>
   </div>
 
@@ -357,9 +405,23 @@
     const inputUrl = document.getElementById('videoUrl');
     const statusExtracao = document.getElementById('statusExtracao');
     const areaResultado = document.getElementById('areaResultado');
+    const areaResgate = document.getElementById('areaResgate');
     const previewVideo = document.getElementById('previewVideo');
     const btnBaixarDireto = document.getElementById('btnBaixarDireto');
     const inputLinkLimpo = document.getElementById('inputLinkLimpo');
+
+    const btnResgateTube = document.getElementById('btnResgateTube');
+    const btnResgateFace = document.getElementById('btnResgateFace');
+    const btnResgateInsta = document.getElementById('btnResgateInsta');
+    const btnResgateGeral = document.getElementById('btnResgateGeral');
+
+    function esconderResgates() {
+      btnResgateTube.classList.add('hidden');
+      btnResgateFace.classList.add('hidden');
+      btnResgateInsta.classList.add('hidden');
+      btnResgateGeral.classList.add('hidden');
+      areaResgate.classList.add('hidden');
+    }
 
     function fetchComTimeout(url, opcoes, limiteMs) {
       return new Promise((resolve, reject) => {
@@ -390,8 +452,7 @@
         const apisCobalt = [
           'https://api.cobalt.tools/api/json',
           'https://co.wuk.sh/api/json',
-          'https://cobalt-api.kwiatekmiki.com/',
-          'https://cobalt-backend.canine.tools/'
+          'https://cobalt-api.kwiatekmiki.com/'
         ];
 
         for (const api of apisCobalt) {
@@ -400,7 +461,7 @@
               method: 'POST',
               headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
-            }, 5000);
+            }, 4000);
             
             const text = await resp.text();
             if (resp.ok && text && text.trim().startsWith('{')) {
@@ -408,13 +469,6 @@
               if (json && (json.url || json.stream)) return json.url || json.stream;
             }
           } catch (errApi) {}
-        }
-
-        const resMicrolink = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
-        const textMicro = await resMicrolink.text();
-        if (textMicro && textMicro.trim().startsWith('{')) {
-          const json = JSON.parse(textMicro);
-          if (json?.data?.video?.url) return json.data.video.url;
         }
       } catch (e) {}
 
@@ -429,8 +483,9 @@
       }
 
       areaResultado.classList.add('hidden');
+      esconderResgates();
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração limpa diretamente...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração limpa...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
@@ -462,15 +517,50 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '⚠️ Não foi possível extrair automaticamente este link neste momento. Tente outro vídeo ou utilize o Divisor Local para vídeos do telemóvel.',
-            'error'
+            '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão de resgate dedicado abaixo:',
+            'warning'
           );
+
+          areaResgate.classList.remove('hidden');
+          if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
+            btnResgateTube.classList.remove('hidden');
+          } else if (rawUrl.includes('facebook.com') || rawUrl.includes('fb.watch')) {
+            btnResgateFace.classList.remove('hidden');
+          } else if (rawUrl.includes('instagram.com')) {
+            btnResgateInsta.classList.remove('hidden');
+          } else {
+            btnResgateGeral.classList.remove('hidden');
+          }
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '❌ Ocorreu um erro no processamento.', 'error');
+        mostrarStatus(statusExtracao, '⚡ Escolha o botão de resgate abaixo:', 'warning');
+        areaResgate.classList.remove('hidden');
+        btnResgateGeral.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
       }
+    });
+
+    function acionarResgate(urlDestino) {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open(urlDestino, '_blank');
+    }
+
+    btnResgateTube.addEventListener('click', () => {
+      acionarResgate('https://ssyoutube.com/en152/');
+    });
+
+    btnResgateFace.addEventListener('click', () => {
+      acionarResgate('https://fdown.net/pt');
+    });
+
+    btnResgateInsta.addEventListener('click', () => {
+      acionarResgate('https://saveinsta.app/pt');
+    });
+
+    btnResgateGeral.addEventListener('click', () => {
+      acionarResgate('https://pt.savefrom.net/');
     });
 
     // =====================================================
