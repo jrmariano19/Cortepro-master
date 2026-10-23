@@ -4,12 +4,20 @@
     {
       "src": "index.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "servidor.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      "src": "/extrair",
+      "destination": "/servidor.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "destination": "/index.html"
     }
   ]
 }
