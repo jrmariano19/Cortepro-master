@@ -1,239 +1,705 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" translate="no" class="notranslate">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master v3.0</title>
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #22c55e;
-            --border: #334155;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { width: 100%; max-width: 600px; background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border); margin-top: 20px; }
-        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 8px; color: #fff; }
-        .subtitle { font-size: 0.85rem; text-align: center; color: var(--text-muted); margin-bottom: 24px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #0f172a; padding: 4px; border-radius: 10px; }
-        .tab { flex: 1; padding: 10px; text-align: center; background: transparent; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; font-size: 0.9rem; }
-        .tab.active { background: var(--primary); color: #fff; }
-        .section { display: none; }
-        .section.active { display: block; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-muted); }
-        input[type="text"], input[type="file"], select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
-        input[type="text"]:focus, select:focus { border-color: var(--primary); }
-        .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
-        .btn:hover { background: var(--primary-hover); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .status-box { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; display: none; word-break: break-word; }
-        .status-box.loading { background: rgba(79, 70, 229, 0.15); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.3); display: block; }
-        .status-box.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); display: block; }
-        .status-box.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
-        .result-area { margin-top: 20px; display: none; text-align: center; }
-        video { width: 100%; max-height: 320px; border-radius: 8px; margin-bottom: 12px; background: #000; }
-        .platforms-hint { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
-        .platforms-hint span { background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google" content="notranslate" />
+  <title>CortePro 4.8</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: #0b0e17;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .badge {
+      background-color: #00b87c;
+      color: #05291c;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 6px 18px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      margin-bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: #f8fafc;
+    }
+
+    .tabs {
+      display: flex;
+      background-color: #131826;
+      border-radius: 14px;
+      padding: 5px;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 20px;
+      border: 1px solid #1e2638;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .tab-btn.active {
+      background-color: #5b5bf6;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(91, 91, 246, 0.35);
+    }
+
+    .card {
+      background-color: #131826;
+      border: 1px solid #1f293d;
+      border-radius: 18px;
+      padding: 22px 18px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #8b9bb4;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      background-color: #090c14;
+      border: 1px solid #28324a;
+      color: #ffffff;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 16px;
+      outline: none;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background-color: #5b5bf6;
+      color: #ffffff;
+      border: none;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+    }
+
+    .status-box {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.45;
+      text-align: center;
+      background-color: #1a2133;
+      border: 1px solid #2b354f;
+      color: #e2e8f0;
+    }
+
+    .status-box.error {
+      background-color: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.45);
+      color: #fca5a5;
+    }
+
+    .status-box.success {
+      background-color: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #6ee7b7;
+    }
+
+    .status-box.warning {
+      background-color: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fde68a;
+    }
+
+    .download-btn {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px;
+      background-color: #10b981;
+      color: #042f2e;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .rescue-box {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rescue-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      border: none;
+      cursor: pointer;
+      background-color: #ec4899;
+      color: #ffffff;
+    }
+
+    .rescue-btn.blue {
+      background-color: #2563eb;
+    }
+
+    .link-limpo-box {
+      margin-top: 12px;
+      background: #090c14;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .link-limpo-box input {
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #38bdf8;
+      background: #131826;
+      border: 1px solid #1e293b;
+      padding: 8px;
+    }
+
+    video {
+      width: 100%;
+      max-height: 260px;
+      border-radius: 12px;
+      margin-top: 14px;
+      background: #000;
+    }
+
+    .clips-list {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .clip-item {
+      background: #090c14;
+      border: 1px solid #28324a;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .clip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .clip-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-small {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .btn-preview {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .btn-cut {
+      background: #5b5bf6;
+      color: #ffffff;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>CortePro Master <span style="font-size:0.8rem; color:#4ade80;">v3.0</span></h1>
-        <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
-            <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
-        </div>
+  <div class="badge">⚡ VERSÃO 4.8 ATIVA</div>
+  <h1>CortePro</h1>
 
-        <div id="downloader" class="section active">
-            <div class="platforms-hint">
-                <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
-            </div>
-            <div class="form-group">
-                <label for="videoUrl">Cole o link do vídeo:</label>
-                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok/Instagram">
-            </div>
-            <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
-            
-            <div id="statusBox" class="status-box"></div>
+  <div class="tabs">
+    <button type="button" class="tab-btn active" id="tabBaixar">
+      📥 Baixar Web
+    </button>
+    <button type="button" class="tab-btn" id="tabDivisor">
+      ✂️ Divisor
+    </button>
+  </div>
 
-            <div id="resultArea" class="result-area">
-                <video id="previewVideo" controls playsinline></video>
-                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer" download="video_cortepro.mp4">Descarregar Vídeo</a>
-            </div>
-        </div>
+  <!-- ABA 1: BAIXAR DA WEB -->
+  <div class="card" id="painelBaixar">
+    <label for="videoUrl">LINK DO VÍDEO (TIKTOK, KWAI, INSTAGRAM, FB)</label>
+    <input
+      type="text"
+      id="videoUrl"
+      placeholder="Cole aqui o link do vídeo..."
+      autocomplete="off"
+    />
+    <button type="button" class="btn-primary" id="btnExtrair">
+      Extrair Vídeo com Áudio
+    </button>
 
-        <div id="splitter" class="section">
-            <div class="form-group">
-                <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
-                <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
-            </div>
-            <div class="form-group">
-                <label for="splitDuration">Duração de cada corte (segundos):</label>
-                <select id="splitDuration">
-                    <option value="15">15 segundos (Stories)</option>
-                    <option value="30" selected>30 segundos (Reels / Status)</option>
-                    <option value="60">60 segundos (Shorts / TikTok)</option>
-                    <option value="90">90 segundos</option>
-                </select>
-            </div>
-            <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Cortes do Vídeo</button>
-            <div id="splitStatus" class="status-box"></div>
-            <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
-        </div>
+    <div id="statusExtracao" class="status-box hidden"></div>
+
+    <div id="areaResultado" class="hidden">
+      <button type="button" id="btnBaixarDireto" class="download-btn">
+        ⬇️ Salvar Vídeo na Galeria (.MP4)
+      </button>
+      
+      <div class="link-limpo-box">
+        <label for="inputLinkLimpo" style="font-size: 11px; margin-bottom: 4px;">🔗 Link Limpo Direto (.MP4):</label>
+        <input type="text" id="inputLinkLimpo" readonly onclick="this.select()" />
+      </div>
+
+      <video id="previewVideo" controls playsinline></video>
     </div>
 
-    <script>
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            if (tabName === 'downloader') {
-                document.querySelectorAll('.tab')[0].classList.add('active');
-                document.getElementById('downloader').classList.add('active');
-            } else {
-                document.querySelectorAll('.tab')[1].classList.add('active');
-                document.getElementById('splitter').classList.add('active');
-            }
-        }
+    <!-- BOTÕES DE RESGATE OFICIAIS -->
+    <div id="areaResgate" class="rescue-box hidden">
+      <button type="button" class="rescue-btn" id="btnInstaResgate">
+        📸 Abrir Extrator de Instagram (SaveInsta)
+      </button>
+      <button type="button" class="rescue-btn blue" id="btnServerResgate">
+        🚀 Abrir Extrator Geral (SaveFrom)
+      </button>
+    </div>
+  </div>
 
-        async function extrairVideo() {
-            let urlInput = document.getElementById('videoUrl').value.trim();
-            const statusBox = document.getElementById('statusBox');
-            const extractBtn = document.getElementById('extractBtn');
-            const resultArea = document.getElementById('resultArea');
-            const previewVideo = document.getElementById('previewVideo');
-            const downloadLink = document.getElementById('downloadLink');
+  <!-- ABA 2: DIVISOR DE VÍDEOS LOCAL -->
+  <div class="card hidden" id="painelDivisor">
+    <label for="videoFile">ESCOLHA O VÍDEO DA SUA GALERIA</label>
+    <input type="file" id="videoFile" accept="video/*" />
 
-            if (!urlInput) {
-                statusBox.className = 'status-box error';
-                statusBox.innerText = 'Por favor, cole um link válido primeiro.';
-                return;
-            }
+    <label for="tempoCorte">TEMPO DE CADA PARTE (EM SEGUNDOS)</label>
+    <input type="number" id="tempoCorte" value="30" min="5" max="600" />
 
-            extractBtn.disabled = true;
-            resultArea.style.display = 'none';
-            statusBox.className = 'status-box loading';
-            statusBox.innerText = 'A extrair vídeo limpo... Aguarde alguns segundos.';
+    <button type="button" class="btn-primary" id="btnDividir">
+      Gerar Partes do Vídeo
+    </button>
 
-            let videoUrl = null;
+    <div id="statusDivisor" class="status-box hidden"></div>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
+    <div id="listaCortes" class="clips-list"></div>
+  </div>
 
+  <script>
+    const tabBaixar = document.getElementById('tabBaixar');
+    const tabDivisor = document.getElementById('tabDivisor');
+    const painelBaixar = document.getElementById('painelBaixar');
+    const painelDivisor = document.getElementById('painelDivisor');
+
+    tabBaixar.addEventListener('click', () => {
+      tabBaixar.classList.add('active');
+      tabDivisor.classList.remove('active');
+      painelBaixar.classList.remove('hidden');
+      painelDivisor.classList.add('hidden');
+    });
+
+    tabDivisor.addEventListener('click', () => {
+      tabDivisor.classList.add('active');
+      tabBaixar.classList.remove('active');
+      painelDivisor.classList.remove('hidden');
+      painelBaixar.classList.add('hidden');
+    });
+
+    function mostrarStatus(el, msg, tipo) {
+      el.className = 'status-box ' + (tipo || '');
+      el.innerHTML = msg;
+      el.classList.remove('hidden');
+    }
+
+    const btnExtrair = document.getElementById('btnExtrair');
+    const inputUrl = document.getElementById('videoUrl');
+    const statusExtracao = document.getElementById('statusExtracao');
+    const areaResultado = document.getElementById('areaResultado');
+    const areaResgate = document.getElementById('areaResgate');
+    const previewVideo = document.getElementById('previewVideo');
+    const btnBaixarDireto = document.getElementById('btnBaixarDireto');
+    const inputLinkLimpo = document.getElementById('inputLinkLimpo');
+
+    function fetchComTimeout(url, opcoes, limiteMs) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
+        fetch(url, opcoes)
+          .then((res) => {
+            clearTimeout(timer);
+            resolve(res);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+    }
+
+    async function extrairVideoDireto(rawUrl) {
+      if (rawUrl.includes('tiktok.com')) {
+        try {
+          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
+          const data = await res.json();
+          if (data?.data?.play) return data.data.play;
+        } catch (e) {}
+      }
+
+      const apisCobalt = [
+        'https://cobalt-api.kwiatekmiki.com/',
+        'https://cobalt-backend.canine.tools/'
+      ];
+
+      for (const api of apisCobalt) {
+        try {
+          const resp = await fetchComTimeout(api, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
+          }, 4000);
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json && (json.url || json.stream)) return json.url || json.stream;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
+        const json = await res.json();
+        if (json?.data?.video?.url) return json.data.video.url;
+      } catch (e) {}
+
+      return null;
+    }
+
+    btnExtrair.addEventListener('click', async () => {
+      const rawUrl = inputUrl.value.trim();
+      if (!rawUrl) {
+        mostrarStatus(statusExtracao, '⚠️ Cole o link de um vídeo primeiro.', 'error');
+        return;
+      }
+
+      areaResultado.classList.add('hidden');
+      areaResgate.classList.add('hidden');
+      btnExtrair.disabled = true;
+      mostrarStatus(statusExtracao, '⏳ A processar extração...');
+
+      try {
+        let videoFinal = await extrairVideoDireto(rawUrl);
+
+        if (videoFinal) {
+          mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
+          inputLinkLimpo.value = videoFinal;
+          previewVideo.src = videoFinal;
+          areaResultado.classList.remove('hidden');
+
+          btnBaixarDireto.onclick = async () => {
+            btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
             try {
-                // 1. TikTok via TikWM
-                if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
-                    try {
-                        const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
-                        const tikJson = await tikRes.json();
-                        if (tikJson && tikJson.data) {
-                            const play = tikJson.data.hdplay || tikJson.data.play;
-                            if (play) videoUrl = play.startsWith('http') ? play : `https://www.tikwm.com${play}`;
-                        }
-                    } catch (e) {}
-                }
-
-                // 2. Universal (Facebook, Instagram, YouTube, Kwai) via APIs Cobalt Públicas
-                if (!videoUrl) {
-                    const cobaltApis = [
-                        'https://api.cobalt.tools/api/json',
-                        'https://co.wuk.sh/api/json'
-                    ];
-
-                    for (const api of cobaltApis) {
-                        if (videoUrl) break;
-                        try {
-                            const response = await fetch(api, {
-                                method: 'POST',
-                                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    url: urlInput,
-                                    vQuality: '720',
-                                    isNoTTWatermark: true
-                                })
-                            });
-                            const data = await response.json();
-                            if (data && data.url) {
-                                videoUrl = data.url;
-                            }
-                        } catch (e) {}
-                    }
-                }
-
-                if (videoUrl) {
-                    statusBox.className = 'status-box success';
-                    statusBox.innerText = 'Vídeo extraído com sucesso!';
-                    previewVideo.src = videoUrl;
-                    downloadLink.href = videoUrl;
-                    resultArea.style.display = 'block';
-                } else {
-                    throw new Error('Não foi possível extrair o vídeo. Verifique se o link é público.');
-                }
+              const resp = await fetch(videoFinal);
+              const blob = await resp.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = `cortepro-${Date.now()}.mp4`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              btnBaixarDireto.textContent = '✅ Download Concluído!';
             } catch (err) {
-                statusBox.className = 'status-box error';
-                statusBox.innerText = err.message || 'Erro ao processar o vídeo.';
-            } finally {
-                extractBtn.disabled = false;
+              window.open(videoFinal, '_blank');
+              btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
             }
+          };
+        } else {
+          mostrarStatus(
+            statusExtracao,
+            '⚡ <b>Proteção da rede social detetada!</b><br>Toque num dos botões oficiais abaixo para abrir o conversor e baixar instantaneamente:',
+            'warning'
+          );
+          areaResgate.classList.remove('hidden');
+        }
+      } catch (err) {
+        mostrarStatus(statusExtracao, '⚡ Escolha um dos servidores abaixo:', 'warning');
+        areaResgate.classList.remove('hidden');
+      } finally {
+        btnExtrair.disabled = false;
+      }
+    });
+
+    document.getElementById('btnInstaResgate').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://saveinsta.app/pt', '_blank');
+    });
+
+    document.getElementById('btnServerResgate').addEventListener('click', () => {
+      const url = inputUrl.value.trim();
+      try { navigator.clipboard.writeText(url); } catch (e) {}
+      window.open('https://pt.savefrom.net/', '_blank');
+    });
+
+    // =====================================================
+    // ABA 2: DIVISOR DE VÍDEO LOCAL
+    // =====================================================
+    const btnDividir = document.getElementById('btnDividir');
+    const fileInput = document.getElementById('videoFile');
+    const tempoInput = document.getElementById('tempoCorte');
+    const statusDivisor = document.getElementById('statusDivisor');
+    const videoPreview = document.getElementById('videoDivisorPreview');
+    const listaCortes = document.getElementById('listaCortes');
+
+    let urlArquivoAtual = null;
+    let intervaloPreview = null;
+
+    btnDividir.addEventListener('click', () => {
+      if (!fileInput.files || !fileInput.files[0]) {
+        mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const duracaoParte = parseInt(tempoInput.value, 10) || 30;
+
+      if (urlArquivoAtual) {
+        URL.revokeObjectURL(urlArquivoAtual);
+      }
+      urlArquivoAtual = URL.createObjectURL(file);
+
+      listaCortes.innerHTML = '';
+      videoPreview.classList.remove('hidden');
+      videoPreview.src = urlArquivoAtual;
+      videoPreview.load();
+
+      mostrarStatus(statusDivisor, '⏳ A ler duração do vídeo...');
+
+      let jaProcessou = false;
+
+      function criarListaDePartes(duracaoTotal) {
+        if (jaProcessou) return;
+        jaProcessou = true;
+
+        const totalSegundos = (duracaoTotal && isFinite(duracaoTotal) && duracaoTotal > 0)
+          ? Math.ceil(duracaoTotal)
+          : 120;
+
+        const totalPartes = Math.ceil(totalSegundos / duracaoParte);
+
+        mostrarStatus(
+          statusDivisor,
+          `✅ Vídeo pronto (${totalSegundos}s)! Foram geradas <b>${totalPartes} partes</b> de ${duracaoParte}s abaixo:`,
+          'success'
+        );
+
+        for (let i = 0; i < totalPartes; i++) {
+          const inicio = i * duracaoParte;
+          const fim = Math.min((i + 1) * duracaoParte, totalSegundos);
+
+          const cardParte = document.createElement('div');
+          cardParte.className = 'clip-item';
+
+          cardParte.innerHTML = `
+            <div class="clip-header">
+              <span>🎬 Parte ${i + 1}</span>
+              <span>${inicio}s até ${fim}s</span>
+            </div>
+            <div class="clip-actions">
+              <button type="button" class="btn-small btn-preview" data-ini="${inicio}" data-fim="${fim}">
+                ▶️ Ver Trecho
+              </button>
+              <button type="button" class="btn-small btn-cut" data-ini="${inicio}" data-fim="${fim}" data-parte="${i + 1}">
+                ✂️ Gravar Parte ${i + 1}
+              </button>
+            </div>
+          `;
+
+          listaCortes.appendChild(cardParte);
         }
 
-        let selectedFileUrl = null;
-        let videoDuration = 0;
+        listaCortes.querySelectorAll('.btn-preview').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            clearInterval(intervaloPreview);
 
-        function carregarVideoLocal(event) {
-            const file = event.target.files[0];
-            const splitStatus = document.getElementById('splitStatus');
-            const clipsContainer = document.getElementById('clipsContainer');
-            clipsContainer.innerHTML = '';
+            videoPreview.currentTime = ini;
+            videoPreview.play();
 
-            if (!file) return;
-            selectedFileUrl = URL.createObjectURL(file);
-            const tempVideo = document.createElement('video');
-            tempVideo.src = selectedFileUrl;
-            tempVideo.onloadedmetadata = () => {
-                videoDuration = tempVideo.duration;
-                splitStatus.className = 'status-box success';
-                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
-            };
+            intervaloPreview = setInterval(() => {
+              if (videoPreview.currentTime >= fim) {
+                videoPreview.pause();
+                clearInterval(intervaloPreview);
+              }
+            }, 200);
+          });
+        });
+
+        listaCortes.querySelectorAll('.btn-cut').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            const numParte = btn.getAttribute('data-parte');
+            gravarTrechoReal(ini, fim, numParte, btn);
+          });
+        });
+      }
+
+      videoPreview.onloadedmetadata = () => {
+        criarListaDePartes(videoPreview.duration);
+      };
+
+      videoPreview.ondurationchange = () => {
+        if (videoPreview.duration && isFinite(videoPreview.duration)) {
+          criarListaDePartes(videoPreview.duration);
         }
+      };
 
-        function dividirVideoLocal() {
-            const splitStatus = document.getElementById('splitStatus');
-            const clipsContainer = document.getElementById('clipsContainer');
-            const step = parseInt(document.getElementById('splitDuration').value, 10);
-
-            if (!selectedFileUrl || !videoDuration) {
-                splitStatus.className = 'status-box error';
-                splitStatus.innerText = 'Selecione um vídeo primeiro.';
-                return;
-            }
-
-            clipsContainer.innerHTML = '';
-            const totalParts = Math.ceil(videoDuration / step);
-            splitStatus.className = 'status-box success';
-            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
-
-            for (let i = 0; i < totalParts; i++) {
-                const start = i * step;
-                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
-                const clipCard = document.createElement('div');
-                clipCard.style.background = '#0f172a';
-                clipCard.style.padding = '12px';
-                clipCard.style.borderRadius = '8px';
-                clipCard.style.border = '1px solid #334155';
-                clipCard.innerHTML = `
-                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
-                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
-                    </p>
-                    <video src="${selectedFileUrl}#t=${start},${end}" controls style="max-height: 200px; width: 100%;"></video>
-                `;
-                clipsContainer.appendChild(clipCard);
-            }
+      setTimeout(() => {
+        if (!jaProcessou) {
+          criarListaDePartes(videoPreview.duration || 120);
         }
-    </script>
+      }, 2500);
+    });
+
+    function gravarTrechoReal(inicio, fim, numParte, botao) {
+      const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
+      if (!streamFn) {
+        const a = document.createElement('a');
+        a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
+        a.download = `cortepro_parte_${numParte}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+
+      const textoOriginal = botao.textContent;
+      botao.disabled = true;
+      botao.textContent = '🔴 A gravar trecho...';
+
+      clearInterval(intervaloPreview);
+      videoPreview.pause();
+      videoPreview.currentTime = inicio;
+      videoPreview.muted = false;
+
+      const chunks = [];
+      let recorder;
+
+      const iniciarGravacao = () => {
+        videoPreview.removeEventListener('seeked', iniciarGravacao);
+        try {
+          const stream = streamFn.call(videoPreview);
+          recorder = new MediaRecorder(stream);
+
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            const urlCorte = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlCorte;
+            a.download = `cortepro_parte_${numParte}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            botao.disabled = false;
+            botao.textContent = '✅ Parte ' + numParte + ' Baixada!';
+            setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
+          };
+
+          recorder.start();
+          videoPreview.play();
+
+          const monitor = setInterval(() => {
+            const falta = Math.max(0, Math.ceil(fim - videoPreview.currentTime));
+            botao.textContent = `🔴 A gravar (${falta}s)...`;
+            if (videoPreview.currentTime >= fim || videoPreview.ended) {
+              clearInterval(monitor);
+              videoPreview.pause();
+              if (recorder.state === 'recording') recorder.stop();
+            }
+          }, 250);
+        } catch (err) {
+          botao.disabled = false;
+          botao.textContent = textoOriginal;
+          const a = document.createElement('a');
+          a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
+          a.download = `cortepro_parte_${numParte}.mp4`;
+          a.click();
+        }
+      };
+
+      videoPreview.addEventListener('seeked', iniciarGravacao);
+    }
+  </script>
 </body>
 </html>
