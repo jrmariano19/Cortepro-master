@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,10 +46,12 @@
     <div class="container">
         <h1>CortePro Master</h1>
         <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
+
         <div class="tabs">
             <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
             <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
         </div>
+
         <div id="downloader" class="section active">
             <div class="platforms-hint">
                 <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
@@ -59,15 +61,18 @@
                 <input type="text" id="videoUrl" placeholder="https://www.tiktok.com/... ou Facebook/YouTube">
             </div>
             <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
+            
             <div id="statusBox" class="status-box"></div>
+
             <div id="resultArea" class="result-area">
                 <video id="previewVideo" controls playsinline></video>
                 <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer">Descarregar Vídeo</a>
             </div>
         </div>
+
         <div id="splitter" class="section">
             <div class="form-group">
-                <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
+                <label for="localVideoFile">Selecione o vídeo do dispositivo:</label>
                 <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
             </div>
             <div class="form-group">
@@ -84,6 +89,7 @@
             <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
     </div>
+
     <script>
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -96,6 +102,7 @@
                 document.getElementById('splitter').classList.add('active');
             }
         }
+
         async function extrairVideo() {
             let urlInput = document.getElementById('videoUrl').value.trim();
             const statusBox = document.getElementById('statusBox');
@@ -122,7 +129,14 @@
                     body: JSON.stringify({ url: urlInput })
                 });
 
-                const data = await response.json();
+                // Nova proteção para erros de HTML/Vercel (resolve o erro "Unexpected token 'T'")
+                const textRes = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(textRes);
+                } catch (e) {
+                    throw new Error('Erro de comunicação com o servidor da Vercel. Verifique se o vercel.json está correto.');
+                }
 
                 if (data.success && data.videoUrl) {
                     statusBox.className = 'status-box success';
@@ -131,62 +145,4 @@
                     downloadLink.href = data.videoUrl;
                     resultArea.style.display = 'block';
                 } else {
-                    throw new Error(data.error || 'Não foi possível extrair o vídeo.');
-                }
-            } catch (err) {
-                statusBox.className = 'status-box error';
-                statusBox.innerText = err.message || 'Erro ao processar o vídeo.';
-            } finally {
-                extractBtn.disabled = false;
-            }
-        }
-        let selectedFileUrl = null;
-        let videoDuration = 0;
-        function carregarVideoLocal(event) {
-            const file = event.target.files[0];
-            const splitStatus = document.getElementById('splitStatus');
-            const clipsContainer = document.getElementById('clipsContainer');
-            clipsContainer.innerHTML = '';
-            if (!file) return;
-            selectedFileUrl = URL.createObjectURL(file);
-            const tempVideo = document.createElement('video');
-            tempVideo.src = selectedFileUrl;
-            tempVideo.onloadedmetadata = () => {
-                videoDuration = tempVideo.duration;
-                splitStatus.className = 'status-box success';
-                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
-            };
-        }
-        function dividirVideoLocal() {
-            const splitStatus = document.getElementById('splitStatus');
-            const clipsContainer = document.getElementById('clipsContainer');
-            const step = parseInt(document.getElementById('splitDuration').value, 10);
-            if (!selectedFileUrl || !videoDuration) {
-                splitStatus.className = 'status-box error';
-                splitStatus.innerText = 'Selecione um vídeo do seu telemóvel primeiro.';
-                return;
-            }
-            clipsContainer.innerHTML = '';
-            const totalParts = Math.ceil(videoDuration / step);
-            splitStatus.className = 'status-box success';
-            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
-            for (let i = 0; i < totalParts; i++) {
-                const start = i * step;
-                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
-                const clipCard = document.createElement('div');
-                clipCard.style.background = '#0f172a';
-                clipCard.style.padding = '12px';
-                clipCard.style.borderRadius = '8px';
-                clipCard.style.border = '1px solid #334155';
-                clipCard.innerHTML = `
-                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
-                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
-                    </p>
-                    <video src="${selectedFileUrl}#t=${start},${end}" controls style="max-height: 200px;"></video>
-                `;
-                clipsContainer.appendChild(clipCard);
-            }
-        }
-    </script>
-</body>
-</html>
+                    throw new Error(data.error || 'Não foi possível extrair o vídeo. Verifique se é
