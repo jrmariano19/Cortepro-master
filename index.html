@@ -186,26 +186,6 @@
       cursor: pointer;
     }
 
-    .rescue-box {
-      margin-top: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .rescue-btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 800;
-      text-align: center;
-      border: none;
-      cursor: pointer;
-      background-color: #2563eb;
-      color: #ffffff;
-    }
-
     .link-limpo-box {
       margin-top: 12px;
       background: #090c14;
@@ -288,7 +268,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 5.1 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 5.2 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -327,13 +307,6 @@
       </div>
 
       <video id="previewVideo" controls playsinline></video>
-    </div>
-
-    <!-- BOTÕES DE RESGATE OFICIAIS -->
-    <div id="areaResgate" class="rescue-box hidden">
-      <button type="button" class="rescue-btn" id="btnServerResgate">
-        🚀 Abrir Alternativa Segura Sem Pop-ups
-      </button>
     </div>
   </div>
 
@@ -384,7 +357,6 @@
     const inputUrl = document.getElementById('videoUrl');
     const statusExtracao = document.getElementById('statusExtracao');
     const areaResultado = document.getElementById('areaResultado');
-    const areaResgate = document.getElementById('areaResgate');
     const previewVideo = document.getElementById('previewVideo');
     const btnBaixarDireto = document.getElementById('btnBaixarDireto');
     const inputLinkLimpo = document.getElementById('inputLinkLimpo');
@@ -416,6 +388,8 @@
         }
 
         const apisCobalt = [
+          'https://api.cobalt.tools/api/json',
+          'https://co.wuk.sh/api/json',
           'https://cobalt-api.kwiatekmiki.com/',
           'https://cobalt-backend.canine.tools/'
         ];
@@ -426,7 +400,7 @@
               method: 'POST',
               headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
-            }, 4000);
+            }, 5000);
             
             const text = await resp.text();
             if (resp.ok && text && text.trim().startsWith('{')) {
@@ -455,9 +429,8 @@
       }
 
       areaResultado.classList.add('hidden');
-      areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração limpa...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração limpa diretamente...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
@@ -489,31 +462,14 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão abaixo para usar a alternativa limpa:',
-            'warning'
+            '⚠️ Não foi possível extrair automaticamente este link neste momento. Tente outro vídeo ou utilize o Divisor Local para vídeos do telemóvel.',
+            'error'
           );
-          areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '⚡ Escolha o servidor de resgate abaixo:', 'warning');
-        areaResgate.classList.remove('hidden');
+        mostrarStatus(statusExtracao, '❌ Ocorreu um erro no processamento.', 'error');
       } finally {
         btnExtrair.disabled = false;
-      }
-    });
-
-    document.getElementById('btnServerResgate').addEventListener('click', () => {
-      const url = inputUrl.value.trim();
-      try { navigator.clipboard.writeText(url); } catch (e) {}
-      if (url.includes('facebook')) {
-        window.open('https://fdown.net/pt', '_blank');
-      } else if (url.includes('instagram')) {
-        window.open('https://saveinsta.app/pt', '_blank');
-      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        // Usando uma alternativa mais direta para o YouTube sem os pop-ups agressivos do loader.to
-        window.open('https://ssyoutube.com/en152/', '_blank');
-      } else {
-        window.open('https://pt.savefrom.net/', '_blank');
       }
     });
 
