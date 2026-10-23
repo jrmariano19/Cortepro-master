@@ -32,12 +32,12 @@
         .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
         .btn:hover { background: var(--primary-hover); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .status-box { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; display: none; }
+        .status-box { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; display: none; word-break: break-word; }
         .status-box.loading { background: rgba(79, 70, 229, 0.15); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.3); display: block; }
         .status-box.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); display: block; }
         .status-box.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
         .result-area { margin-top: 20px; display: none; text-align: center; }
-        video { width: 100%; max-height: 300px; border-radius: 8px; margin-bottom: 12px; background: #000; }
+        video { width: 100%; max-height: 320px; border-radius: 8px; margin-bottom: 12px; background: #000; }
         .platforms-hint { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
         .platforms-hint span { background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
     </style>
@@ -59,33 +59,36 @@
             </div>
             <div class="form-group">
                 <label for="videoUrl">Cole o link do vídeo:</label>
-                <input type="text" id="videoUrl" placeholder="https://www.tiktok.com/... ou Instagram/YouTube">
+                <input type="text" id="videoUrl" placeholder="https://www.tiktok.com/... ou Facebook/YouTube">
             </div>
             <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
             
-            <div id="statusBox" class="status-box">A ligar ao servidor... (servidor serverless a acordar, aguarde até 35s)</div>
+            <div id="statusBox" class="status-box"></div>
 
             <div id="resultArea" class="result-area">
-                <video id="previewVideo" controls></video>
-                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank">Descarregar Vídeo</a>
+                <video id="previewVideo" controls playsinline></video>
+                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer">Descarregar Vídeo</a>
             </div>
         </div>
 
-        <!-- ABA DIVISOR -->
+        <!-- ABA DIVISOR LOCAL -->
         <div id="splitter" class="section">
             <div class="form-group">
-                <label for="localVideoFile">Selecione o vídeo local:</label>
-                <input type="file" id="localVideoFile" accept="video/*">
+                <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
+                <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
             </div>
             <div class="form-group">
-                <label for="splitDuration">Duração de cada parte (segundos):</label>
+                <label for="splitDuration">Duração de cada corte (segundos):</label>
                 <select id="splitDuration">
-                    <option value="30">30 segundos (Reels/Shorts)</option>
-                    <option value="60">60 segundos (1 Minuto)</option>
+                    <option value="15">15 segundos (Stories)</option>
+                    <option value="30" selected>30 segundos (Reels / Status)</option>
+                    <option value="60">60 segundos (Shorts / TikTok)</option>
                     <option value="90">90 segundos</option>
                 </select>
             </div>
-            <button class="btn" onclick="alert('Divisor local pronto para processar o ficheiro selecionado.')">Dividir Vídeo</button>
+            <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Cortes do Vídeo</button>
+            <div id="splitStatus" class="status-box"></div>
+            <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
     </div>
 
@@ -93,7 +96,7 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            if(tabName === 'downloader') {
+            if (tabName === 'downloader') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('downloader').classList.add('active');
             } else {
@@ -111,47 +114,149 @@
             const downloadLink = document.getElementById('downloadLink');
 
             if (!urlInput) {
-                alert('Por favor, insira um link válido.');
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'Por favor, cole um link válido primeiro.';
                 return;
             }
 
             extractBtn.disabled = true;
             resultArea.style.display = 'none';
             statusBox.className = 'status-box loading';
-            statusBox.innerText = 'A ligar ao servidor e a extrair... (se estiver a acordar, pode demorar até 35s)';
+            statusBox.innerText = 'A extrair vídeo limpo... Aguarde alguns segundos.';
+
+            let videoUrl = null;
 
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 35000);
+                // 1. Motor Direto TikTok (TikWM) - Funciona direto do navegador sem erro de servidor
+                if (urlInput.includes('tiktok.com')) {
+                    try {
+                        const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
+                        const tikData = await tikRes.json();
+                        if (tikData && tikData.data) {
+                            const rawPlay = tikData.data.hdplay || tikData.data.play;
+                            if (rawPlay) {
+                                videoUrl = rawPlay.startsWith('http') ? rawPlay : `https://www.tikwm.com${rawPlay}`;
+                            }
+                        }
+                    } catch (e) {}
+                }
 
-                const response = await fetch('/extrair', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: urlInput }),
-                    signal: controller.signal
-                });
+                // 2. Motor Multiplataforma (Facebook, Instagram, YouTube, Kwai, TikTok) via instâncias Cobalt
+                if (!videoUrl) {
+                    const endpoints = [
+                        'https://co.wuk.sh/api/json',
+                        'https://cobalt.api.timelessnesses.me/api/json',
+                        'https://api.cobalt.tools/api/json'
+                    ];
 
-                clearTimeout(timeoutId);
-                const data = await response.json();
+                    for (const endpoint of endpoints) {
+                        if (videoUrl) break;
+                        try {
+                            const res = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    url: urlInput,
+                                    vQuality: '720',
+                                    filenamePattern: 'basic',
+                                    isNoTTWatermark: true
+                                })
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data && data.url) {
+                                    videoUrl = data.url;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
 
-                if (data.success && (data.videoUrl || data.downloadUrl)) {
-                    const finalUrl = data.videoUrl || data.downloadUrl;
+                // 3. Fallback via Proxy AllOrigins caso o navegador bloqueie CORS
+                if (!videoUrl && !urlInput.includes('tiktok.com')) {
+                    try {
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://www.tikwm.com/api/?url=' + urlInput)}`;
+                        const res = await fetch(proxyUrl);
+                        const data = await res.json();
+                        const parsed = JSON.parse(data.contents);
+                        if (parsed && parsed.data && parsed.data.play) {
+                            videoUrl = parsed.data.play;
+                        }
+                    } catch (e) {}
+                }
+
+                if (videoUrl) {
                     statusBox.className = 'status-box success';
                     statusBox.innerText = 'Vídeo extraído com sucesso!';
-                    
-                    previewVideo.src = finalUrl;
-                    downloadLink.href = finalUrl;
+                    previewVideo.src = videoUrl;
+                    downloadLink.href = videoUrl;
                     resultArea.style.display = 'block';
                 } else {
-                    throw new Error(data.error || 'Falha ao extrair o vídeo.');
+                    throw new Error('Não foi possível extrair diretamente. Se for link do Facebook (/share/r/), abra o vídeo no Facebook, clique nos 3 pontos e copie o link direto do Reel.');
                 }
             } catch (err) {
                 statusBox.className = 'status-box error';
-                statusBox.innerText = err.name === 'AbortError' 
-                    ? 'O servidor demorou a acordar. Aguarde 10 segundos e clique em Extrair novamente.' 
-                    : (err.message || 'Erro ao comunicar com o servidor.');
+                statusBox.innerText = err.message || 'Erro ao processar o vídeo.';
             } finally {
                 extractBtn.disabled = false;
+            }
+        }
+
+        // Divisor Local de Vídeo
+        let selectedFileUrl = null;
+        let videoDuration = 0;
+
+        function carregarVideoLocal(event) {
+            const file = event.target.files[0];
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            clipsContainer.innerHTML = '';
+
+            if (!file) return;
+            selectedFileUrl = URL.createObjectURL(file);
+            const tempVideo = document.createElement('video');
+            tempVideo.src = selectedFileUrl;
+            tempVideo.onloadedmetadata = () => {
+                videoDuration = tempVideo.duration;
+                splitStatus.className = 'status-box success';
+                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
+            };
+        }
+
+        function dividirVideoLocal() {
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            const step = parseInt(document.getElementById('splitDuration').value, 10);
+
+            if (!selectedFileUrl || !videoDuration) {
+                splitStatus.className = 'status-box error';
+                splitStatus.innerText = 'Selecione um vídeo do seu telemóvel primeiro.';
+                return;
+            }
+
+            clipsContainer.innerHTML = '';
+            const totalParts = Math.ceil(videoDuration / step);
+            splitStatus.className = 'status-box success';
+            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
+
+            for (let i = 0; i < totalParts; i++) {
+                const start = i * step;
+                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
+                const clipCard = document.createElement('div');
+                clipCard.style.background = '#0f172a';
+                clipCard.style.padding = '12px';
+                clipCard.style.borderRadius = '8px';
+                clipCard.style.border = '1px solid #334155';
+                clipCard.innerHTML = `
+                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
+                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
+                    </p>
+                    <video src="${selectedFileUrl}#t=${start},${end}" controls style="max-height: 200px;"></video>
+                `;
+                clipsContainer.appendChild(clipCard);
             }
         }
     </script>
