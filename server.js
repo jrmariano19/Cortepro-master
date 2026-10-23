@@ -8,7 +8,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Função auxiliar para limpar URLs escapadas no HTML do Facebook/Instagram/Kwai
+// Função auxiliar para limpar URLs escapadas no HTML
 function limparUrlEscapada(str) {
   if (!str) return null;
   return str
@@ -57,12 +57,12 @@ async function extrairViaCobalt(url) {
   return null;
 }
 
-// 1. ROTA DE STATUS
+// ROTA DE STATUS
 app.get('/', (req, res) => {
   res.send('CortePro Backend 3.2 Ativo e Operacional!');
 });
 
-// 2. ROTA PRINCIPAL DE EXTRAÇÃO (/extrair ou /api/extrair)
+// ROTA PRINCIPAL DE EXTRAÇÃO
 async function processarExtracao(req, res) {
   const rawUrl = req.body.url || req.query.url;
   if (!rawUrl) {
@@ -73,9 +73,7 @@ async function processarExtracao(req, res) {
     let targetUrl = rawUrl.trim();
     let videoUrl = null;
 
-    // ==========================================
-    // CASO 1: TIKTOK (Sem marca d'água em HD)
-    // ==========================================
+    // 1. TIKTOK
     if (targetUrl.includes('tiktok.com')) {
       try {
         const tikRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}&hd=1`);
@@ -90,16 +88,12 @@ async function processarExtracao(req, res) {
       }
     }
 
-    // ==========================================
-    // CASO 2: YOUTUBE (Shorts e Vídeos Longos)
-    // ==========================================
+    // 2. YOUTUBE
     if (!videoUrl && (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be'))) {
       videoUrl = await extrairViaCobalt(targetUrl);
     }
 
-    // ==========================================
-    // CASO 3: KWAI (Extração da stream original sem logo)
-    // ==========================================
+    // 3. KWAI
     if (!videoUrl && (targetUrl.includes('kwai.com') || targetUrl.includes('kw.ai'))) {
       videoUrl = await extrairViaCobalt(targetUrl);
 
@@ -108,14 +102,14 @@ async function processarExtracao(req, res) {
           const kwaiRes = await axios.get(targetUrl, {
             maxRedirects: 10,
             headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15'
             }
           });
           const kwaiHtml = kwaiRes.data;
           const cleanKwaiMatch =
             kwaiHtml.match(/"mainMvUrls"\\s*:\\s*\[\\s*\{\\s*[^}]*"url"\\s*:\\s*"([^"]+)"/i) ||
             kwaiHtml.match(/"playUrl"\\s*:\\s*"([^"]+)"/i) ||
-            kwaiHtml.match(/"contentUrl"\\s*:\\s*"([^"]+\.mp4[^"]*)"/i);
+            kwaiHtml.match(/"contentUrl"\\s*:\\s*"([^"]+\\.mp4[^"]*)"/i);
 
           if (cleanKwaiMatch && cleanKwaiMatch[1]) {
             videoUrl = limparUrlEscapada(cleanKwaiMatch[1]);
@@ -126,9 +120,7 @@ async function processarExtracao(req, res) {
       }
     }
 
-    // ==========================================
-    // CASO 4: FACEBOOK (Links /share/r/, /reel/, watch)
-    // ==========================================
+    // 4. FACEBOOK
     if (!videoUrl && (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com'))) {
       try {
         const fbResponse = await axios.get(targetUrl, {
@@ -140,48 +132,19 @@ async function processarExtracao(req, res) {
         });
 
         const html = fbResponse.data;
-
         const ogMatch =
           html.match(/property="og:video:secure_url"\\s+content="([^"]+)"/i) ||
-          html.match(/property="og:video"\\s+content="([^"]+)"/i) ||
-          html.match(/content="([^"]+)"\\s+property="og:video:secure_url"/i) ||
-          html.match(/content="([^"]+)"\\s+property="og:video"/i);
+          html.match(/property="og:video"\\s+content="([^"]+)"/i);
 
         if (ogMatch && ogMatch[1]) {
           videoUrl = limparUrlEscapada(ogMatch[1]);
-        }
-
-        if (!videoUrl) {
-          const finalUrl = fbResponse.request?.res?.responseUrl || targetUrl;
-          const mobileRes = await axios.get(finalUrl, {
-            maxRedirects: 10,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-            }
-          });
-
-          const mobileHtml = mobileRes.data;
-          const jsonMatch =
-            mobileHtml.match(/"playable_url_quality_hd":"([^"]+)"/) ||
-            mobileHtml.match(/"playable_url":"([^"]+)"/) ||
-            mobileHtml.match(/"browser_native_hd_url":"([^"]+)"/) ||
-            mobileHtml.match(/"browser_native_sd_url":"([^"]+)"/) ||
-            mobileHtml.match(/hd_src\\s*:\\s*"([^"]+)"/) ||
-            mobileHtml.match(/sd_src\\s*:\\s*"([^"]+)"/);
-
-          if (jsonMatch && jsonMatch[1]) {
-            videoUrl = limparUrlEscapada(jsonMatch[1]);
-          }
         }
       } catch (e) {
         console.error('Aviso Facebook:', e.message);
       }
     }
 
-    // ==========================================
-    // CASO 5: INSTAGRAM & FALLBACK GERAL
-    // ==========================================
+    // 5. INSTAGRAM & FALLBACK
     if (!videoUrl) {
       videoUrl = await extrairViaCobalt(targetUrl);
 
@@ -189,24 +152,18 @@ async function processarExtracao(req, res) {
         try {
           const genRes = await axios.get(targetUrl, {
             maxRedirects: 10,
-            headers: {
-              'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
-            }
+            headers: { 'User-Agent': 'facebookexternalhit/1.1' }
           });
-
           const html = genRes.data;
           const match =
             html.match(/"video_versions"\\s*:\\s*\[\\s*\{\\s*[^}]*"url"\\s*:\\s*"([^"]+)"/i) ||
-            html.match(/"video_url"\\s*:\\s*"([^"]+)"/i) ||
-            html.match(/"contentUrl"\\s*:\\s*"([^"]+\.mp4[^"]*)"/i) ||
-            html.match(/property="og:video:secure_url"\\s+content="([^"]+)"/i) ||
-            html.match(/property="og:video"\\s+content="([^"]+)"/i);
+            html.match(/"video_url"\\s*:\\s*"([^"]+)"/i);
 
           if (match && match[1]) {
             videoUrl = limparUrlEscapada(match[1]);
           }
         } catch (e) {
-          console.error('Aviso Fallback Geral:', e.message);
+          console.error('Aviso Fallback:', e.message);
         }
       }
     }
@@ -242,6 +199,7 @@ app.get('/extrair', processarExtracao);
 app.post('/api/extrair', processarExtracao);
 app.post('/download', processarExtracao);
 
+// ROTA DE PROXY PARA DESCARREGAR SEM ERRO DE CORS
 app.get('/proxy-download', async (req, res) => {
   const videoUrl = req.query.url;
   if (!videoUrl) return res.status(400).send('URL do vídeo ausente.');
@@ -252,7 +210,7 @@ app.get('/proxy-download', async (req, res) => {
       url: videoUrl,
       responseType: 'stream',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Referer': 'https://www.google.com/'
       }
     });
@@ -262,7 +220,7 @@ app.get('/proxy-download', async (req, res) => {
     response.data.pipe(res);
   } catch (err) {
     console.error('Erro no proxy de download:', err.message);
-    res.status(500).send('Erro ao baixar o ficheiro de vídeo.');
+    res.status(500).send('Erro ao descarregar o ficheiro de vídeo.');
   }
 });
 
