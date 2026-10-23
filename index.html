@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master v2.0</title>
+    <title>CortePro Master v3.0</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -44,7 +44,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.8rem; color:#4ade80;">v2.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.8rem; color:#4ade80;">v3.0</span></h1>
         <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
 
         <div class="tabs">
@@ -58,7 +58,7 @@
             </div>
             <div class="form-group">
                 <label for="videoUrl">Cole o link do vídeo:</label>
-                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok">
+                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok/Instagram">
             </div>
             <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
             
@@ -103,38 +103,6 @@
             }
         }
 
-        // Função auxiliar para limpar URLs escapadas do Facebook/Instagram
-        function limparUrlMeta(raw) {
-            return raw
-                .replace(/\\u0025/g, '%')
-                .replace(/\\u0026/g, '&')
-                .replace(/\\\//g, '/')
-                .replace(/&amp;/g, '&');
-        }
-
-        // Extrator de HTML para Facebook/Instagram
-        function procurarMp4NoHtml(html) {
-            const padroes = [
-                /"browser_native_hd_url":"([^"]+)"/,
-                /"browser_native_sd_url":"([^"]+)"/,
-                /"playable_url_quality_hd":"([^"]+)"/,
-                /"playable_url":"([^"]+)"/,
-                /"hd_src":"([^"]+)"/,
-                /"sd_src":"([^"]+)"/,
-                /"video_url":"([^"]+)"/,
-                /<meta property="og:video:secure_url" content="([^"]+)"/i,
-                /<meta property="og:video" content="([^"]+)"/i
-            ];
-            for (const regex of padroes) {
-                const match = html.match(regex);
-                if (match && match[1]) {
-                    const limpa = limparUrlMeta(match[1]);
-                    if (limpa.startsWith('http')) return limpa;
-                }
-            }
-            return null;
-        }
-
         async function extrairVideo() {
             let urlInput = document.getElementById('videoUrl').value.trim();
             const statusBox = document.getElementById('statusBox');
@@ -154,61 +122,56 @@
             statusBox.className = 'status-box loading';
             statusBox.innerText = 'A extrair vídeo limpo... Aguarde alguns segundos.';
 
-            let finalVideoUrl = null;
+            let videoUrl = null;
 
             try {
-                // TENTATIVA 1: Tentar via Backend interno da Vercel (/api/extrair) com leitura segura
-                try {
-                    const resApi = await fetch('/api/extrair', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: urlInput })
-                    });
-                    const texto = await resApi.text();
-                    if (texto.trim().startsWith('{')) {
-                        const json = JSON.parse(texto);
-                        if (json.success && json.videoUrl) {
-                            finalVideoUrl = json.videoUrl;
-                        }
-                    }
-                } catch (e) {}
-
-                // TENTATIVA 2: Se for TikTok, extrai direto no navegador via TikWM
-                if (!finalVideoUrl && (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com'))) {
+                // 1. TikTok via TikWM
+                if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
                     try {
                         const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
                         const tikJson = await tikRes.json();
                         if (tikJson && tikJson.data) {
                             const play = tikJson.data.hdplay || tikJson.data.play;
-                            if (play) finalVideoUrl = play.startsWith('http') ? play : `https://www.tikwm.com${play}`;
+                            if (play) videoUrl = play.startsWith('http') ? play : `https://www.tikwm.com${play}`;
                         }
                     } catch (e) {}
                 }
 
-                // TENTATIVA 3: Se a rota da Vercel falhar, extrai Facebook/Instagram diretamente via Proxy CORS no Front-end
-                if (!finalVideoUrl && (urlInput.includes('facebook.com') || urlInput.includes('fb.watch') || urlInput.includes('instagram.com'))) {
-                    const proxies = [
-                        `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`,
-                        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(urlInput)}`
+                // 2. Universal (Facebook, Instagram, YouTube, Kwai) via APIs Cobalt Públicas
+                if (!videoUrl) {
+                    const cobaltApis = [
+                        'https://api.cobalt.tools/api/json',
+                        'https://co.wuk.sh/api/json'
                     ];
-                    for (const p of proxies) {
-                        if (finalVideoUrl) break;
+
+                    for (const api of cobaltApis) {
+                        if (videoUrl) break;
                         try {
-                            const r = await fetch(p);
-                            const t = await r.text();
-                            finalVideoUrl = procurarMp4NoHtml(t);
+                            const response = await fetch(api, {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    url: urlInput,
+                                    vQuality: '720',
+                                    isNoTTWatermark: true
+                                })
+                            });
+                            const data = await response.json();
+                            if (data && data.url) {
+                                videoUrl = data.url;
+                            }
                         } catch (e) {}
                     }
                 }
 
-                if (finalVideoUrl) {
+                if (videoUrl) {
                     statusBox.className = 'status-box success';
                     statusBox.innerText = 'Vídeo extraído com sucesso!';
-                    previewVideo.src = finalVideoUrl;
-                    downloadLink.href = finalVideoUrl;
+                    previewVideo.src = videoUrl;
+                    downloadLink.href = videoUrl;
                     resultArea.style.display = 'block';
                 } else {
-                    throw new Error('Não foi possível extrair diretamente deste link. Certifique-se de que o vídeo é público.');
+                    throw new Error('Não foi possível extrair o vídeo. Verifique se o link é público.');
                 }
             } catch (err) {
                 statusBox.className = 'status-box error';
