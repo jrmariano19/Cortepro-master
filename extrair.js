@@ -18,20 +18,27 @@ module.exports = async function handler(req, res) {
     let targetUrl = rawUrl.trim();
     let videoUrl = null;
 
-    // Seguir redirecionamento de links curtos do Facebook (/share/r/ ou /share/v/)
+    // Descodificar e extrair o link real de partilha do Facebook (/share/r/ ou /share/v/)
     if (targetUrl.includes('facebook.com/share/')) {
       try {
         const fbRes = await axios.get(targetUrl, {
-          maxRedirects: 5,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1'
           },
           timeout: 8000
         });
-        if (fbRes.request && fbRes.request.res && fbRes.request.res.responseUrl) {
-          targetUrl = fbRes.request.res.responseUrl;
-        } else if (fbRes.config && fbRes.config.url) {
-          targetUrl = fbRes.config.url;
+        const html = fbRes.data || '';
+        
+        // Procura o link canónico de Reel ou Watch dentro do HTML do Facebook
+        const matchReel = html.match(/https:\/\/(?:www\.)?facebook\.com\/(?:reel|watch)\/\d+/);
+        if (matchReel) {
+          targetUrl = matchReel[0];
+        } else {
+          // Procura og:url alternativa
+          const matchOgUrl = html.match(/<meta property="og:url" content="([^"]+)"/);
+          if (matchOgUrl && matchOgUrl[1] && !matchOgUrl[1].includes('/share/')) {
+            targetUrl = matchOgUrl[1].replace(/&amp;/g, '&');
+          }
         }
       } catch (e) {}
     }
@@ -74,7 +81,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ success: true, videoUrl: videoUrl, downloadUrl: videoUrl });
     }
 
-    return res.status(400).json({ success: false, error: 'Não foi possível extrair o vídeo. Verifique se o vídeo é público.' });
+    return res.status(400).json({ success: false, error: 'Não foi possível extrair o vídeo. Certifique-se de que o vídeo do Facebook é público.' });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Erro interno no servidor.' });
   }
