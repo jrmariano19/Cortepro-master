@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Descarregador e Divisor de Vídeos</title>
+    <title>CortePro Master v2.0</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -44,7 +44,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master</h1>
+        <h1>CortePro Master <span style="font-size:0.8rem; color:#4ade80;">v2.0</span></h1>
         <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
 
         <div class="tabs">
@@ -58,7 +58,7 @@
             </div>
             <div class="form-group">
                 <label for="videoUrl">Cole o link do vídeo:</label>
-                <input type="text" id="videoUrl" placeholder="https://www.tiktok.com/... ou Facebook/YouTube">
+                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok">
             </div>
             <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
             
@@ -66,13 +66,13 @@
 
             <div id="resultArea" class="result-area">
                 <video id="previewVideo" controls playsinline></video>
-                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer">Descarregar Vídeo</a>
+                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer" download="video_cortepro.mp4">Descarregar Vídeo</a>
             </div>
         </div>
 
         <div id="splitter" class="section">
             <div class="form-group">
-                <label for="localVideoFile">Selecione o vídeo do dispositivo:</label>
+                <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
                 <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
             </div>
             <div class="form-group">
@@ -103,6 +103,38 @@
             }
         }
 
+        // Função auxiliar para limpar URLs escapadas do Facebook/Instagram
+        function limparUrlMeta(raw) {
+            return raw
+                .replace(/\\u0025/g, '%')
+                .replace(/\\u0026/g, '&')
+                .replace(/\\\//g, '/')
+                .replace(/&amp;/g, '&');
+        }
+
+        // Extrator de HTML para Facebook/Instagram
+        function procurarMp4NoHtml(html) {
+            const padroes = [
+                /"browser_native_hd_url":"([^"]+)"/,
+                /"browser_native_sd_url":"([^"]+)"/,
+                /"playable_url_quality_hd":"([^"]+)"/,
+                /"playable_url":"([^"]+)"/,
+                /"hd_src":"([^"]+)"/,
+                /"sd_src":"([^"]+)"/,
+                /"video_url":"([^"]+)"/,
+                /<meta property="og:video:secure_url" content="([^"]+)"/i,
+                /<meta property="og:video" content="([^"]+)"/i
+            ];
+            for (const regex of padroes) {
+                const match = html.match(regex);
+                if (match && match[1]) {
+                    const limpa = limparUrlMeta(match[1]);
+                    if (limpa.startsWith('http')) return limpa;
+                }
+            }
+            return null;
+        }
+
         async function extrairVideo() {
             let urlInput = document.getElementById('videoUrl').value.trim();
             const statusBox = document.getElementById('statusBox');
@@ -120,29 +152,125 @@
             extractBtn.disabled = true;
             resultArea.style.display = 'none';
             statusBox.className = 'status-box loading';
-            statusBox.innerText = 'A processar e extrair vídeo limpo... Aguarde alguns segundos.';
+            statusBox.innerText = 'A extrair vídeo limpo... Aguarde alguns segundos.';
+
+            let finalVideoUrl = null;
 
             try {
-                const response = await fetch('/api/extrair', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: urlInput })
-                });
-
-                // Nova proteção para erros de HTML/Vercel (resolve o erro "Unexpected token 'T'")
-                const textRes = await response.text();
-                let data;
+                // TENTATIVA 1: Tentar via Backend interno da Vercel (/api/extrair) com leitura segura
                 try {
-                    data = JSON.parse(textRes);
-                } catch (e) {
-                    throw new Error('Erro de comunicação com o servidor da Vercel. Verifique se o vercel.json está correto.');
+                    const resApi = await fetch('/api/extrair', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: urlInput })
+                    });
+                    const texto = await resApi.text();
+                    if (texto.trim().startsWith('{')) {
+                        const json = JSON.parse(texto);
+                        if (json.success && json.videoUrl) {
+                            finalVideoUrl = json.videoUrl;
+                        }
+                    }
+                } catch (e) {}
+
+                // TENTATIVA 2: Se for TikTok, extrai direto no navegador via TikWM
+                if (!finalVideoUrl && (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com'))) {
+                    try {
+                        const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
+                        const tikJson = await tikRes.json();
+                        if (tikJson && tikJson.data) {
+                            const play = tikJson.data.hdplay || tikJson.data.play;
+                            if (play) finalVideoUrl = play.startsWith('http') ? play : `https://www.tikwm.com${play}`;
+                        }
+                    } catch (e) {}
                 }
 
-                if (data.success && data.videoUrl) {
+                // TENTATIVA 3: Se a rota da Vercel falhar, extrai Facebook/Instagram diretamente via Proxy CORS no Front-end
+                if (!finalVideoUrl && (urlInput.includes('facebook.com') || urlInput.includes('fb.watch') || urlInput.includes('instagram.com'))) {
+                    const proxies = [
+                        `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`,
+                        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(urlInput)}`
+                    ];
+                    for (const p of proxies) {
+                        if (finalVideoUrl) break;
+                        try {
+                            const r = await fetch(p);
+                            const t = await r.text();
+                            finalVideoUrl = procurarMp4NoHtml(t);
+                        } catch (e) {}
+                    }
+                }
+
+                if (finalVideoUrl) {
                     statusBox.className = 'status-box success';
                     statusBox.innerText = 'Vídeo extraído com sucesso!';
-                    previewVideo.src = data.videoUrl;
-                    downloadLink.href = data.videoUrl;
+                    previewVideo.src = finalVideoUrl;
+                    downloadLink.href = finalVideoUrl;
                     resultArea.style.display = 'block';
                 } else {
-                    throw new Error(data.error || 'Não foi possível extrair o vídeo. Verifique se é
+                    throw new Error('Não foi possível extrair diretamente deste link. Certifique-se de que o vídeo é público.');
+                }
+            } catch (err) {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = err.message || 'Erro ao processar o vídeo.';
+            } finally {
+                extractBtn.disabled = false;
+            }
+        }
+
+        let selectedFileUrl = null;
+        let videoDuration = 0;
+
+        function carregarVideoLocal(event) {
+            const file = event.target.files[0];
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            clipsContainer.innerHTML = '';
+
+            if (!file) return;
+            selectedFileUrl = URL.createObjectURL(file);
+            const tempVideo = document.createElement('video');
+            tempVideo.src = selectedFileUrl;
+            tempVideo.onloadedmetadata = () => {
+                videoDuration = tempVideo.duration;
+                splitStatus.className = 'status-box success';
+                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
+            };
+        }
+
+        function dividirVideoLocal() {
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            const step = parseInt(document.getElementById('splitDuration').value, 10);
+
+            if (!selectedFileUrl || !videoDuration) {
+                splitStatus.className = 'status-box error';
+                splitStatus.innerText = 'Selecione um vídeo primeiro.';
+                return;
+            }
+
+            clipsContainer.innerHTML = '';
+            const totalParts = Math.ceil(videoDuration / step);
+            splitStatus.className = 'status-box success';
+            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
+
+            for (let i = 0; i < totalParts; i++) {
+                const start = i * step;
+                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
+                const clipCard = document.createElement('div');
+                clipCard.style.background = '#0f172a';
+                clipCard.style.padding = '12px';
+                clipCard.style.borderRadius = '8px';
+                clipCard.style.border = '1px solid #334155';
+                clipCard.innerHTML = `
+                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
+                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
+                    </p>
+                    <video src="${selectedFileUrl}#t=${start},${end}" controls style="max-height: 200px; width: 100%;"></video>
+                `;
+                clipsContainer.appendChild(clipCard);
+            }
+        }
+    </script>
+</body>
+</html>
