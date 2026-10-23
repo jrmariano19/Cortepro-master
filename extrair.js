@@ -18,6 +18,24 @@ module.exports = async function handler(req, res) {
     let targetUrl = rawUrl.trim();
     let videoUrl = null;
 
+    // Seguir redirecionamento de links curtos do Facebook (/share/r/ ou /share/v/)
+    if (targetUrl.includes('facebook.com/share/')) {
+      try {
+        const fbRes = await axios.get(targetUrl, {
+          maxRedirects: 5,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+          },
+          timeout: 8000
+        });
+        if (fbRes.request && fbRes.request.res && fbRes.request.res.responseUrl) {
+          targetUrl = fbRes.request.res.responseUrl;
+        } else if (fbRes.config && fbRes.config.url) {
+          targetUrl = fbRes.config.url;
+        }
+      } catch (e) {}
+    }
+
     // 1. TikTok via TikWM
     if (targetUrl.includes('tiktok.com')) {
       try {
@@ -31,7 +49,7 @@ module.exports = async function handler(req, res) {
       } catch (e) {}
     }
 
-    // 2. Universal (Facebook, Instagram, YouTube, Kwai) via Cobalt API
+    // 2. Universal (Facebook Reels, Instagram, YouTube, Kwai) via Cobalt API
     if (!videoUrl) {
       const apis = ['https://api.cobalt.tools/api/json', 'https://co.wuk.sh/api/json'];
       for (const api of apis) {
