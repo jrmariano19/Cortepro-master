@@ -8,7 +8,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Função auxiliar para limpar URLs escapadas no HTML
+// Função auxiliar para limpar URLs escapadas
 function limparUrlEscapada(str) {
   if (!str) return null;
   return str
@@ -19,64 +19,28 @@ function limparUrlEscapada(str) {
     .replace(/&amp;/g, '&');
 }
 
-// Função auxiliar para extração limpa via API unificada (YouTube, Kwai, Instagram, Facebook, TikTok)
-async function extrairViaCobalt(url) {
-  const endpoints = [
-    'https://api.cobalt.tools/api/json',
-    'https://cobalt-api.kwiatekmiki.com/api/json'
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      const res = await axios.post(
-        endpoint,
-        {
-          url: url,
-          vQuality: '1080',
-          filenamePattern: 'basic',
-          isNoTTWatermark: true,
-          tiktokFullAudio: true
-        },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-          },
-          timeout: 8000
-        }
-      );
-
-      if (res.data && res.data.url) {
-        return res.data.url;
-      }
-    } catch (e) {
-      // Tenta o próximo endpoint silenciosamente
-    }
-  }
-  return null;
-}
-
 // ROTA DE STATUS
 app.get('/', (req, res) => {
-  res.send('CortePro Backend 3.2 Ativo e Operacional!');
+  res.send('CortePro Backend 3.3 Ativo e Operacional!');
 });
 
 // ROTA PRINCIPAL DE EXTRAÇÃO
 async function processarExtracao(req, res) {
   const rawUrl = req.body.url || req.query.url;
   if (!rawUrl) {
-    return res.status(400).json({ error: 'Nenhum link fornecido.' });
+    return res.status(400).json({ success: false, error: 'Nenhum link fornecido.' });
   }
 
-  try {
-    let targetUrl = rawUrl.trim();
-    let videoUrl = null;
+  let targetUrl = rawUrl.trim();
+  let videoUrl = null;
 
-    // 1. TIKTOK
+  try {
+    // ==========================================
+    // 1. TIKTOK (Via TikWM - Altamente fiável)
+    // ==========================================
     if (targetUrl.includes('tiktok.com')) {
       try {
-        const tikRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}&hd=1`);
+        const tikRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}&hd=1`, { timeout: 8000 });
         if (tikRes.data && tikRes.data.data) {
           let rawPlay = tikRes.data.data.play || tikRes.data.data.hdplay;
           if (rawPlay) {
@@ -84,90 +48,62 @@ async function processarExtracao(req, res) {
           }
         }
       } catch (e) {
-        console.error('Aviso TikTok API:', e.message);
+        console.error('Erro TikTok:', e.message);
       }
     }
 
-    // 2. YOUTUBE
-    if (!videoUrl && (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be'))) {
-      videoUrl = await extrairViaCobalt(targetUrl);
-    }
-
-    // 3. KWAI
-    if (!videoUrl && (targetUrl.includes('kwai.com') || targetUrl.includes('kw.ai'))) {
-      videoUrl = await extrairViaCobalt(targetUrl);
-
-      if (!videoUrl) {
-        try {
-          const kwaiRes = await axios.get(targetUrl, {
-            maxRedirects: 10,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15'
-            }
-          });
-          const kwaiHtml = kwaiRes.data;
-          const cleanKwaiMatch =
-            kwaiHtml.match(/"mainMvUrls"\\s*:\\s*\[\\s*\{\\s*[^}]*"url"\\s*:\\s*"([^"]+)"/i) ||
-            kwaiHtml.match(/"playUrl"\\s*:\\s*"([^"]+)"/i) ||
-            kwaiHtml.match(/"contentUrl"\\s*:\\s*"([^"]+\\.mp4[^"]*)"/i);
-
-          if (cleanKwaiMatch && cleanKwaiMatch[1]) {
-            videoUrl = limparUrlEscapada(cleanKwaiMatch[1]);
-          }
-        } catch (e) {
-          console.error('Aviso Kwai HTML:', e.message);
-        }
-      }
-    }
-
-    // 4. FACEBOOK
-    if (!videoUrl && (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com'))) {
+    // ==========================================
+    // 2. YOUTUBE, INSTAGRAM, FACEBOOK, KWAI (Via API Pura e Scraping Direto)
+    // ==========================================
+    if (!videoUrl) {
       try {
-        const fbResponse = await axios.get(targetUrl, {
-          maxRedirects: 10,
+        // Tenta extração via serviço público de suporte multiplataforma
+        const altRes = await axios.post('https://api.cobalt.tools/api/json', {
+          url: targetUrl,
+          vQuality: '1080',
+          isNoTTWatermark: true
+        }, {
           headers: {
-            'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
-          }
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+          },
+          timeout: 10000
         });
 
-        const html = fbResponse.data;
-        const ogMatch =
-          html.match(/property="og:video:secure_url"\\s+content="([^"]+)"/i) ||
-          html.match(/property="og:video"\\s+content="([^"]+)"/i);
-
-        if (ogMatch && ogMatch[1]) {
-          videoUrl = limparUrlEscapada(ogMatch[1]);
+        if (altRes.data && altRes.data.url) {
+          videoUrl = altRes.data.url;
         }
       } catch (e) {
-        console.error('Aviso Facebook:', e.message);
+        console.error('Aviso API Alternativa:', e.message);
       }
     }
 
-    // 5. INSTAGRAM & FALLBACK
+    // Se ainda não encontrou, tenta raspagem de metatags genéricas (og:video)
     if (!videoUrl) {
-      videoUrl = await extrairViaCobalt(targetUrl);
-
-      if (!videoUrl) {
-        try {
-          const genRes = await axios.get(targetUrl, {
-            maxRedirects: 10,
-            headers: { 'User-Agent': 'facebookexternalhit/1.1' }
-          });
-          const html = genRes.data;
-          const match =
-            html.match(/"video_versions"\\s*:\\s*\[\\s*\{\\s*[^}]*"url"\\s*:\\s*"([^"]+)"/i) ||
-            html.match(/"video_url"\\s*:\\s*"([^"]+)"/i);
-
-          if (match && match[1]) {
-            videoUrl = limparUrlEscapada(match[1]);
+      try {
+        const genRes = await axios.get(targetUrl, {
+          maxRedirects: 5,
+          timeout: 8000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15'
           }
-        } catch (e) {
-          console.error('Aviso Fallback:', e.message);
+        });
+        const html = genRes.data;
+        const match =
+          html.match(/property="og:video:secure_url"\s+content="([^"]+)"/i) ||
+          html.match(/property="og:video"\s+content="([^"]+)"/i) ||
+          html.match(/"video_url"\s*:\s*"([^"]+)"/i);
+
+        if (match && match[1]) {
+          videoUrl = limparUrlEscapada(match[1]);
         }
+      } catch (e) {
+        console.error('Erro Raspagem HTML:', e.message);
       }
     }
 
+    // Resposta final
     if (videoUrl) {
       const hostUrl = `${req.protocol}://${req.get('host')}`;
       const proxyDownloadUrl = `${hostUrl}/proxy-download?url=${encodeURIComponent(videoUrl)}`;
@@ -180,16 +116,16 @@ async function processarExtracao(req, res) {
       });
     }
 
-    return res.status(404).json({
+    return res.status(400).json({
       success: false,
-      error: 'Não foi possível extrair o vídeo limpo deste link. Verifique se é público.'
+      error: 'Não foi possível extrair o vídeo limpo deste link. Certifique-se de que a publicação é pública.'
     });
 
   } catch (error) {
-    console.error('Erro na extração:', error.message);
+    console.error('Erro geral no servidor:', error.message);
     return res.status(500).json({
       success: false,
-      error: 'Erro ao processar o link no servidor.'
+      error: 'Erro interno ao processar o link no servidor.'
     });
   }
 }
@@ -212,7 +148,8 @@ app.get('/proxy-download', async (req, res) => {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Referer': 'https://www.google.com/'
-      }
+      },
+      timeout: 15000
     });
 
     res.setHeader('Content-Disposition', 'attachment; filename="cortepro-video.mp4"');
