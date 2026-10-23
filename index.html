@@ -298,7 +298,7 @@
 
   <!-- ABA 1: BAIXAR DA WEB -->
   <div class="card" id="painelBaixar">
-    <label for="videoUrl">LINK DO VÍDEO (TIKTOK, KWAI, INSTAGRAM, FB)</label>
+    <label for="videoUrl">LINK DO VÍDEO (TIKTOK, KWAI, INSTAGRAM, FB, YOUTUBE)</label>
     <input
       type="text"
       id="videoUrl"
@@ -403,26 +403,49 @@
     }
 
     async function extrairVideoDireto(rawUrl) {
+      // 1. TIKTOK: Extração direta em HD totalmente limpa (sem marca d'água)
       if (rawUrl.includes('tiktok.com')) {
         try {
-          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
+          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl) + '&hd=1', {}, 4500);
           const data = await res.json();
+          if (data?.data?.hdplay) return data.data.hdplay;
           if (data?.data?.play) return data.data.play;
         } catch (e) {}
       }
 
+      // 2. MULTIRREDE (YouTube, Kwai, Instagram, Facebook, TikTok) via instâncias Cobalt (sem marca d'água)
       const apisCobalt = [
-        'https://cobalt-api.kwiatekmiki.com/',
-        'https://cobalt-backend.canine.tools/'
+        { url: 'https://cobalt-api.kwiatekmiki.com/', v: 10 },
+        { url: 'https://cobalt-backend.canine.tools/', v: 10 },
+        { url: 'https://api.cobalt.tools/api/json', v: 7 }
       ];
 
       for (const api of apisCobalt) {
         try {
-          const resp = await fetchComTimeout(api, {
+          const payload = api.v === 10
+            ? {
+                url: rawUrl,
+                videoQuality: '1080',
+                downloadMode: 'auto',
+                youtubeVideoCodec: 'h264',
+                tiktokFullAudio: true
+              }
+            : {
+                url: rawUrl,
+                vQuality: '1080',
+                vCodec: 'h264',
+                isNoTTWatermark: true
+              };
+
+          const resp = await fetchComTimeout(api.url, {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
-          }, 4000);
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          }, 5000);
+
           if (resp.ok) {
             const json = await resp.json();
             if (json && (json.url || json.stream)) return json.url || json.stream;
@@ -430,8 +453,31 @@
         } catch (e) {}
       }
 
+      // 3. SEU BACKEND NO RENDER (Caso esteja ativo para YouTube/Kwai/IG/FB limpos)
+      const rotasBackend = [
+        'https://cortepro-backend.onrender.com/baixar',
+        'https://cortepro-backend.onrender.com/extract',
+        'https://cortepro-backend.onrender.com/download'
+      ];
+
+      for (const rota of rotasBackend) {
+        try {
+          const resp = await fetchComTimeout(rota, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: rawUrl })
+          }, 6000);
+          if (resp.ok) {
+            const json = await resp.json();
+            const linkLimpo = json.videoLimpoUrl || json.url || json.videoUrl || json.downloadUrl;
+            if (linkLimpo) return linkLimpo;
+          }
+        } catch (e) {}
+      }
+
+      // 4. FALLBACK GERAL (Microlink para extração limpa de metatags de vídeo)
       try {
-        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
+        const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 4500);
         const json = await res.json();
         if (json?.data?.video?.url) return json.data.video.url;
       } catch (e) {}
@@ -449,13 +495,13 @@
       areaResultado.classList.add('hidden');
       areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração limpa (sem marca d\'água)...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
 
         if (videoFinal) {
-          mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
+          mostrarStatus(statusExtracao, '✅ Vídeo limpo extraído com sucesso!', 'success');
           inputLinkLimpo.value = videoFinal;
           previewVideo.src = videoFinal;
           areaResultado.classList.remove('hidden');
@@ -468,7 +514,7 @@
               const blobUrl = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = blobUrl;
-              a.download = `cortepro-${Date.now()}.mp4`;
+              a.download = `cortepro-limpo-${Date.now()}.mp4`;
               document.body.appendChild(a);
               a.click();
               a.remove();
