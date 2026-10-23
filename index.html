@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="google" content="notranslate" />
-  <title>CortePro 4.8</title>
+  <title>CortePro Master</title>
   <style>
     * {
       box-sizing: border-box;
@@ -41,8 +41,16 @@
       font-family: Georgia, serif;
       font-size: 32px;
       font-weight: 700;
-      margin-bottom: 24px;
+      margin-bottom: 8px;
       color: #f8fafc;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      text-align: center;
     }
 
     .tabs {
@@ -51,7 +59,7 @@
       border-radius: 14px;
       padding: 5px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       margin-bottom: 20px;
       border: 1px solid #1e2638;
     }
@@ -84,7 +92,7 @@
       border-radius: 18px;
       padding: 22px 18px;
       width: 100%;
-      max-width: 420px;
+      max-width: 480px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     }
 
@@ -284,29 +292,30 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 4.8 ATIVA</div>
-  <h1>CortePro</h1>
+  <div class="badge">⚡ VERSÃO 4.9 ATIVA</div>
+  <h1>CortePro Master</h1>
+  <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
   <div class="tabs">
     <button type="button" class="tab-btn active" id="tabBaixar">
-      📥 Baixar Web
+      Descarregador
     </button>
     <button type="button" class="tab-btn" id="tabDivisor">
-      ✂️ Divisor
+      Divisor Local
     </button>
   </div>
 
-  <!-- ABA 1: BAIXAR DA WEB -->
+  <!-- ABA 1: DESCARREGADOR -->
   <div class="card" id="painelBaixar">
-    <label for="videoUrl">LINK DO VÍDEO (TIKTOK, KWAI, INSTAGRAM, FB)</label>
+    <label for="videoUrl">Cole o link do vídeo:</label>
     <input
       type="text"
       id="videoUrl"
-      placeholder="Cole aqui o link do vídeo..."
+      placeholder="https://www.facebook.com/..."
       autocomplete="off"
     />
     <button type="button" class="btn-primary" id="btnExtrair">
-      Extrair Vídeo com Áudio
+      Extrair Vídeo Limpo
     </button>
 
     <div id="statusExtracao" class="status-box hidden"></div>
@@ -326,11 +335,8 @@
 
     <!-- BOTÕES DE RESGATE OFICIAIS -->
     <div id="areaResgate" class="rescue-box hidden">
-      <button type="button" class="rescue-btn" id="btnInstaResgate">
-        📸 Abrir Extrator de Instagram (SaveInsta)
-      </button>
       <button type="button" class="rescue-btn blue" id="btnServerResgate">
-        🚀 Abrir Extrator Geral (SaveFrom)
+        🚀 Abrir Extrator Direto (SaveFrom / FDown)
       </button>
     </div>
   </div>
@@ -406,8 +412,11 @@
       if (rawUrl.includes('tiktok.com')) {
         try {
           const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
-          const data = await res.json();
-          if (data?.data?.play) return data.data.play;
+          const text = await res.text();
+          if (text.trim().startsWith('{')) {
+            const data = JSON.parse(text);
+            if (data?.data?.play) return data.data.play;
+          }
         } catch (e) {}
       }
 
@@ -423,8 +432,10 @@
             headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
           }, 4000);
-          if (resp.ok) {
-            const json = await resp.json();
+          
+          const text = await resp.text();
+          if (resp.ok && text.trim().startsWith('{')) {
+            const json = JSON.parse(text);
             if (json && (json.url || json.stream)) return json.url || json.stream;
           }
         } catch (e) {}
@@ -432,8 +443,11 @@
 
       try {
         const res = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl) + '&video=true', {}, 3500);
-        const json = await res.json();
-        if (json?.data?.video?.url) return json.data.video.url;
+        const text = await res.text();
+        if (text.trim().startsWith('{')) {
+          const json = JSON.parse(text);
+          if (json?.data?.video?.url) return json.data.video.url;
+        }
       } catch (e) {}
 
       return null;
@@ -449,7 +463,7 @@
       areaResultado.classList.add('hidden');
       areaResgate.classList.add('hidden');
       btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração...');
+      mostrarStatus(statusExtracao, '⏳ A processar extração limpa...');
 
       try {
         let videoFinal = await extrairVideoDireto(rawUrl);
@@ -481,29 +495,29 @@
         } else {
           mostrarStatus(
             statusExtracao,
-            '⚡ <b>Proteção da rede social detetada!</b><br>Toque num dos botões oficiais abaixo para abrir o conversor e baixar instantaneamente:',
+            '⚡ <b>Proteção da rede social detetada!</b><br>Toque no botão abaixo para abrir o conversor direto:',
             'warning'
           );
           areaResgate.classList.remove('hidden');
         }
       } catch (err) {
-        mostrarStatus(statusExtracao, '⚡ Escolha um dos servidores abaixo:', 'warning');
+        mostrarStatus(statusExtracao, '⚡ Escolha o servidor de resgate abaixo:', 'warning');
         areaResgate.classList.remove('hidden');
       } finally {
         btnExtrair.disabled = false;
       }
     });
 
-    document.getElementById('btnInstaResgate').addEventListener('click', () => {
-      const url = inputUrl.value.trim();
-      try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open('https://saveinsta.app/pt', '_blank');
-    });
-
     document.getElementById('btnServerResgate').addEventListener('click', () => {
       const url = inputUrl.value.trim();
       try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open('https://pt.savefrom.net/', '_blank');
+      if (url.includes('facebook')) {
+        window.open('https://fdown.net/pt', '_blank');
+      } else if (url.includes('instagram')) {
+        window.open('https://saveinsta.app/pt', '_blank');
+      } else {
+        window.open('https://pt.savefrom.net/', '_blank');
+      }
     });
 
     // =====================================================
