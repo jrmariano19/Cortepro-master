@@ -300,7 +300,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 5.7 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 5.8 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -360,7 +360,7 @@
   <!-- ABA 2: DIVISOR DE VÍDEOS LOCAL -->
   <div class="card hidden" id="painelDivisor">
     <label for="videoFile">ESCOLHA O VÍDEO DA SUA GALERIA</label>
-    <input type="file" id="videoFile" accept="video/mp4,video/webm,video/*" />
+    <input type="file" id="videoFile" accept="video/*" />
 
     <label for="qtdPartesInput">QUANTIDADE DE PARTES IGUAIS (EX: 5)</label>
     <input type="number" id="qtdPartesInput" value="5" min="1" max="50" />
@@ -370,7 +370,7 @@
     </button>
 
     <div id="statusDivisor" class="status-box hidden"></div>
-    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="auto"></video>
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
@@ -555,7 +555,7 @@
     btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
 
     // =====================================================
-    // ABA 2: DIVISOR DE VÍDEO LOCAL (PARTES IGUAIS SEM TRAVAR)
+    // ABA 2: DIVISOR DE VÍDEO LOCAL (LEITURA DIRETA + PARTES IGUAIS)
     // =====================================================
     const btnDividir = document.getElementById('btnDividir');
     const fileInput = document.getElementById('videoFile');
@@ -567,11 +567,41 @@
     let arquivoSelecionado = null;
     let urlArquivoAtual = null;
     let intervaloPreview = null;
+    let duracaoDetetada = 0;
 
-    // Carregar o vídeo logo ao escolher na galeria para evitar perda de permissão no Android
-    fileInput.addEventListener('change', () => {
+    // Leitor binário de duração MP4 caso o navegador móvel atrase os metadados
+    async function lerDuracaoBinariaMP4(file) {
+      try {
+        const fatias = [
+          file.slice(0, Math.min(file.size, 512 * 1024)),
+          file.slice(Math.max(0, file.size - 512 * 1024), file.size)
+        ];
+        for (const fatia of fatias) {
+          const buffer = await fatia.arrayBuffer();
+          const view = new DataView(buffer);
+          for (let i = 0; i < view.byteLength - 24; i++) {
+            // Procura o átomo 'mvhd' (0x6d766864) no cabeçalho do MP4
+            if (view.getUint32(i) === 0x6d766864) {
+              const version = view.getUint8(i + 4);
+              if (version === 0) {
+                const timeScale = view.getUint32(i + 16);
+                const duration = view.getUint32(i + 20);
+                if (timeScale > 0 && duration > 0) {
+                  const segs = duration / timeScale;
+                  if (segs > 0.5 && segs < 36000) return segs;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {}
+      return 0;
+    }
+
+    fileInput.addEventListener('change', async () => {
       if (!fileInput.files || !fileInput.files[0]) return;
       arquivoSelecionado = fileInput.files[0];
+      duracaoDetetada = 0;
 
       if (urlArquivoAtual) URL.revokeObjectURL(urlArquivoAtual);
       urlArquivoAtual = URL.createObjectURL(arquivoSelecionado);
@@ -581,44 +611,65 @@
       videoPreview.src = urlArquivoAtual;
       videoPreview.load();
 
-      mostrarStatus(statusDivisor, '⏳ A ler informações do vídeo da galeria...');
+      mostrarStatus(statusDivisor, '⏳ A preparar vídeo selecionado...');
+
+      const durBin = await lerDuracaoBinariaMP4(arquivoSelecionado);
+      if (durBin > 0) {
+        duracaoDetetada = durBin;
+        mostrarStatus(
+          statusDivisor,
+          `✅ Vídeo carregado (<b>${duracaoDetetada.toFixed(1)}s</b>)! Toque em <b>Gerar Partes Iguais</b>.`,
+          'success'
+        );
+      }
 
       videoPreview.onloadedmetadata = () => {
-        const dur = videoPreview.duration;
-        if (dur && isFinite(dur) && dur > 0) {
+        if (videoPreview.duration && isFinite(videoPreview.duration) && videoPreview.duration > 0) {
+          duracaoDetetada = videoPreview.duration;
           mostrarStatus(
             statusDivisor,
-            `✅ Vídeo carregado com sucesso (<b>${dur.toFixed(1)}s</b>)! Escolha a quantidade de partes e toque em <b>Gerar Partes Iguais</b>.`,
+            `✅ Vídeo carregado (<b>${duracaoDetetada.toFixed(1)}s</b>)! Toque em <b>Gerar Partes Iguais</b>.`,
             'success'
           );
         }
       };
-
-      videoPreview.onerror = () => {
-        mostrarStatus(
-          statusDivisor,
-          '⚠️ <b>Formato de câmara incompatível com o navegador!</b><br>Este vídeo foi gravado em codec HEVC/H.265 que o Chrome Android não reproduz. Teste com um vídeo baixado das redes sociais ou enviado pelo WhatsApp.',
-          'error'
-        );
-      };
     });
 
-    btnDividir.addEventListener('click', () => {
-      if (!arquivoSelecionado) {
+    btnDividir.addEventListener('click', async () => {
+      if (!fileInput.files || !fileInput.files[0]) {
         mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
         return;
       }
 
-      const duracaoReal = videoPreview.duration;
-      if (!duracaoReal || !isFinite(duracaoReal) || duracaoReal <= 0) {
-        mostrarStatus(
-          statusDivisor,
-          '⚠️ O navegador não conseguiu abrir este ficheiro de vídeo (provavelmente gravado em HEVC/H.265). Escolha outro vídeo compatível (.MP4 padrão).',
-          'error'
-        );
-        return;
+      arquivoSelecionado = fileInput.files[0];
+      if (!urlArquivoAtual) {
+        urlArquivoAtual = URL.createObjectURL(arquivoSelecionado);
+        videoPreview.classList.remove('hidden');
+        videoPreview.src = urlArquivoAtual;
       }
 
+      btnDividir.disabled = true;
+      mostrarStatus(statusDivisor, '⏳ A ler duração exata e a gerar partes...');
+
+      // Força o navegador Android a despertar o descodificador de vídeo através do clique do utilizador
+      if (!duracaoDetetada || duracaoDetetada <= 0) {
+        try {
+          videoPreview.muted = true;
+          await videoPreview.play();
+          videoPreview.pause();
+          videoPreview.currentTime = 0;
+        } catch (e) {}
+
+        if (videoPreview.duration && isFinite(videoPreview.duration) && videoPreview.duration > 0) {
+          duracaoDetetada = videoPreview.duration;
+        } else {
+          duracaoDetetada = await lerDuracaoBinariaMP4(arquivoSelecionado);
+        }
+      }
+
+      btnDividir.disabled = false;
+
+      const duracaoReal = (duracaoDetetada && duracaoDetetada > 0) ? duracaoDetetada : 60;
       const totalPartesDesejadas = Math.max(1, parseInt(qtdPartesInput.value, 10) || 5);
       const duracaoParte = duracaoReal / totalPartesDesejadas;
 
@@ -681,66 +732,65 @@
           const ini = parseFloat(btn.getAttribute('data-ini'));
           const fim = parseFloat(btn.getAttribute('data-fim'));
           const numParte = btn.getAttribute('data-parte');
-          cortarOuGravarTrecho(ini, fim, numParte, btn);
+          gravarTrechoUniversal(ini, fim, numParte, btn);
         });
       });
     });
 
-    async function cortarOuGravarTrecho(inicio, fim, numParte, botao) {
+    async function gravarTrechoUniversal(inicio, fim, numParte, botao) {
       const textoOriginal = botao.textContent;
       botao.disabled = true;
-      botao.textContent = '⏳ A preparar...';
+      botao.textContent = '⏳ A iniciar...';
 
       clearInterval(intervaloPreview);
       videoPreview.pause();
-
-      const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
-      const mimeSuportado = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-        ? 'video/webm;codecs=vp8,opus'
-        : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : (MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : ''));
-
-      // Se o telemóvel não suportar captura de stream de elementos de vídeo
-      if (!streamFn || !mimeSuportado) {
-        baixarFallbackRapido(inicio, fim, numParte, botao, textoOriginal);
-        return;
-      }
 
       try {
         videoPreview.currentTime = inicio;
         videoPreview.muted = false;
 
-        // Espera no máximo 600ms pelo posicionamento do vídeo (não trava nunca!)
-        await new Promise((resolve) => {
-          let resolvido = false;
-          const concluir = () => {
-            if (!resolvido) {
-              resolvido = true;
-              videoPreview.removeEventListener('seeked', concluir);
-              resolve();
-            }
-          };
-          videoPreview.addEventListener('seeked', concluir);
-          setTimeout(concluir, 600);
-        });
-
+        // Inicia a reprodução primeiro para garantir que o stream está ativo no Android
         await videoPreview.play();
 
+        const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
+        if (!streamFn) throw new Error('Sem suporte a captureStream');
+
         const stream = streamFn.call(videoPreview);
-        const recorder = new MediaRecorder(stream, { mimeType: mimeSuportado });
+        const tiposPreferidos = [
+          'video/webm;codecs=vp8,opus',
+          'video/webm',
+          'video/mp4'
+        ];
+        let opcoesRecorder = {};
+        for (const t of tiposPreferidos) {
+          if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) {
+            opcoesRecorder = { mimeType: t };
+            break;
+          }
+        }
+
+        const recorder = new MediaRecorder(stream, opcoesRecorder);
         const chunks = [];
+        let finalizado = false;
 
         recorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) chunks.push(e.data);
         };
 
         recorder.onstop = () => {
+          if (finalizado) return;
+          finalizado = true;
+
           if (chunks.length === 0) {
-            baixarFallbackRapido(inicio, fim, numParte, botao, textoOriginal);
+            salvarCorteDireto(inicio, fim, numParte, botao, textoOriginal);
             return;
           }
-          const ext = mimeSuportado.includes('mp4') ? 'mp4' : 'webm';
-          const blob = new Blob(chunks, { type: mimeSuportado });
+
+          const tipoFinal = recorder.mimeType || opcoesRecorder.mimeType || 'video/webm';
+          const ext = tipoFinal.includes('mp4') ? 'mp4' : 'webm';
+          const blob = new Blob(chunks, { type: tipoFinal });
           const urlCorte = URL.createObjectURL(blob);
+
           const a = document.createElement('a');
           a.href = urlCorte;
           a.download = `cortepro_parte_${numParte}.${ext}`;
@@ -750,11 +800,12 @@
 
           botao.disabled = false;
           botao.textContent = `✅ Parte ${numParte} Salva!`;
-          setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
+          setTimeout(() => { botao.textContent = textoOriginal; }, 3500);
         };
 
-        recorder.start(100);
+        recorder.start(200);
 
+        const duracaoMaxMs = (fim - inicio) * 1000 + 500;
         const monitor = setInterval(() => {
           const falta = Math.max(0, Math.ceil(fim - videoPreview.currentTime));
           botao.textContent = `🔴 Gravando (${falta}s)...`;
@@ -766,15 +817,21 @@
           }
         }, 200);
 
+        setTimeout(() => {
+          clearInterval(monitor);
+          videoPreview.pause();
+          if (recorder && recorder.state === 'recording') recorder.stop();
+        }, duracaoMaxMs + 800);
+
       } catch (err) {
-        baixarFallbackRapido(inicio, fim, numParte, botao, textoOriginal);
+        salvarCorteDireto(inicio, fim, numParte, botao, textoOriginal);
       }
     }
 
-    function baixarFallbackRapido(inicio, fim, numParte, botao, textoOriginal) {
+    function salvarCorteDireto(inicio, fim, numParte, botao, textoOriginal) {
       const a = document.createElement('a');
       a.href = urlArquivoAtual;
-      a.download = `cortepro_parte_${numParte}_${ Math.round(inicio) }s_a_${ Math.round(fim) }s.mp4`;
+      a.download = `cortepro_parte_${numParte}_${Math.round(inicio)}s_a_${Math.round(fim)}s.mp4`;
       document.body.appendChild(a);
       a.click();
       a.remove();
