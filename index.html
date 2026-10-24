@@ -300,7 +300,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 5.5 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 5.6 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -371,7 +371,7 @@
     </button>
 
     <div id="statusDivisor" class="status-box hidden"></div>
-    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline muted preload="auto"></video>
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
@@ -595,7 +595,7 @@
       videoPreview.src = urlArquivoAtual;
       videoPreview.load();
 
-      mostrarStatus(statusDivisor, '⏳ A calcular partes iguais...');
+      mostrarStatus(statusDivisor, '⏳ A carregar vídeo local...');
 
       let jaProcessou = false;
 
@@ -663,7 +663,7 @@
             const ini = parseFloat(btn.getAttribute('data-ini'));
             const fim = parseFloat(btn.getAttribute('data-fim'));
             const numParte = btn.getAttribute('data-parte');
-            gravarTrechoReal(ini, fim, numParte, btn);
+            gravarTrechoWebM(ini, fim, numParte, btn);
           });
         });
       }
@@ -685,9 +685,10 @@
       }, 2500);
     });
 
-    function gravarTrechoReal(inicio, fim, numParte, botao) {
+    function gravarTrechoWebM(inicio, fim, numParte, botao) {
       const streamFn = videoPreview.captureStream || videoPreview.mozCaptureStream;
       if (!streamFn) {
+        // Fallback direto se o browser não suportar stream
         const a = document.createElement('a');
         a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
         a.download = `cortepro_parte_${numParte}.mp4`;
@@ -699,7 +700,7 @@
 
       const textoOriginal = botao.textContent;
       botao.disabled = true;
-      botao.textContent = '🔴 A gravar trecho...';
+      botao.textContent = '🔴 A gravar...';
 
       clearInterval(intervaloPreview);
       videoPreview.pause();
@@ -708,48 +709,76 @@
 
       const chunks = [];
       let recorder;
+      let gravandoConcluido = false;
 
       const iniciarGravacao = () => {
         videoPreview.removeEventListener('seeked', iniciarGravacao);
         try {
           const stream = streamFn.call(videoPreview);
-          recorder = new MediaRecorder(stream);
+          
+          // Usar WebM para garantir compatibilidade total sem travamentos no Android
+          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+            ? 'video/webm;codecs=vp9,opus'
+            : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '');
+
+          recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
           recorder.ondataavailable = (e) => {
             if (e.data && e.data.size > 0) chunks.push(e.data);
           };
 
           recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/mp4' });
+            if (gravandoConcluido) return;
+            gravandoConcluido = true;
+
+            const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
             const urlCorte = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = urlCorte;
-            a.download = `cortepro_parte_${numParte}.mp4`;
+            a.download = `cortepro_parte_${numParte}.webm`;
             document.body.appendChild(a);
             a.click();
             a.remove();
+
             botao.disabled = false;
-            botao.textContent = '✅ Parte ' + numParte + ' Baixada!';
+            botao.textContent = `✅ Parte ${numParte} Baixada!`;
             setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
           };
 
-          recorder.start();
+          recorder.start(100); // Recolher dados a cada 100ms
           videoPreview.play();
 
+          const duracaoTrechoMs = (fim - inicio) * 1000 + 400; // margem de segurança
+
+          // Monitor de progresso e paragem exata
           const monitor = setInterval(() => {
             const falta = Math.max(0, Math.ceil(fim - videoPreview.currentTime));
             botao.textContent = `🔴 A gravar (${falta}s)...`;
+
             if (videoPreview.currentTime >= fim || videoPreview.ended) {
               clearInterval(monitor);
               videoPreview.pause();
-              if (recorder.state === 'recording') recorder.stop();
+              if (recorder && recorder.state === 'recording') {
+                recorder.stop();
+              }
             }
-          }, 250);
+          }, 200);
+
+          // Segurança máxima: forçar paragem se exceder o tempo do trecho para evitar travamento
+          setTimeout(() => {
+            clearInterval(monitor);
+            videoPreview.pause();
+            if (recorder && recorder.state === 'recording') {
+              recorder.stop();
+            }
+          }, duracaoTrechoMs + 1000);
+
         } catch (err) {
           botao.disabled = false;
           botao.textContent = textoOriginal;
+          alert('Erro ao gravar trecho. A descarregar via link direto.');
           const a = document.createElement('a');
-          a.href = `${urlArquivoAtual}#t=${inicio},${fim}`;
+          a.href = urlArquivoAtual;
           a.download = `cortepro_parte_${numParte}.mp4`;
           a.click();
         }
