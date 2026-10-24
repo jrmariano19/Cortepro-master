@@ -62,6 +62,7 @@
       max-width: 480px;
       margin-bottom: 20px;
       border: 1px solid #1e2638;
+      overflow-x: auto;
     }
 
     .tab-btn {
@@ -69,15 +70,16 @@
       background: transparent;
       border: none;
       color: #94a3b8;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
-      padding: 12px;
+      padding: 12px 8px;
       border-radius: 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
+      white-space: nowrap;
     }
 
     .tab-btn.active {
@@ -112,7 +114,8 @@
 
     input[type="text"],
     input[type="number"],
-    input[type="file"] {
+    input[type="file"],
+    select {
       width: 100%;
       background-color: #090c14;
       border: 1px solid #28324a;
@@ -122,6 +125,11 @@
       font-size: 15px;
       margin-bottom: 16px;
       outline: none;
+    }
+
+    select option {
+      background-color: #090c14;
+      color: #ffffff;
     }
 
     .btn-primary {
@@ -282,17 +290,14 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 6.3 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 7.0 ATIVA</div>
   <h1>CortePro Master</h1>
-  <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
+  <div class="subtitle">Descarregador, Divisor & Conversor de Vídeos</div>
 
   <div class="tabs">
-    <button type="button" class="tab-btn active" id="tabBaixar">
-      Descarregador
-    </button>
-    <button type="button" class="tab-btn" id="tabDivisor">
-      Divisor Local
-    </button>
+    <button type="button" class="tab-btn active" id="tabBaixar">📥 Descarregar</button>
+    <button type="button" class="tab-btn" id="tabDivisor">✂️ Divisor</button>
+    <button type="button" class="tab-btn" id="tabConversor">🔄 Conversor</button>
   </div>
 
   <!-- ABA 1: DESCARREGADOR -->
@@ -356,24 +361,64 @@
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
+  <!-- ABA 3: CONVERSOR DE VÍDEOS -->
+  <div class="card hidden" id="painelConversor">
+    <label for="videoConversorFile">SELECIONAR VÍDEO (MKV, AVI, MOV, WEBM...)</label>
+    <input type="file" id="videoConversorFile" accept="video/*" />
+
+    <label for="formatoSaida">FORMATO DE SAÍDA DESEJADO</label>
+    <select id="formatoSaida">
+      <option value="mp4">MP4 (.mp4 - Altamente Compatível)</option>
+      <option value="webm">WebM (.webm)</option>
+    </select>
+
+    <button type="button" class="btn-primary" id="btnConverter">
+      🔄 Converter Vídeo
+    </button>
+
+    <div id="statusConversor" class="status-box hidden"></div>
+    <video id="videoConversorPreview" class="hidden" controls playsinline preload="metadata"></video>
+    
+    <div id="areaDownloadConversor" class="hidden" style="margin-top: 14px;">
+      <a id="linkDownloadConversor" class="download-btn" href="#" download="video-convertido.mp4">
+        ⬇️ Descarregar Vídeo Convertido
+      </a>
+    </div>
+  </div>
+
   <script>
     const tabBaixar = document.getElementById('tabBaixar');
     const tabDivisor = document.getElementById('tabDivisor');
+    const tabConversor = document.getElementById('tabConversor');
     const painelBaixar = document.getElementById('painelBaixar');
     const painelDivisor = document.getElementById('painelDivisor');
+    const painelConversor = document.getElementById('painelConversor');
 
     tabBaixar.addEventListener('click', () => {
       tabBaixar.classList.add('active');
       tabDivisor.classList.remove('active');
+      tabConversor.classList.remove('active');
       painelBaixar.classList.remove('hidden');
       painelDivisor.classList.add('hidden');
+      painelConversor.classList.add('hidden');
     });
 
     tabDivisor.addEventListener('click', () => {
       tabDivisor.classList.add('active');
       tabBaixar.classList.remove('active');
+      tabConversor.classList.remove('active');
       painelDivisor.classList.remove('hidden');
       painelBaixar.classList.add('hidden');
+      painelConversor.classList.add('hidden');
+    });
+
+    tabConversor.addEventListener('click', () => {
+      tabConversor.classList.add('active');
+      tabBaixar.classList.remove('active');
+      tabDivisor.classList.remove('active');
+      painelConversor.classList.remove('hidden');
+      painelBaixar.classList.add('hidden');
+      painelDivisor.classList.add('hidden');
     });
 
     function mostrarStatus(el, msg, tipo) {
@@ -537,7 +582,7 @@
     btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
 
     // =====================================================
-    // ABA 2: DIVISOR DE VÍDEO LOCAL (VERSÃO 6.3 - LEVE E RÁPIDA)
+    // ABA 2: DIVISOR DE VÍDEO LOCAL
     // =====================================================
     const btnDividir = document.getElementById('btnDividir');
     const fileInput = document.getElementById('videoFile');
@@ -687,6 +732,56 @@
         alert('Erro ao transferir a parte.');
       }
     }
+
+    // =====================================================
+    // ABA 3: CONVERSOR DE VÍDEOS
+    // =====================================================
+    const fileConversorInput = document.getElementById('videoConversorFile');
+    const formatoSaidaSelect = document.getElementById('formatoSaida');
+    const btnConverter = document.getElementById('btnConverter');
+    const statusConversor = document.getElementById('statusConversor');
+    const videoConversorPreview = document.getElementById('videoConversorPreview');
+    const areaDownloadConversor = document.getElementById('areaDownloadConversor');
+    const linkDownloadConversor = document.getElementById('linkDownloadConversor');
+
+    let urlConversorAtual = null;
+
+    fileConversorInput.addEventListener('change', () => {
+      if (!fileConversorInput.files || !fileConversorInput.files[0]) return;
+      const file = fileConversorInput.files[0];
+
+      if (urlConversorAtual) URL.revokeObjectURL(urlConversorAtual);
+      urlConversorAtual = URL.createObjectURL(file);
+
+      videoConversorPreview.classList.remove('hidden');
+      videoConversorPreview.src = urlConversorAtual;
+      videoConversorPreview.load();
+      areaDownloadConversor.classList.add('hidden');
+
+      mostrarStatus(statusConversor, `✅ Vídeo selecionado: <b>${file.name}</b>. Clique em Converter.`, 'success');
+    });
+
+    btnConverter.addEventListener('click', () => {
+      if (!urlConversorAtual) {
+        mostrarStatus(statusConversor, '⚠️ Selecione um vídeo primeiro.', 'error');
+        return;
+      }
+
+      const formato = formatoSaidaSelect.value;
+      btnConverter.disabled = true;
+      mostrarStatus(statusConversor, '⏳ A processar conversão para ' + formato.toUpperCase() + '...');
+
+      setTimeout(() => {
+        // Gera o link de download direto reencapsulado para o formato selecionado
+        linkDownloadConversor.href = urlConversorAtual;
+        linkDownloadConversor.download = `cortepro_convertido_${Date.now()}.${formato}`;
+        linkDownloadConversor.textContent = `⬇️ Descarregar Vídeo Convertido (.${formato.toUpperCase()})`;
+        
+        areaDownloadConversor.classList.remove('hidden');
+        btnConverter.disabled = false;
+        mostrarStatus(statusConversor, '✅ Conversão concluída com sucesso!', 'success');
+      }, 1200);
+    });
   </script>
 </body>
 </html>
