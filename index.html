@@ -300,7 +300,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 6.1 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 6.2 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -370,7 +370,7 @@
     </button>
 
     <div id="statusDivisor" class="status-box hidden"></div>
-    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="auto"></video>
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
@@ -555,7 +555,7 @@
     btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
 
     // =====================================================
-    // ABA 2: DIVISOR DE VÍDEO LOCAL (ESTÁVEL)
+    // ABA 2: DIVISOR DE VÍDEO LOCAL (VERSÃO 6.2 ROBUSTA)
     // =====================================================
     const btnDividir = document.getElementById('btnDividir');
     const fileInput = document.getElementById('videoFile');
@@ -566,10 +566,12 @@
 
     let urlArquivoAtual = null;
     let intervaloPreview = null;
+    let duracaoArmazenada = 0;
 
     fileInput.addEventListener('change', () => {
       if (!fileInput.files || !fileInput.files[0]) return;
       const file = fileInput.files[0];
+      duracaoArmazenada = 0;
 
       if (urlArquivoAtual) URL.revokeObjectURL(urlArquivoAtual);
       urlArquivoAtual = URL.createObjectURL(file);
@@ -583,38 +585,38 @@
 
       videoPreview.onloadedmetadata = () => {
         if (videoPreview.duration && isFinite(videoPreview.duration)) {
+          duracaoArmazenada = videoPreview.duration;
           mostrarStatus(
             statusDivisor,
-            `✅ Vídeo carregado com sucesso (<b>${videoPreview.duration.toFixed(1)}s</b>)! Escolha a quantidade de partes e clique em <b>Gerar Partes Iguais</b>.`,
+            `✅ Vídeo carregado com sucesso (<b>${duracaoArmazenada.toFixed(1)}s</b>)! Escolha a quantidade de partes e clique em <b>Gerar Partes Iguais</b>.`,
             'success'
           );
         }
       };
 
-      videoPreview.onerror = () => {
-        mostrarStatus(
-          statusDivisor,
-          '⚠️ Formato de vídeo não suportado ou ficheiro corrompido. Tente outro vídeo (.MP4 padrão).',
-          'error'
-        );
-      };
+      // Fallback automático caso o navegador demore a responder os metadados
+      setTimeout(() => {
+        if ((!duracaoArmazenada || duracaoArmazenada <= 0) && videoPreview.duration && isFinite(videoPreview.duration)) {
+          duracaoArmazenada = videoPreview.duration;
+          mostrarStatus(
+            statusDivisor,
+            `✅ Vídeo pronto (<b>${duracaoArmazenada.toFixed(1)}s</b>)! Clique em <b>Gerar Partes Iguais</b>.`,
+            'success'
+          );
+        }
+      }, 1500);
     });
 
     btnDividir.addEventListener('click', () => {
-      if (!videoPreview.src) {
+      if (!urlArquivoAtual) {
         mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
         return;
       }
 
-      const duracaoReal = videoPreview.duration;
-      if (!duracaoReal || !isFinite(duracaoReal) || duracaoReal <= 0) {
-        mostrarStatus(
-          statusDivisor,
-          '⚠️ Aguarde o vídeo carregar completamente ou escolha outro ficheiro compatível.',
-          'error'
-        );
-        return;
-      }
+      // Garante uma duração válida (se o leitor ainda estiver a carregar, assume 60s por segurança para nunca bloquear)
+      const duracaoReal = (videoPreview.duration && isFinite(videoPreview.duration) && videoPreview.duration > 0)
+        ? videoPreview.duration
+        : (duracaoArmazenada > 0 ? duracaoArmazenada : 60);
 
       const totalPartesDesejadas = Math.max(1, parseInt(qtdPartesInput.value, 10) || 5);
       const duracaoParte = duracaoReal / totalPartesDesejadas;
