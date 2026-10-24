@@ -164,12 +164,6 @@
       color: #6ee7b7;
     }
 
-    .status-box.warning {
-      background-color: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.5);
-      color: #fde68a;
-    }
-
     .download-btn {
       display: block;
       width: 100%;
@@ -204,18 +198,6 @@
       cursor: pointer;
       background-color: #2563eb;
       color: #ffffff;
-    }
-
-    .rescue-btn.insta {
-      background-color: #ec4899;
-    }
-
-    .rescue-btn.face {
-      background-color: #1d4ed8;
-    }
-
-    .rescue-btn.tube {
-      background-color: #dc2626;
     }
 
     .link-limpo-box {
@@ -300,7 +282,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 6.2 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 6.3 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador Limpo & Divisor de Vídeos</div>
 
@@ -370,7 +352,7 @@
     </button>
 
     <div id="statusDivisor" class="status-box hidden"></div>
-    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="auto"></video>
+    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
     <div id="listaCortes" class="clips-list"></div>
   </div>
 
@@ -555,7 +537,7 @@
     btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
 
     // =====================================================
-    // ABA 2: DIVISOR DE VÍDEO LOCAL (VERSÃO 6.2 ROBUSTA)
+    // ABA 2: DIVISOR DE VÍDEO LOCAL (VERSÃO 6.3 - LEVE E RÁPIDA)
     // =====================================================
     const btnDividir = document.getElementById('btnDividir');
     const fileInput = document.getElementById('videoFile');
@@ -566,12 +548,10 @@
 
     let urlArquivoAtual = null;
     let intervaloPreview = null;
-    let duracaoArmazenada = 0;
 
     fileInput.addEventListener('change', () => {
       if (!fileInput.files || !fileInput.files[0]) return;
       const file = fileInput.files[0];
-      duracaoArmazenada = 0;
 
       if (urlArquivoAtual) URL.revokeObjectURL(urlArquivoAtual);
       urlArquivoAtual = URL.createObjectURL(file);
@@ -581,30 +561,25 @@
       videoPreview.src = urlArquivoAtual;
       videoPreview.load();
 
-      mostrarStatus(statusDivisor, '⏳ A carregar vídeo...', '');
+      mostrarStatus(statusDivisor, '⏳ A carregar metadados do vídeo...', '');
 
       videoPreview.onloadedmetadata = () => {
         if (videoPreview.duration && isFinite(videoPreview.duration)) {
-          duracaoArmazenada = videoPreview.duration;
           mostrarStatus(
             statusDivisor,
-            `✅ Vídeo carregado com sucesso (<b>${duracaoArmazenada.toFixed(1)}s</b>)! Escolha a quantidade de partes e clique em <b>Gerar Partes Iguais</b>.`,
+            `✅ Vídeo pronto (<b>${videoPreview.duration.toFixed(1)}s</b>)! Escolha o nº de partes e clique em <b>Gerar Partes Iguais</b>.`,
             'success'
           );
         }
       };
 
-      // Fallback automático caso o navegador demore a responder os metadados
-      setTimeout(() => {
-        if ((!duracaoArmazenada || duracaoArmazenada <= 0) && videoPreview.duration && isFinite(videoPreview.duration)) {
-          duracaoArmazenada = videoPreview.duration;
-          mostrarStatus(
-            statusDivisor,
-            `✅ Vídeo pronto (<b>${duracaoArmazenada.toFixed(1)}s</b>)! Clique em <b>Gerar Partes Iguais</b>.`,
-            'success'
-          );
-        }
-      }, 1500);
+      videoPreview.onerror = () => {
+        mostrarStatus(
+          statusDivisor,
+          '⚠️ Formato de vídeo não suportado pelo navegador. Tente outro ficheiro MP4.',
+          'error'
+        );
+      };
     });
 
     btnDividir.addEventListener('click', () => {
@@ -613,10 +588,15 @@
         return;
       }
 
-      // Garante uma duração válida (se o leitor ainda estiver a carregar, assume 60s por segurança para nunca bloquear)
-      const duracaoReal = (videoPreview.duration && isFinite(videoPreview.duration) && videoPreview.duration > 0)
-        ? videoPreview.duration
-        : (duracaoArmazenada > 0 ? duracaoArmazenada : 60);
+      const duracaoReal = videoPreview.duration;
+      if (!duracaoReal || !isFinite(duracaoReal) || duracaoReal <= 0) {
+        mostrarStatus(
+          statusDivisor,
+          '⚠️ O vídeo ainda está a carregar. Aguarde 2 segundos e tente novamente.',
+          'warning'
+        );
+        return;
+      }
 
       const totalPartesDesejadas = Math.max(1, parseInt(qtdPartesInput.value, 10) || 5);
       const duracaoParte = duracaoReal / totalPartesDesejadas;
