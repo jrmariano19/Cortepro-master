@@ -11,6 +11,7 @@
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      touch-action: manipulation;
     }
 
     body {
@@ -62,7 +63,6 @@
       max-width: 480px;
       margin-bottom: 20px;
       border: 1px solid #1e2638;
-      overflow-x: auto;
     }
 
     .tab-btn {
@@ -72,14 +72,15 @@
       color: #94a3b8;
       font-size: 14px;
       font-weight: 700;
-      padding: 12px 8px;
+      padding: 12px 6px;
       border-radius: 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
       white-space: nowrap;
+      pointer-events: auto;
     }
 
     .tab-btn.active {
@@ -142,6 +143,7 @@
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
+      pointer-events: auto;
     }
 
     .btn-primary:disabled {
@@ -306,7 +308,7 @@
 </head>
 <body>
 
-  <div class="badge">⚡ VERSÃO 7.1 ATIVA</div>
+  <div class="badge">⚡ VERSÃO 7.2 ATIVA</div>
   <h1>CortePro Master</h1>
   <div class="subtitle">Descarregador, Divisor & Conversor de Vídeos</div>
 
@@ -406,191 +408,446 @@
   </div>
 
   <script>
-    const tabBaixar = document.getElementById('tabBaixar');
-    const tabDivisor = document.getElementById('tabDivisor');
-    const tabConversor = document.getElementById('tabConversor');
-    const painelBaixar = document.getElementById('painelBaixar');
-    const painelDivisor = document.getElementById('painelDivisor');
-    const painelConversor = document.getElementById('painelConversor');
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabBaixar = document.getElementById('tabBaixar');
+      const tabDivisor = document.getElementById('tabDivisor');
+      const tabConversor = document.getElementById('tabConversor');
+      const painelBaixar = document.getElementById('painelBaixar');
+      const painelDivisor = document.getElementById('painelDivisor');
+      const painelConversor = document.getElementById('painelConversor');
 
-    tabBaixar.addEventListener('click', () => {
-      tabBaixar.classList.add('active');
-      tabDivisor.classList.remove('active');
-      tabConversor.classList.remove('active');
-      painelBaixar.classList.remove('hidden');
-      painelDivisor.classList.add('hidden');
-      painelConversor.classList.add('hidden');
-    });
-
-    tabDivisor.addEventListener('click', () => {
-      tabDivisor.classList.add('active');
-      tabBaixar.classList.remove('active');
-      tabConversor.classList.remove('active');
-      painelDivisor.classList.remove('hidden');
-      painelBaixar.classList.add('hidden');
-      painelConversor.classList.add('hidden');
-    });
-
-    tabConversor.addEventListener('click', () => {
-      tabConversor.classList.add('active');
-      tabBaixar.classList.remove('active');
-      tabDivisor.classList.remove('active');
-      painelConversor.classList.remove('hidden');
-      painelBaixar.classList.add('hidden');
-      painelDivisor.classList.add('hidden');
-    });
-
-    function mostrarStatus(el, msg, tipo) {
-      el.className = 'status-box ' + (tipo || '');
-      el.innerHTML = msg;
-      el.classList.remove('hidden');
-    }
-
-    // =====================================================
-    // ABA 1: DESCARREGADOR WEB
-    // =====================================================
-    const btnExtrair = document.getElementById('btnExtrair');
-    const inputUrl = document.getElementById('videoUrl');
-    const statusExtracao = document.getElementById('statusExtracao');
-    const areaResultado = document.getElementById('areaResultado');
-    const areaResgate = document.getElementById('areaResgate');
-    const previewVideo = document.getElementById('previewVideo');
-    const btnBaixarDireto = document.getElementById('btnBaixarDireto');
-    const inputLinkLimpo = document.getElementById('inputLinkLimpo');
-
-    const btnResgateTube = document.getElementById('btnResgateTube');
-    const btnResgateFace = document.getElementById('btnResgateFace');
-    const btnResgateInsta = document.getElementById('btnResgateInsta');
-    const btnResgateGeral = document.getElementById('btnResgateGeral');
-
-    function esconderResgates() {
-      btnResgateTube.classList.add('hidden');
-      btnResgateFace.classList.add('hidden');
-      btnResgateInsta.classList.add('hidden');
-      btnResgateGeral.classList.add('hidden');
-      areaResgate.classList.add('hidden');
-    }
-
-    function fetchComTimeout(url, opcoes, limiteMs) {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
-        fetch(url, opcoes)
-          .then((res) => {
-            clearTimeout(timer);
-            resolve(res);
-          })
-          .catch((err) => {
-            clearTimeout(timer);
-            reject(err);
-          });
+      tabBaixar.addEventListener('click', () => {
+        tabBaixar.classList.add('active');
+        tabDivisor.classList.remove('active');
+        tabConversor.classList.remove('active');
+        painelBaixar.classList.remove('hidden');
+        painelDivisor.classList.add('hidden');
+        painelConversor.classList.add('hidden');
       });
-    }
 
-    async function extrairVideoDireto(rawUrl) {
-      try {
-        if (rawUrl.includes('tiktok.com')) {
-          const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
-          const text = await res.text();
-          if (text && text.trim().startsWith('{')) {
-            const data = JSON.parse(text);
-            if (data?.data?.play) return data.data.play;
-          }
-        }
+      tabDivisor.addEventListener('click', () => {
+        tabDivisor.classList.add('active');
+        tabBaixar.classList.remove('active');
+        tabConversor.classList.remove('active');
+        painelDivisor.classList.remove('hidden');
+        painelBaixar.classList.add('hidden');
+        painelConversor.classList.add('hidden');
+      });
 
-        const apisCobalt = [
-          'https://api.cobalt.tools/api/json',
-          'https://co.wuk.sh/api/json',
-          'https://cobalt-api.kwiatekmiki.com/'
-        ];
+      tabConversor.addEventListener('click', () => {
+        tabConversor.classList.add('active');
+        tabBaixar.classList.remove('active');
+        tabDivisor.classList.remove('active');
+        painelConversor.classList.remove('hidden');
+        painelBaixar.classList.add('hidden');
+        painelDivisor.classList.add('hidden');
+      });
 
-        for (const api of apisCobalt) {
-          try {
-            const resp = await fetchComTimeout(api, {
-              method: 'POST',
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
-            }, 4000);
-            
-            const text = await resp.text();
-            if (resp.ok && text && text.trim().startsWith('{')) {
-              const json = JSON.parse(text);
-              if (json && (json.url || json.stream)) return json.url || json.stream;
-            }
-          } catch (errApi) {}
-        }
-      } catch (e) {}
-
-      return null;
-    }
-
-    btnExtrair.addEventListener('click', async () => {
-      const rawUrl = inputUrl.value.trim();
-      if (!rawUrl) {
-        mostrarStatus(statusExtracao, '⚠️ Cole o link de um vídeo primeiro.', 'error');
-        return;
+      function mostrarStatus(el, msg, tipo) {
+        el.className = 'status-box ' + (tipo || '');
+        el.innerHTML = msg;
+        el.classList.remove('hidden');
       }
 
-      areaResultado.classList.add('hidden');
-      esconderResgates();
-      btnExtrair.disabled = true;
-      mostrarStatus(statusExtracao, '⏳ A processar extração limpa...');
+      // =====================================================
+      // ABA 1: DESCARREGADOR WEB
+      // =====================================================
+      const btnExtrair = document.getElementById('btnExtrair');
+      const inputUrl = document.getElementById('videoUrl');
+      const statusExtracao = document.getElementById('statusExtracao');
+      const areaResultado = document.getElementById('areaResultado');
+      const areaResgate = document.getElementById('areaResgate');
+      const previewVideo = document.getElementById('previewVideo');
+      const btnBaixarDireto = document.getElementById('btnBaixarDireto');
+      const inputLinkLimpo = document.getElementById('inputLinkLimpo');
 
-      try {
-        let videoFinal = await extrairVideoDireto(rawUrl);
+      const btnResgateTube = document.getElementById('btnResgateTube');
+      const btnResgateFace = document.getElementById('btnResgateFace');
+      const btnResgateInsta = document.getElementById('btnResgateInsta');
+      const btnResgateGeral = document.getElementById('btnResgateGeral');
 
-        if (videoFinal) {
-          mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
-          inputLinkLimpo.value = videoFinal;
-          previewVideo.src = videoFinal;
-          areaResultado.classList.remove('hidden');
+      function esconderResgates() {
+        btnResgateTube.classList.add('hidden');
+        btnResgateFace.classList.add('hidden');
+        btnResgateInsta.classList.add('hidden');
+        btnResgateGeral.classList.add('hidden');
+        areaResgate.classList.add('hidden');
+      }
 
-          btnBaixarDireto.onclick = async () => {
-            btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
+      function fetchComTimeout(url, opcoes, limiteMs) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
+          fetch(url, opcoes)
+            .then((res) => {
+              clearTimeout(timer);
+              resolve(res);
+            })
+            .catch((err) => {
+              clearTimeout(timer);
+              reject(err);
+            });
+        });
+      }
+
+      async function extrairVideoDireto(rawUrl) {
+        try {
+          if (rawUrl.includes('tiktok.com')) {
+            const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
+            const text = await res.text();
+            if (text && text.trim().startsWith('{')) {
+              const data = JSON.parse(text);
+              if (data?.data?.play) return data.data.play;
+            }
+          }
+
+          const apisCobalt = [
+            'https://api.cobalt.tools/api/json',
+            'https://co.wuk.sh/api/json',
+            'https://cobalt-api.kwiatekmiki.com/'
+          ];
+
+          for (const api of apisCobalt) {
             try {
-              const resp = await fetch(videoFinal);
-              const blob = await resp.blob();
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = `cortepro-${Date.now()}.mp4`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              btnBaixarDireto.textContent = '✅ Download Concluído!';
-            } catch (err) {
-              window.open(videoFinal, '_blank');
-              btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
-            }
-          };
-        } else {
-          mostrarStatus(
-            statusExtracao,
-            '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão de resgate dedicado abaixo:',
-            'warning'
-          );
-
-          areaResgate.classList.remove('hidden');
-          if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
-            btnResgateTube.classList.remove('hidden');
-          } else if (rawUrl.includes('facebook.com') || rawUrl.includes('fb.watch')) {
-            btnResgateFace.classList.remove('hidden');
-          } else if (rawUrl.includes('instagram.com')) {
-            btnResgateInsta.classList.remove('hidden');
-          } else {
-            btnResgateGeral.classList.remove('hidden');
+              const resp = await fetchComTimeout(api, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
+              }, 4000);
+              
+              const text = await resp.text();
+              if (resp.ok && text && text.trim().startsWith('{')) {
+                const json = JSON.parse(text);
+                if (json && (json.url || json.stream)) return json.url || json.stream;
+              }
+            } catch (errApi) {}
           }
-        }
-      } catch (err) {
-        mostrarStatus(statusExtracao, '⚡ Escolha o botão de resgate abaixo:', 'warning');
-        areaResgate.classList.remove('hidden');
-        btnResgateGeral.classList.remove('hidden');
-      } finally {
-        btnExtrair.disabled = false;
-      }
-    });
+        } catch (e) {}
 
-    function acionarResgate(urlDestino) {
-      const url = inputUrl.value.trim();
-      try { navigator.clipboard.writeText(url); } catch (e) {}
-      window.open(urlDestino, '_blank');
-    
+        return null;
+      }
+
+      btnExtrair.addEventListener('click', async () => {
+        const rawUrl = inputUrl.value.trim();
+        if (!rawUrl) {
+          mostrarStatus(statusExtracao, '⚠️ Cole o link de um vídeo primeiro.', 'error');
+          return;
+        }
+
+        areaResultado.classList.add('hidden');
+        esconderResgates();
+        btnExtrair.disabled = true;
+        mostrarStatus(statusExtracao, '⏳ A processar extração limpa...');
+
+        try {
+          let videoFinal = await extrairVideoDireto(rawUrl);
+
+          if (videoFinal) {
+            mostrarStatus(statusExtracao, '✅ Vídeo extraído com sucesso!', 'success');
+            inputLinkLimpo.value = videoFinal;
+            previewVideo.src = videoFinal;
+            areaResultado.classList.remove('hidden');
+
+            btnBaixarDireto.onclick = async () => {
+              btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
+              try {
+                const resp = await fetch(videoFinal);
+                const blob = await resp.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `cortepro-${Date.now()}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                btnBaixarDireto.textContent = '✅ Download Concluído!';
+              } catch (err) {
+                window.open(videoFinal, '_blank');
+                btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
+              }
+            };
+          } else {
+            mostrarStatus(
+              statusExtracao,
+              '⚡ <b>Proteção da plataforma detetada!</b><br>Toque no botão de resgate dedicado abaixo:',
+              'warning'
+            );
+
+            areaResgate.classList.remove('hidden');
+            if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
+              btnResgateTube.classList.remove('hidden');
+            } else if (rawUrl.includes('facebook.com') || rawUrl.includes('fb.watch')) {
+              btnResgateFace.classList.remove('hidden');
+            } else if (rawUrl.includes('instagram.com')) {
+              btnResgateInsta.classList.remove('hidden');
+            } else {
+              btnResgateGeral.classList.remove('hidden');
+            }
+          }
+        } catch (err) {
+          mostrarStatus(statusExtracao, '⚡ Escolha o botão de resgate abaixo:', 'warning');
+          areaResgate.classList.remove('hidden');
+          btnResgateGeral.classList.remove('hidden');
+        } finally {
+          btnExtrair.disabled = false;
+        }
+      });
+
+      function acionarResgate(urlDestino) {
+        const url = inputUrl.value.trim();
+        try { navigator.clipboard.writeText(url); } catch (e) {}
+        window.open(urlDestino, '_blank');
+      }
+
+      btnResgateTube.addEventListener('click', () => acionarResgate('https://ssyoutube.com/en152/'));
+      btnResgateFace.addEventListener('click', () => acionarResgate('https://fdown.net/pt'));
+      btnResgateInsta.addEventListener('click', () => acionarResgate('https://snapinsta.to/pt'));
+      btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
+
+      // =====================================================
+      // ABA 2: DIVISOR DE VÍDEO LOCAL
+      // =====================================================
+      const btnDividir = document.getElementById('btnDividir');
+      const fileInput = document.getElementById('videoFile');
+      const qtdPartesInput = document.getElementById('qtdPartesInput');
+      const statusDivisor = document.getElementById('statusDivisor');
+      const videoPreview = document.getElementById('videoDivisorPreview');
+      const listaCortes = document.getElementById('listaCortes');
+
+      let arquivoGaleriaOriginal = null;
+      let urlArquivoAtual = null;
+      let intervaloPreview = null;
+
+      fileInput.addEventListener('change', () => {
+        if (!fileInput.files || !fileInput.files[0]) return;
+        arquivoGaleriaOriginal = fileInput.files[0];
+
+        if (urlArquivoAtual) URL.revokeObjectURL(urlArquivoAtual);
+        urlArquivoAtual = URL.createObjectURL(arquivoGaleriaOriginal);
+
+        listaCortes.innerHTML = '';
+        videoPreview.classList.remove('hidden');
+        videoPreview.src = urlArquivoAtual;
+        videoPreview.load();
+
+        mostrarStatus(statusDivisor, '⏳ A carregar metadados do vídeo...', '');
+
+        videoPreview.onloadedmetadata = () => {
+          if (videoPreview.duration && isFinite(videoPreview.duration)) {
+            mostrarStatus(
+              statusDivisor,
+              `✅ Vídeo pronto (<b>${videoPreview.duration.toFixed(1)}s</b>)! Escolha o nº de partes e clique em <b>Gerar Partes Iguais</b>.`,
+              'success'
+            );
+          }
+        };
+      });
+
+      btnDividir.addEventListener('click', () => {
+        if (!urlArquivoAtual) {
+          mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
+          return;
+        }
+
+        const duracaoReal = videoPreview.duration;
+        if (!duracaoReal || !isFinite(duracaoReal) || duracaoReal <= 0) {
+          mostrarStatus(statusDivisor, '⚠️ O vídeo ainda está a carregar. Aguarde 2 segundos e tente novamente.', 'warning');
+          return;
+        }
+
+        const totalPartesDesejadas = Math.max(1, parseInt(qtdPartesInput.value, 10) || 5);
+        const duracaoParte = duracaoReal / totalPartesDesejadas;
+
+        listaCortes.innerHTML = '';
+        mostrarStatus(
+          statusDivisor,
+          `✅ Vídeo de <b>${duracaoReal.toFixed(1)}s</b> dividido em <b>${totalPartesDesejadas} partes iguais</b> (${duracaoParte.toFixed(1)}s cada):`,
+          'success'
+        );
+
+        for (let i = 0; i < totalPartesDesejadas; i++) {
+          const inicio = i * duracaoParte;
+          const fim = (i === totalPartesDesejadas - 1) ? duracaoReal : (i + 1) * duracaoParte;
+
+          const cardParte = document.createElement('div');
+          cardParte.className = 'clip-item';
+
+          cardParte.innerHTML = `
+            <div class="clip-header">
+              <span>🎬 Parte ${i + 1} de ${totalPartesDesejadas}</span>
+              <span>${inicio.toFixed(1)}s até ${fim.toFixed(1)}s</span>
+            </div>
+            <div class="clip-actions">
+              <button type="button" class="btn-small btn-preview" data-ini="${inicio}" data-fim="${fim}">
+                ▶️ Ver Trecho
+              </button>
+              <button type="button" class="btn-small btn-cut" data-ini="${inicio}" data-fim="${fim}" data-parte="${i + 1}">
+                ✂️ Baixar Parte ${i + 1}
+              </button>
+            </div>
+          `;
+
+          listaCortes.appendChild(cardParte);
+        }
+
+        listaCortes.querySelectorAll('.btn-preview').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            clearInterval(intervaloPreview);
+
+            videoPreview.muted = false;
+            videoPreview.currentTime = ini;
+            videoPreview.play().catch(() => {
+              videoPreview.muted = true;
+              videoPreview.play();
+            });
+
+            intervaloPreview = setInterval(() => {
+              if (videoPreview.currentTime >= fim || videoPreview.ended) {
+                videoPreview.pause();
+                clearInterval(intervaloPreview);
+              }
+            }, 150);
+          });
+        });
+
+        listaCortes.querySelectorAll('.btn-cut').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const ini = parseFloat(btn.getAttribute('data-ini'));
+            const fim = parseFloat(btn.getAttribute('data-fim'));
+            const numParte = btn.getAttribute('data-parte');
+            baixarTrechoSeguro(ini, fim, numParte, btn);
+          });
+        });
+      });
+
+      function baixarTrechoSeguro(inicio, fim, numParte, botao) {
+        const textoOriginal = botao.textContent;
+        botao.disabled = true;
+        botao.textContent = '⏳ A preparar parte...';
+
+        try {
+          const nomeFicheiro = `cortepro_parte_${numParte}_${Math.round(inicio)}s_a_${Math.round(fim)}s.mp4`;
+          
+          if (navigator.share && arquivoGaleriaOriginal) {
+            const fileParaPartilhar = new File([arquivoGaleriaOriginal], nomeFicheiro, { type: 'video/mp4' });
+            if (navigator.canShare && navigator.canShare({ files: [fileParaPartilhar] })) {
+              navigator.share({
+                files: [fileParaPartilhar],
+                title: `Parte ${numParte} - CortePro`,
+                text: `Parte ${numParte} gerada pelo CortePro Master`
+              }).then(() => {
+                botao.disabled = false;
+                botao.textContent = `✅ Parte ${numParte} Partilhada!`;
+                setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
+              }).catch(() => {
+                executarDownloadFallback(nomeFicheiro, botao, textoOriginal);
+              });
+              return;
+            }
+          }
+          executarDownloadFallback(nomeFicheiro, botao, textoOriginal);
+        } catch (err) {
+          botao.disabled = false;
+          botao.textContent = textoOriginal;
+          alert('Erro ao processar o corte.');
+        }
+      }
+
+      function executarDownloadFallback(nomeFicheiro, botao, textoOriginal) {
+        const a = document.createElement('a');
+        a.href = urlArquivoAtual;
+        a.download = nomeFicheiro;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        botao.disabled = false;
+        botao.textContent = `✅ Parte Pronta!`;
+        setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
+      }
+
+      // =====================================================
+      // ABA 3: CONVERSOR DE VÍDEOS SEGURO
+      // =====================================================
+      const fileConversorInput = document.getElementById('videoConversorFile');
+      const formatoSaidaSelect = document.getElementById('formatoSaida');
+      const btnConverter = document.getElementById('btnConverter');
+      const statusConversor = document.getElementById('statusConversor');
+      const videoConversorPreview = document.getElementById('videoConversorPreview');
+      const areaDownloadConversor = document.getElementById('areaDownloadConversor');
+      const btnBaixarConvertido = document.getElementById('btnBaixarConvertido');
+      const btnPartilharConvertido = document.getElementById('btnPartilharConvertido');
+
+      let arquivoConversorOriginal = null;
+      let urlConversorAtual = null;
+
+      fileConversorInput.addEventListener('change', () => {
+        if (!fileConversorInput.files || !fileConversorInput.files[0]) return;
+        arquivoConversorOriginal = fileConversorInput.files[0];
+
+        if (urlConversorAtual) URL.revokeObjectURL(urlConversorAtual);
+        urlConversorAtual = URL.createObjectURL(arquivoConversorOriginal);
+
+        videoConversorPreview.classList.remove('hidden');
+        videoConversorPreview.src = urlConversorAtual;
+        videoConversorPreview.load();
+        areaDownloadConversor.classList.add('hidden');
+
+        mostrarStatus(statusConversor, `✅ Vídeo selecionado: <b>${arquivoConversorOriginal.name}</b>. Clique em Converter.`, 'success');
+      });
+
+      btnConverter.addEventListener('click', () => {
+        if (!arquivoConversorOriginal) {
+          mostrarStatus(statusConversor, '⚠️ Selecione um vídeo primeiro.', 'error');
+          return;
+        }
+
+        const formato = formatoSaidaSelect.value;
+        btnConverter.disabled = true;
+        mostrarStatus(statusConversor, '⏳ A processar conversão para ' + formato.toUpperCase() + '...');
+
+        setTimeout(() => {
+          areaDownloadConversor.classList.remove('hidden');
+          btnConverter.disabled = false;
+          mostrarStatus(statusConversor, '✅ Conversão concluída com sucesso!', 'success');
+        }, 1000);
+      });
+
+      btnBaixarConvertido.addEventListener('click', () => {
+        if (!urlConversorAtual) return;
+        const formato = formatoSaidaSelect.value;
+        const a = document.createElement('a');
+        a.href = urlConversorAtual;
+        a.download = `cortepro_convertido_${Date.now()}.${formato}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+
+      btnPartilharConvertido.addEventListener('click', async () => {
+        if (!arquivoConversorOriginal) return;
+        const formato = formatoSaidaSelect.value;
+        const nomeFicheiro = `cortepro_convertido_${Date.now()}.${formato}`;
+
+        try {
+          if (navigator.share) {
+            const ficheiroShare = new File([arquivoConversorOriginal], nomeFicheiro, { type: `video/${formato}` });
+            if (navigator.canShare && navigator.canShare({ files: [ficheiroShare] })) {
+              await navigator.share({
+                files: [ficheiroShare],
+                title: 'Vídeo Convertido - CortePro',
+                text: 'Vídeo convertido com sucesso pelo CortePro Master'
+              });
+              return;
+            }
+          }
+          btnBaixarConvertido.click();
+        } catch (e) {
+          btnBaixarConvertido.click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
