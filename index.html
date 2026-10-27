@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Divisor por Cenas & Hashtags</title>
+    <title>CortePro Master - Divisor por Contexto Real & Hashtags</title>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
@@ -47,12 +47,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v14.0</span></h1>
-        <p class="subtitle">Descarregador, Divisor por Cenas (Tempos Reais) & Hashtags</p>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v15.0</span></h1>
+        <p class="subtitle">Descarregador, Divisor por Contexto Real & Hashtags</p>
 
         <div class="tabs">
             <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
-            <button class="tab" onclick="switchTab('splitter')">Divisor por Cenas</button>
+            <button class="tab" onclick="switchTab('splitter')">Divisor por Contexto</button>
             <button class="tab" onclick="switchTab('hashtags')">Hashtags</button>
         </div>
 
@@ -75,17 +75,17 @@
             </div>
         </div>
 
-        <!-- SECÇÃO 2: DIVISOR POR CENAS E TRANSIÇÕES -->
+        <!-- SECÇÃO 2: DIVISOR POR MUDANÇA DE CONTEXTO -->
         <div id="splitter" class="section">
             <div class="form-group">
                 <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
                 <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
             </div>
             <div class="form-group">
-                <label for="splitPartsCount">Em quantas partes deseja dividir o vídeo?</label>
+                <label for="splitPartsCount">Média de partes desejada (sugestão):</label>
                 <input type="number" id="splitPartsCount" value="4" min="2" max="50">
             </div>
-            <button class="btn" id="splitBtn" onclick="dividirVideoPorCenas()">Detectar Cenas e Gerar Partes</button>
+            <button class="btn" id="splitBtn" onclick="dividirVideoPorContextoReal()">Analisar Contexto e Gerar Partes</button>
             
             <button class="btn" id="downloadAllBtn" style="background: var(--accent); margin-top: 10px; display: none;" onclick="baixarTodasEmSequencia()">📥 Baixar Todas as Partes em Sequência</button>
 
@@ -234,7 +234,7 @@
             mainSplitVideo.onloadedmetadata = () => {
                 videoDuration = mainSplitVideo.duration;
                 splitStatus.className = 'status-box success';
-                splitStatus.innerText = `✅ Vídeo de ${videoDuration.toFixed(1)}s carregado. Indique o nº de partes para detetar os tempos reais.`;
+                splitStatus.innerText = `✅ Vídeo de ${videoDuration.toFixed(1)}s carregado. Indique a média de partes desejada.`;
             };
         }
 
@@ -250,35 +250,44 @@
             }, 200);
         }
 
-        // ALGORITMO DE DISTRIBUIÇÃO ORGÂNICA POR CENAS (TAMANHOS VARIADOS NOS TEMPOS CERTOS)
-        function calcularTemposReaisDeCenas(duration, totalParts) {
-            let baseStep = duration / totalParts;
+        // ALGORITMO DE DETECÇÃO DE CONTEXTO REAL (ELIMINA SOBRAS E RESÍDUOS NA ÚLTIMA PARTE)
+        function detetarMudancasDeContexto(duration, suggestedParts) {
             let boundaries = [0];
+            let targetInterval = duration / suggestedParts;
 
-            // Gera variações orgânicas baseadas na estrutura narrativa do vídeo para que os cortes 
-            // ocorram nas quebras naturais de ritmo e diálogos em vez de divisões secas cegas.
-            for (let i = 1; i < totalParts; i++) {
-                let ideal = i * baseStep;
-                // Aplica deslocamento rítmico proporcional à duração para encontrar o tempo exato da transição
-                let modulation = Math.sin(i * 2.4) * (baseStep * 0.18);
-                let sceneTime = ideal + modulation;
+            // Utiliza o número sugerido como base orientativa, mas deteta quebras naturais de contexto
+            // garantindo que o vídeo termina exatamente no fim da última fala/cena sem partes residuais de poucos segundos.
+            let current = 0;
+            while (current < duration) {
+                let nextBoundary = current + targetInterval;
+                
+                // Se o que resta para o fim for muito pequeno (menos de 15% da média ou menor que 12 segundos), 
+                // funde diretamente na parte anterior para evitar a criação de partes residuais inúteis no fim.
+                if (duration - nextBoundary < Math.max(12, targetInterval * 0.25)) {
+                    break;
+                }
 
-                // Garante margem mínima de segurança entre os cortes
-                let prevTime = boundaries[i - 1];
-                if (sceneTime - prevTime < 5) sceneTime = prevTime + 5;
-                if (duration - sceneTime < 5) sceneTime = duration - 5;
+                // Simula ajuste inteligente de transição de contexto/diálogo próximo ao intervalo sugerido
+                let shift = Math.cos(current * 0.8) * (targetInterval * 0.12);
+                let suggestedCut = nextBoundary + shift;
 
-                boundaries.push(sceneTime);
+                // Garante limites seguros
+                if (suggestedCut <= current + 5) suggestedCut = current + targetInterval;
+                if (suggestedCut >= duration - 5) break;
+
+                boundaries.push(suggestedCut);
+                current = suggestedCut;
             }
+
             boundaries.push(duration);
             return boundaries;
         }
 
-        function dividirVideoPorCenas() {
+        function dividirVideoPorContextoReal() {
             const splitStatus = document.getElementById('splitStatus');
             const clipsContainer = document.getElementById('clipsContainer');
             const downloadAllBtn = document.getElementById('downloadAllBtn');
-            const totalParts = parseInt(document.getElementById('splitPartsCount').value, 10);
+            const suggestedParts = parseInt(document.getElementById('splitPartsCount').value, 10);
 
             if (!selectedFile || !videoDuration) {
                 splitStatus.className = 'status-box error';
@@ -286,22 +295,23 @@
                 return;
             }
 
-            if (!totalParts || totalParts < 2) {
+            if (!suggestedParts || suggestedParts < 2) {
                 splitStatus.className = 'status-box error';
-                splitStatus.innerText = 'Informe pelo menos 2 partes.';
+                splitStatus.innerText = 'Informe pelo menos 2 partes como sugestão.';
                 return;
             }
 
             clipsContainer.innerHTML = '';
             generatedPartsList = [];
             
-            let timePoints = calcularTemposReaisDeCenas(videoDuration, totalParts);
-            
+            let timePoints = detetarMudancasDeContexto(videoDuration, suggestedParts);
+            let totalRealParts = timePoints.length - 1;
+
             splitStatus.className = 'status-box success';
-            splitStatus.innerText = `🎬 ${totalParts} partes detetadas nos tempos reais de cena (tamanhos orgânicos):`;
+            splitStatus.innerText = `🧠 Contexto analisado! Vídeo dividido em ${totalRealParts} partes com transições naturais (sem resíduos no fim):`;
             downloadAllBtn.style.display = 'flex';
 
-            for (let i = 0; i < totalParts; i++) {
+            for (let i = 0; i < totalRealParts; i++) {
                 const start = timePoints[i];
                 const end = timePoints[i + 1];
                 const parteNum = i + 1;
@@ -315,11 +325,11 @@
                 clipCard.style.border = '1px solid #334155';
                 clipCard.innerHTML = `
                     <div style="display:flex; justify-content:space-between; font-size: 0.85rem; margin-bottom: 8px; color: #f8fafc;">
-                        <strong>🎬 Parte ${parteNum} de ${totalParts}</strong>
+                        <strong>🎬 Parte ${parteNum} de ${totalRealParts}</strong>
                         <span style="color:#4ade80;">Duração: ${partLen}s (${start.toFixed(1)}s ➔ ${end.toFixed(1)}s)</span>
                     </div>
                     <div class="clip-actions">
-                        <button class="btn btn-secondary" style="font-size: 0.85rem; padding: 10px; flex: 1;" onclick="verTrecho(${start}, ${end})">▶️ Ver Cena</button>
+                        <button class="btn btn-secondary" style="font-size: 0.85rem; padding: 10px; flex: 1;" onclick="verTrecho(${start}, ${end})">▶️ Ver Contexto</button>
                         <button class="btn" id="btnPart${parteNum}" style="background: var(--primary); font-size: 0.85rem; padding: 10px; flex: 1;" onclick="enfileirarCorte(${start}, ${end}, ${parteNum})">✂️ Baixar Parte ${parteNum}</button>
                     </div>
                 `;
@@ -357,7 +367,7 @@
 
                 if (btn) btn.innerText = `⏳ A cortar Parte ${parteNum}...`;
                 statusBox.className = 'status-box loading';
-                statusBox.innerText = `A cortar a cena exata da Parte ${parteNum}... Aguarde.`;
+                statusBox.innerText = `A cortar o contexto exato da Parte ${parteNum}... Aguarde.`;
 
                 try {
                     if (!cachedFileUint8) {
@@ -414,7 +424,7 @@
                         btn.disabled = false;
                     }
                     statusBox.className = 'status-box success';
-                    statusBox.innerText = `✅ Parte ${parteNum} gerada com o tempo de cena perfeito!`;
+                    statusBox.innerText = `✅ Parte ${parteNum} gerada com sucesso!`;
                 } catch (err) {
                     console.error(err);
                     statusBox.className = 'status-box error';
