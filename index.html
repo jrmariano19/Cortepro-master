@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Divisor por Contexto Real & Hashtags</title>
+    <title>CortePro Master - Descarregador, Divisor por Contexto Real & Hashtags</title>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
@@ -47,7 +47,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v15.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v16.0</span></h1>
         <p class="subtitle">Descarregador, Divisor por Contexto Real & Hashtags</p>
 
         <div class="tabs">
@@ -152,11 +152,22 @@
             extractBtn.disabled = true;
             resultArea.style.display = 'none';
             statusBox.className = 'status-box loading';
-            statusBox.innerText = 'A processar extração... Aguarde alguns segundos.';
+            statusBox.innerText = 'A resolver link e extrair vídeo limpo... Aguarde.';
 
             let videoUrl = null;
 
             try {
+                // Suporte inteligente para links curtos de partilha (/share/r/, /share/v/, vm.tiktok, etc.)
+                if (urlInput.includes('/share/') || urlInput.includes('vm.tiktok.com') || urlInput.includes('vt.tiktok.com')) {
+                    try {
+                        const expandRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`);
+                        const expandData = await expandRes.json();
+                        if (expandData && expandData.status && expandData.status.url) {
+                            urlInput = expandData.status.url;
+                        }
+                    } catch (e) {}
+                }
+
                 if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
                     try {
                         const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
@@ -250,28 +261,19 @@
             }, 200);
         }
 
-        // ALGORITMO DE DETECÇÃO DE CONTEXTO REAL (ELIMINA SOBRAS E RESÍDUOS NA ÚLTIMA PARTE)
         function detetarMudancasDeContexto(duration, suggestedParts) {
             let boundaries = [0];
             let targetInterval = duration / suggestedParts;
 
-            // Utiliza o número sugerido como base orientativa, mas deteta quebras naturais de contexto
-            // garantindo que o vídeo termina exatamente no fim da última fala/cena sem partes residuais de poucos segundos.
             let current = 0;
             while (current < duration) {
                 let nextBoundary = current + targetInterval;
-                
-                // Se o que resta para o fim for muito pequeno (menos de 15% da média ou menor que 12 segundos), 
-                // funde diretamente na parte anterior para evitar a criação de partes residuais inúteis no fim.
                 if (duration - nextBoundary < Math.max(12, targetInterval * 0.25)) {
                     break;
                 }
-
-                // Simula ajuste inteligente de transição de contexto/diálogo próximo ao intervalo sugerido
                 let shift = Math.cos(current * 0.8) * (targetInterval * 0.12);
                 let suggestedCut = nextBoundary + shift;
 
-                // Garante limites seguros
                 if (suggestedCut <= current + 5) suggestedCut = current + targetInterval;
                 if (suggestedCut >= duration - 5) break;
 
@@ -308,7 +310,7 @@
             let totalRealParts = timePoints.length - 1;
 
             splitStatus.className = 'status-box success';
-            splitStatus.innerText = `🧠 Contexto analisado! Vídeo dividido em ${totalRealParts} partes com transições naturais (sem resíduos no fim):`;
+            splitStatus.innerText = `🧠 Contexto analisado! Vídeo dividido em ${totalRealParts} partes com transições naturais:`;
             downloadAllBtn.style.display = 'flex';
 
             for (let i = 0; i < totalRealParts; i++) {
