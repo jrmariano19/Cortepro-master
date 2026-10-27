@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Descarregador, Divisor & Hashtags</title>
+    <title>CortePro Master - Descarregador, Divisor Real MP4 & Hashtags</title>
     <!-- Motor FFmpeg WebAssembly para corte real de MP4 sem corromper partes -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
@@ -48,7 +48,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v12.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v12.1</span></h1>
         <p class="subtitle">Descarregador, Divisor Real MP4 & Hashtags</p>
 
         <div class="tabs">
@@ -158,6 +158,18 @@
             let videoUrl = null;
 
             try {
+                // Suporte seguro para expandir links curtos de partilha do Facebook/Instagram/TikTok sem dependências externas
+                if (urlInput.includes('fb.watch') || urlInput.includes('/share/') || urlInput.includes('vm.tiktok.com') || urlInput.includes('vt.tiktok.com')) {
+                    try {
+                        const resRedirect = await fetch(urlInput, { method: 'HEAD', redirect: 'follow' });
+                        if (resRedirect.url) {
+                            urlInput = resRedirect.url;
+                        }
+                    } catch (e) {
+                        // Se o CORS bloquear o HEAD, tenta passar o link original tratado pelas APIs
+                    }
+                }
+
                 if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
                     try {
                         const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
