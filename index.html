@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CortePro Master - Descarregador, Divisor Real MP4 & Hashtags</title>
+    <!-- Motor FFmpeg WebAssembly para corte real de MP4 sem corromper partes -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
@@ -47,7 +48,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v12.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v12.2</span></h1>
         <p class="subtitle">Descarregador, Divisor Real MP4 & Hashtags</p>
 
         <div class="tabs">
@@ -63,7 +64,7 @@
             </div>
             <div class="form-group">
                 <label for="videoUrl">Cole o link do vídeo:</label>
-                <input type="text" id="videoUrl" placeholder="Cole o link direto e público do vídeo">
+                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok/Insta">
             </div>
             <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
             
@@ -157,6 +158,18 @@
             let videoUrl = null;
 
             try {
+                // Expansão segura de links curtos do Facebook para a API ler corretamente
+                if (urlInput.includes('/share/')) {
+                    try {
+                        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`);
+                        const data = await res.json();
+                        if (data && data.contents) {
+                            const match = data.contents.exec(/<link rel="canonical" href="([^"]+)"/);
+                            if (match && match[1]) urlInput = match[1];
+                        }
+                    } catch (e) {}
+                }
+
                 if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
                     try {
                         const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
@@ -386,7 +399,7 @@
                         btn.style.background = 'var(--accent)';
                         btn.disabled = false;
                     }
-                    statusBox.className = 'status-box success';
+                    statusBox.className> = 'status-box success';
                     statusBox.innerText = `✅ Parte ${parteNum} baixada com sucesso!`;
                 } catch (err) {
                     console.error(err);
