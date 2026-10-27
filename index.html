@@ -44,10 +44,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v6.0</span></h1>
-        <p class="subtitle">Descarregador, Divisor & Gerador de Hashtags</p>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v7.0</span></h1>
+        <p class="subtitle">Descarregador, Divisor & Hashtags</p>
 
-        <!-- ABAS RESTAURADAS -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
             <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
@@ -73,27 +72,30 @@
             </div>
         </div>
 
-        <!-- SEÇÃO 2: DIVISOR LOCAL -->
+        <!-- SEÇÃO 2: DIVISOR LOCAL (EM PARTES IGUAIS) -->
         <div id="splitter" class="section">
             <div class="form-group">
                 <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
                 <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
             </div>
             <div class="form-group">
-                <label for="splitDuration">Duração de cada corte (segundos):</label>
-                <select id="splitDuration">
-                    <option value="15">15 segundos (Stories)</option>
-                    <option value="30" selected>30 segundos (Reels / Status)</option>
-                    <option value="60">60 segundos (Shorts / TikTok)</option>
-                    <option value="90">90 segundos</option>
+                <label for="splitPartsCount">Dividir em quantas partes iguais?</label>
+                <select id="splitPartsCount">
+                    <option value="2">2 partes iguais</option>
+                    <option value="3">3 partes iguais</option>
+                    <option value="4">4 partes iguais</option>
+                    <option value="5">5 partes iguais</option>
+                    <option value="6" selected>6 partes iguais</option>
+                    <option value="8">8 partes iguais</option>
+                    <option value="10">10 partes iguais</option>
                 </select>
             </div>
-            <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Cortes do Vídeo</button>
+            <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Partes Iguais</button>
             <div id="splitStatus" class="status-box"></div>
             <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
 
-        <!-- SEÇÃO 3: HASHTAGS (RESTAURADA) -->
+        <!-- SEÇÃO 3: HASHTAGS -->
         <div id="hashtags" class="section">
             <div class="form-group">
                 <label for="nicheSelect">Selecione o nicho do vídeo:</label>
@@ -215,14 +217,14 @@
             tempVideo.onloadedmetadata = () => {
                 videoDuration = tempVideo.duration;
                 splitStatus.className = 'status-box success';
-                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
+                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Escolha o número de partes e clique em Gerar.`;
             };
         }
 
         function dividirVideoLocal() {
             const splitStatus = document.getElementById('splitStatus');
             const clipsContainer = document.getElementById('clipsContainer');
-            const step = parseInt(document.getElementById('splitDuration').value, 10);
+            const totalParts = parseInt(document.getElementById('splitPartsCount').value, 10);
 
             if (!selectedFile || !videoDuration) {
                 splitStatus.className = 'status-box error';
@@ -231,13 +233,14 @@
             }
 
             clipsContainer.innerHTML = '';
-            const totalParts = Math.ceil(videoDuration / step);
+            const partDuration = videoDuration / totalParts;
             splitStatus.className = 'status-box success';
-            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
+            splitStatus.innerText = `Vídeo de ${Math.round(videoDuration)}s dividido em ${totalParts} partes (${partDuration.toFixed(1)}s cada):`;
 
             for (let i = 0; i < totalParts; i++) {
-                const start = i * step;
-                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
+                const start = i * partDuration;
+                const end = (i === totalParts - 1) ? videoDuration : (i + 1) * partDuration;
+                
                 const clipCard = document.createElement('div');
                 clipCard.style.background = '#0f172a';
                 clipCard.style.padding = '12px';
@@ -245,7 +248,7 @@
                 clipCard.style.border = '1px solid #334155';
                 clipCard.innerHTML = `
                     <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
-                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
+                        <strong>Parte ${i + 1} de ${totalParts}:</strong> ${start.toFixed(1)}s até ${end.toFixed(1)}s
                     </p>
                     <button class="btn" style="background: var(--accent); font-size: 0.85rem; padding: 8px;" onclick="baixarTrecho(${start}, ${end}, ${i + 1})">📥 Descarregar Parte ${i + 1}</button>
                 `;
