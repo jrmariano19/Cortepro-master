@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master - Descarregador & Divisor</title>
+    <title>CortePro Master - Descarregador, Divisor & Hashtags</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -20,15 +20,15 @@
         .container { width: 100%; max-width: 600px; background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border); margin-top: 20px; }
         h1 { font-size: 1.5rem; text-align: center; margin-bottom: 8px; color: #fff; }
         .subtitle { font-size: 0.85rem; text-align: center; color: var(--text-muted); margin-bottom: 24px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #0f172a; padding: 4px; border-radius: 10px; }
-        .tab { flex: 1; padding: 10px; text-align: center; background: transparent; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; font-size: 0.9rem; }
+        .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: #0f172a; padding: 4px; border-radius: 10px; overflow-x: auto; }
+        .tab { flex: 1; min-width: 90px; padding: 10px 8px; text-align: center; background: transparent; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; font-size: 0.85rem; }
         .tab.active { background: var(--primary); color: #fff; }
         .section { display: none; }
         .section.active { display: block; }
         .form-group { margin-bottom: 16px; }
         label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-muted); }
-        input[type="text"], input[type="file"], select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
-        input[type="text"]:focus, select:focus { border-color: var(--primary); }
+        input[type="text"], input[type="file"], select, textarea { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--primary); }
         .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
         .btn:hover { background: var(--primary-hover); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -44,14 +44,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v5.0</span></h1>
-        <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v6.0</span></h1>
+        <p class="subtitle">Descarregador, Divisor & Gerador de Hashtags</p>
 
+        <!-- ABAS RESTAURADAS -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
             <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
+            <button class="tab" onclick="switchTab('hashtags')">Hashtags</button>
         </div>
 
+        <!-- SEÇÃO 1: DESCARREGADOR -->
         <div id="downloader" class="section active">
             <div class="platforms-hint">
                 <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
@@ -70,6 +73,7 @@
             </div>
         </div>
 
+        <!-- SEÇÃO 2: DIVISOR LOCAL -->
         <div id="splitter" class="section">
             <div class="form-group">
                 <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
@@ -88,6 +92,26 @@
             <div id="splitStatus" class="status-box"></div>
             <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
+
+        <!-- SEÇÃO 3: HASHTAGS (RESTAURADA) -->
+        <div id="hashtags" class="section">
+            <div class="form-group">
+                <label for="nicheSelect">Selecione o nicho do vídeo:</label>
+                <select id="nicheSelect">
+                    <option value="geral">Geral / Virais (Reels, TikTok, Shorts)</option>
+                    <option value="comedia">Comédia & Humor</option>
+                    <option value="fitness">Fitness & Estilo de Vida</option>
+                    <option value="negocios">Negócios & Empreendedorismo</option>
+                    <option value="tecnologia">Tecnologia & Inovação</option>
+                </select>
+            </div>
+            <button class="btn" onclick="gerarHashtags()">Gerar Hashtags Otimizadas</button>
+            <div class="form-group" style="margin-top: 16px;">
+                <label for="hashtagOutput">Hashtags prontas a copiar:</label>
+                <textarea id="hashtagOutput" rows="5" readonly placeholder="Clique em gerar para obter as tags..."></textarea>
+            </div>
+            <button class="btn" style="background: var(--accent);" onclick="copiarHashtags()">📋 Copiar para o Clipboard</button>
+        </div>
     </div>
 
     <script>
@@ -97,9 +121,12 @@
             if (tabName === 'downloader') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('downloader').classList.add('active');
-            } else {
+            } else if (tabName === 'splitter') {
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('splitter').classList.add('active');
+            } else if (tabName === 'hashtags') {
+                document.querySelectorAll('.tab')[2].classList.add('active');
+                document.getElementById('hashtags').classList.add('active');
             }
         }
 
@@ -237,14 +264,10 @@
                 videoElement.crossOrigin = 'anonymous';
                 videoElement.muted = true;
                 
-                await new Promise((resolve) => {
-                    videoElement.onloadedmetadata = () => resolve();
-                });
+                await new Promise((resolve) => { videoElement.onloadedmetadata = () => resolve(); });
 
                 videoElement.currentTime = start;
-                await new Promise((resolve) => {
-                    videoElement.onseeked = () => resolve();
-                });
+                await new Promise((resolve) => { videoElement.onseeked = () => resolve(); });
 
                 const stream = videoElement.captureStream ? videoElement.captureStream() : videoElement.mozCaptureStream();
                 const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
@@ -270,16 +293,34 @@
                 videoElement.play();
                 recorder.start();
 
-                const durationMs = (end - start) * 1000;
                 setTimeout(() => {
                     recorder.stop();
                     videoElement.pause();
-                }, durationMs);
+                }, (end - start) * 1000);
 
             } catch (err) {
                 statusBox.className = 'status-box error';
                 statusBox.innerText = 'Erro ao exportar o corte. Tente novamente.';
             }
+        }
+
+        function gerarHashtags() {
+            const niche = document.getElementById('nicheSelect').value;
+            const tagsMap = {
+                geral: "#reels #tiktok #viral #foryou #explore #cortes #trending #fyp #brasil #foryoupage",
+                comedia: "#humor #comedia #engracado #risos #piada #memes #zueira #comediantes #divertido",
+                fitness: "#fitness #academia #treino #foco #vidasaudavel #gym #dieta #musculacao #motivacao",
+                negocios: "#empreendedorismo #negocios #sucesso #marketing #dinheiro #lideranca #investimento #foco",
+                tecnologia: "#tecnologia #tech #inovacao #gadgets #futuro #inteligenciaartificial #programacao"
+            };
+            document.getElementById('hashtagOutput').value = tagsMap[niche] || tagsMap.geral;
+        }
+
+        function copiarHashtags() {
+            const textarea = document.getElementById('hashtagOutput');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Hashtags copiadas para a área de transferência!');
         }
     </script>
 </body>
