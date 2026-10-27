@@ -44,7 +44,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v7.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v8.0</span></h1>
         <p class="subtitle">Descarregador, Divisor & Hashtags</p>
 
         <div class="tabs">
@@ -217,7 +217,7 @@
             tempVideo.onloadedmetadata = () => {
                 videoDuration = tempVideo.duration;
                 splitStatus.className = 'status-box success';
-                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Escolha o número de partes e clique em Gerar.`;
+                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)}s). Escolha o número de partes e clique em Gerar.`;
             };
         }
 
@@ -235,7 +235,7 @@
             clipsContainer.innerHTML = '';
             const partDuration = videoDuration / totalParts;
             splitStatus.className = 'status-box success';
-            splitStatus.innerText = `Vídeo de ${Math.round(videoDuration)}s dividido em ${totalParts} partes (${partDuration.toFixed(1)}s cada):`;
+            splitStatus.innerText = `Vídeo dividido em ${totalParts} partes iguais (${partDuration.toFixed(1)}s cada):`;
 
             for (let i = 0; i < totalParts; i++) {
                 const start = i * partDuration;
@@ -250,60 +250,42 @@
                     <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
                         <strong>Parte ${i + 1} de ${totalParts}:</strong> ${start.toFixed(1)}s até ${end.toFixed(1)}s
                     </p>
-                    <button class="btn" style="background: var(--accent); font-size: 0.85rem; padding: 8px;" onclick="baixarTrecho(${start}, ${end}, ${i + 1})">📥 Descarregar Parte ${i + 1}</button>
+                    <button class="btn" style="background: var(--accent); font-size: 0.85rem; padding: 8px;" onclick="baixarParteDireto(${start}, ${end}, ${i + 1})">📥 Descarregar Parte ${i + 1}</button>
                 `;
                 clipsContainer.appendChild(clipCard);
             }
         }
 
-        async function baixarTrecho(start, end, parteNum) {
+        function baixarParteDireto(start, end, parteNum) {
             const statusBox = document.getElementById('splitStatus');
             statusBox.className = 'status-box loading';
-            statusBox.innerText = `A preparar a Parte ${parteNum} para download...`;
+            statusBox.innerText = `A gerar o ficheiro da Parte ${parteNum}...`;
 
             try {
-                const videoElement = document.createElement('video');
-                videoElement.src = URL.createObjectURL(selectedFile);
-                videoElement.crossOrigin = 'anonymous';
-                videoElement.muted = true;
+                // Cálculo de corte instantâneo do Blob sem necessidade de gravar em tempo real
+                const fileSize = selectedFile.size;
+                const startByte = Math.floor((start / videoDuration) * fileSize);
+                const endByte = Math.floor((end / videoDuration) * fileSize);
                 
-                await new Promise((resolve) => { videoElement.onloadedmetadata = () => resolve(); });
-
-                videoElement.currentTime = start;
-                await new Promise((resolve) => { videoElement.onseeked = () => resolve(); });
-
-                const stream = videoElement.captureStream ? videoElement.captureStream() : videoElement.mozCaptureStream();
-                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-                const chunks = [];
-
-                recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/mp4' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `cortepro_parte_${parteNum}.mp4`;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                    statusBox.className = 'status-box success';
-                    statusBox.innerText = `Parte ${parteNum} descarregada com sucesso!`;
-                };
-
-                videoElement.play();
-                recorder.start();
-
+                const slicedBlob = selectedFile.slice(startByte, endByte, selectedFile.type || 'video/mp4');
+                const url = URL.createObjectURL(slicedBlob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cortepro_parte_${parteNum}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                
                 setTimeout(() => {
-                    recorder.stop();
-                    videoElement.pause();
-                }, (end - start) * 1000);
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 200);
 
+                statusBox.className = 'status-box success';
+                statusBox.innerText = `Parte ${parteNum} descarregada com sucesso!`;
             } catch (err) {
                 statusBox.className = 'status-box error';
-                statusBox.innerText = 'Erro ao exportar o corte. Tente novamente.';
+                statusBox.innerText = 'Erro ao transferir a parte. Tente novamente.';
             }
         }
 
