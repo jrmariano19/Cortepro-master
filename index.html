@@ -1,1153 +1,286 @@
 <!DOCTYPE html>
-<html lang="pt" translate="no" class="notranslate">
+<html lang="pt-PT">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="google" content="notranslate" />
-  <title>CortePro Master</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      touch-action: manipulation;
-    }
-
-    body {
-      background-color: #0b0e17;
-      color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      padding: 24px 16px;
-    }
-
-    .badge {
-      background-color: #00b87c;
-      color: #05291c;
-      font-weight: 800;
-      font-size: 13px;
-      padding: 6px 18px;
-      border-radius: 999px;
-      letter-spacing: 0.5px;
-      margin-bottom: 18px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    h1 {
-      font-family: Georgia, serif;
-      font-size: 32px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #f8fafc;
-      text-align: center;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: #94a3b8;
-      margin-bottom: 24px;
-      text-align: center;
-    }
-
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 4px;
-      background-color: #131826;
-      border-radius: 14px;
-      padding: 5px;
-      width: 100%;
-      max-width: 480px;
-      margin-bottom: 20px;
-      border: 1px solid #1e2638;
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 11px 4px;
-      border-radius: 10px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      white-space: nowrap;
-      pointer-events: auto;
-    }
-
-    .tab-btn.active {
-      background-color: #5b5bf6;
-      color: #ffffff;
-      box-shadow: 0 4px 12px rgba(91, 91, 246, 0.35);
-    }
-
-    .card {
-      background-color: #131826;
-      border: 1px solid #1f293d;
-      border-radius: 18px;
-      padding: 22px 18px;
-      width: 100%;
-      max-width: 480px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: #8b9bb4;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="file"],
-    select,
-    textarea {
-      width: 100%;
-      background-color: #090c14;
-      border: 1px solid #28324a;
-      color: #ffffff;
-      padding: 14px;
-      border-radius: 12px;
-      font-size: 15px;
-      margin-bottom: 16px;
-      outline: none;
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 95px;
-      font-size: 14px;
-      line-height: 1.5;
-      color: #38bdf8;
-      font-weight: 600;
-    }
-
-    select option {
-      background-color: #090c14;
-      color: #ffffff;
-    }
-
-    .btn-primary {
-      width: 100%;
-      background-color: #5b5bf6;
-      color: #ffffff;
-      border: none;
-      padding: 15px;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      pointer-events: auto;
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.6;
-    }
-
-    .status-box {
-      margin-top: 16px;
-      padding: 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.45;
-      text-align: center;
-      background-color: #1a2133;
-      border: 1px solid #2b354f;
-      color: #e2e8f0;
-    }
-
-    .status-box.error {
-      background-color: rgba(239, 68, 68, 0.14);
-      border-color: rgba(239, 68, 68, 0.45);
-      color: #fca5a5;
-    }
-
-    .status-box.success {
-      background-color: rgba(16, 185, 129, 0.14);
-      border-color: rgba(16, 185, 129, 0.45);
-      color: #6ee7b7;
-    }
-
-    .status-box.warning {
-      background-color: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.5);
-      color: #fde68a;
-    }
-
-    .download-btn {
-      display: block;
-      width: 100%;
-      margin-top: 12px;
-      padding: 14px;
-      background-color: #10b981;
-      color: #042f2e;
-      font-weight: 800;
-      text-align: center;
-      text-decoration: none;
-      border-radius: 12px;
-      font-size: 15px;
-      border: none;
-      cursor: pointer;
-    }
-
-    .share-btn {
-      display: block;
-      width: 100%;
-      margin-top: 10px;
-      padding: 14px;
-      background-color: #2563eb;
-      color: #ffffff;
-      font-weight: 800;
-      text-align: center;
-      text-decoration: none;
-      border-radius: 12px;
-      font-size: 15px;
-      border: none;
-      cursor: pointer;
-    }
-
-    .rescue-box {
-      margin-top: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .rescue-btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 800;
-      text-align: center;
-      border: none;
-      cursor: pointer;
-      background-color: #2563eb;
-      color: #ffffff;
-    }
-
-    .rescue-btn.insta {
-      background-color: #ec4899;
-    }
-
-    .rescue-btn.face {
-      background-color: #1d4ed8;
-    }
-
-    .rescue-btn.tube {
-      background-color: #dc2626;
-    }
-
-    .link-limpo-box {
-      margin-top: 12px;
-      background: #090c14;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 12px;
-    }
-
-    .link-limpo-box input {
-      font-size: 12px;
-      margin-bottom: 8px;
-      color: #38bdf8;
-      background: #131826;
-      border: 1px solid #1e293b;
-      padding: 8px;
-    }
-
-    .mini-tags-box {
-      margin-top: 12px;
-      background: #090c14;
-      border: 1px solid #28324a;
-      border-radius: 12px;
-      padding: 12px;
-    }
-
-    .tags-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-      margin-bottom: 12px;
-    }
-
-    .tag-chip {
-      background: #1e293b;
-      color: #38bdf8;
-      border: 1px solid #334155;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .tag-chip:active {
-      background: #5b5bf6;
-      color: #fff;
-    }
-
-    video {
-      width: 100%;
-      max-height: 260px;
-      border-radius: 12px;
-      margin-top: 14px;
-      background: #000;
-    }
-
-    .clips-list {
-      margin-top: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .clip-item {
-      background: #090c14;
-      border: 1px solid #28324a;
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .clip-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 14px;
-      font-weight: 700;
-      color: #e2e8f0;
-    }
-
-    .clip-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-small {
-      flex: 1;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      font-weight: 700;
-      font-size: 13px;
-      cursor: pointer;
-      text-align: center;
-      text-decoration: none;
-    }
-
-    .btn-preview {
-      background: #1e293b;
-      color: #cbd5e1;
-      border: 1px solid #334155;
-    }
-
-    .btn-cut {
-      background: #5b5bf6;
-      color: #ffffff;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CortePro Master - Descarregador & Divisor</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #22c55e;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { width: 100%; max-width: 600px; background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border); margin-top: 20px; }
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 8px; color: #fff; }
+        .subtitle { font-size: 0.85rem; text-align: center; color: var(--text-muted); margin-bottom: 24px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: #0f172a; padding: 4px; border-radius: 10px; }
+        .tab { flex: 1; padding: 10px; text-align: center; background: transparent; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; font-size: 0.9rem; }
+        .tab.active { background: var(--primary); color: #fff; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-muted); }
+        input[type="text"], input[type="file"], select { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        input[type="text"]:focus, select:focus { border-color: var(--primary); }
+        .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .status-box { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.85rem; text-align: center; display: none; word-break: break-word; }
+        .status-box.loading { background: rgba(79, 70, 229, 0.15); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.3); display: block; }
+        .status-box.success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); display: block; }
+        .status-box.error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); display: block; }
+        .result-area { margin-top: 20px; display: none; text-align: center; }
+        video { width: 100%; max-height: 320px; border-radius: 8px; margin-bottom: 12px; background: #000; }
+        .platforms-hint { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
+        .platforms-hint span { background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v5.0</span></h1>
+        <p class="subtitle">Descarregador Limpo & Divisor de Vídeos</p>
 
-  <div class="badge">⚡ VERSÃO 8.0 ATIVA</div>
-  <h1>CortePro Master</h1>
-  <div class="subtitle">Descarregador, Divisor, Conversor & Hashtags</div>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
+            <button class="tab" onclick="switchTab('splitter')">Divisor Local</button>
+        </div>
 
-  <div class="tabs">
-    <button type="button" class="tab-btn active" id="tabBaixar">📥 Baixar</button>
-    <button type="button" class="tab-btn" id="tabDivisor">✂️ Divisor</button>
-    <button type="button" class="tab-btn" id="tabConversor">🔄 Converter</button>
-    <button type="button" class="tab-btn" id="tabHashtags">#️⃣ Hashtags</button>
-  </div>
+        <div id="downloader" class="section active">
+            <div class="platforms-hint">
+                <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
+            </div>
+            <div class="form-group">
+                <label for="videoUrl">Cole o link do vídeo:</label>
+                <input type="text" id="videoUrl" placeholder="https://www.facebook.com/share/r/... ou TikTok/Insta">
+            </div>
+            <button class="btn" id="extractBtn" onclick="extrairVideo()">Extrair Vídeo Limpo</button>
+            
+            <div id="statusBox" class="status-box"></div>
 
-  <!-- ABA 1: DESCARREGADOR -->
-  <div class="card" id="painelBaixar">
-    <label for="videoUrl">Cole o link do vídeo:</label>
-    <input
-      type="text"
-      id="videoUrl"
-      placeholder="Cole aqui o link..."
-      autocomplete="off"
-    />
-    <button type="button" class="btn-primary" id="btnExtrair">
-      Extrair Vídeo & Hashtags
-    </button>
+            <div id="resultArea" class="result-area">
+                <video id="previewVideo" controls playsinline></video>
+                <a id="downloadLink" class="btn" style="background: var(--accent); margin-top: 10px;" target="_blank" rel="noopener noreferrer" download="cortepro_video.mp4">Descarregar Vídeo</a>
+            </div>
+        </div>
 
-    <div id="statusExtracao" class="status-box hidden"></div>
-
-    <!-- RESUMO DE HASHTAGS VINCULADAS LOGO AO BAIXAR -->
-    <div id="boxHashtagsRapidas" class="mini-tags-box hidden">
-      <label style="margin-bottom: 6px; color: #6ee7b7;">#️⃣ Hashtags Vinculadas ao Vídeo:</label>
-      <textarea id="textoHashtagsRapidas" readonly onclick="this.select()" style="min-height: 70px; margin-bottom: 8px;"></textarea>
-      <div class="clip-actions">
-        <button type="button" class="btn-small btn-cut" id="btnCopiarRapido">
-          📋 Copiar Hashtags
-        </button>
-        <button type="button" class="btn-small btn-preview" id="btnIrAbaHashtags">
-          🔍 Ver Detalhes na Aba #️⃣
-        </button>
-      </div>
+        <div id="splitter" class="section">
+            <div class="form-group">
+                <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
+                <input type="file" id="localVideoFile" accept="video/*" onchange="carregarVideoLocal(event)">
+            </div>
+            <div class="form-group">
+                <label for="splitDuration">Duração de cada corte (segundos):</label>
+                <select id="splitDuration">
+                    <option value="15">15 segundos (Stories)</option>
+                    <option value="30" selected>30 segundos (Reels / Status)</option>
+                    <option value="60">60 segundos (Shorts / TikTok)</option>
+                    <option value="90">90 segundos</option>
+                </select>
+            </div>
+            <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Cortes do Vídeo</button>
+            <div id="splitStatus" class="status-box"></div>
+            <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
+        </div>
     </div>
 
-    <div id="areaResultado" class="hidden">
-      <button type="button" id="btnBaixarDireto" class="download-btn">
-        ⬇️ Salvar Vídeo na Galeria (.MP4)
-      </button>
-      
-      <div class="link-limpo-box">
-        <label for="inputLinkLimpo" style="font-size: 11px; margin-bottom: 4px;">🔗 Link Limpo Direto (.MP4):</label>
-        <input type="text" id="inputLinkLimpo" readonly onclick="this.select()" />
-      </div>
-
-      <video id="previewVideo" controls playsinline></video>
-    </div>
-
-    <div id="areaResgate" class="rescue-box hidden">
-      <button type="button" class="rescue-btn tube hidden" id="btnResgateTube">
-        🔴 Baixar YouTube com Resgate Direto
-      </button>
-      <button type="button" class="rescue-btn face hidden" id="btnResgateFace">
-        📘 Baixar Facebook com Resgate Direto
-      </button>
-      <button type="button" class="rescue-btn insta hidden" id="btnResgateInsta">
-        📸 Baixar Instagram com Resgate Direto
-      </button>
-      <button type="button" class="rescue-btn hidden" id="btnResgateGeral">
-        🚀 Abrir Alternativa de Resgate
-      </button>
-    </div>
-  </div>
-
-  <!-- ABA 2: DIVISOR DE VÍDEOS LOCAL -->
-  <div class="card hidden" id="painelDivisor">
-    <label for="videoFile">ESCOLHA O VÍDEO DA SUA GALERIA</label>
-    <input type="file" id="videoFile" accept="video/*" />
-
-    <label for="qtdPartesInput">QUANTIDADE DE PARTES IGUAIS (EX: 5)</label>
-    <input type="number" id="qtdPartesInput" value="5" min="1" max="50" />
-
-    <button type="button" class="btn-primary" id="btnDividir">
-      Gerar Partes Iguais
-    </button>
-
-    <div id="statusDivisor" class="status-box hidden"></div>
-    <video id="videoDivisorPreview" class="hidden" controls playsinline preload="metadata"></video>
-    <div id="listaCortes" class="clips-list"></div>
-  </div>
-
-  <!-- ABA 3: CONVERSOR DE VÍDEOS -->
-  <div class="card hidden" id="painelConversor">
-    <label for="videoConversorFile">SELECIONAR VÍDEO (MKV, AVI, MOV, WEBM...)</label>
-    <input type="file" id="videoConversorFile" accept="video/*" />
-
-    <label for="formatoSaida">FORMATO DE SAÍDA DESEJADO</label>
-    <select id="formatoSaida">
-      <option value="mp4">MP4 (.mp4 - Altamente Compatível)</option>
-      <option value="webm">WebM (.webm)</option>
-    </select>
-
-    <button type="button" class="btn-primary" id="btnConverter">
-      🔄 Converter Vídeo
-    </button>
-
-    <div id="statusConversor" class="status-box hidden"></div>
-    <video id="videoConversorPreview" class="hidden" controls playsinline preload="metadata"></video>
-    
-    <div id="areaDownloadConversor" class="hidden" style="margin-top: 14px;">
-      <button type="button" id="btnBaixarConvertido" class="download-btn">
-        ⬇️ Descarregar Vídeo Convertido
-      </button>
-      <button type="button" id="btnPartilharConvertido" class="share-btn">
-        📤 Guardar na Galeria / Partilhar Vídeo
-      </button>
-    </div>
-  </div>
-
-  <!-- ABA 4: EXTRATOR E GERADOR DE HASHTAGS -->
-  <div class="card hidden" id="painelHashtags">
-    <label for="hashtagUrlInput">LINK DO VÍDEO (PREENCHIDO AUTOMATICAMENTE AO BAIXAR):</label>
-    <input
-      type="text"
-      id="hashtagUrlInput"
-      placeholder="Cole o link do TikTok, YouTube, Instagram ou Facebook..."
-      autocomplete="off"
-    />
-    <button type="button" class="btn-primary" id="btnExtrairHashtags">
-      #️⃣ Extrair Hashtags do Vídeo
-    </button>
-
-    <div id="statusHashtags" class="status-box hidden"></div>
-
-    <div id="areaResultadoHashtags" class="hidden" style="margin-top: 16px;">
-      <label for="tituloExtraidoInput">📝 TÍTULO / LEGENDA ORIGINAL DO VÍDEO:</label>
-      <input type="text" id="tituloExtraidoInput" readonly onclick="this.select()" />
-
-      <label>🏷️ TOQUE NUMA HASHTAG PARA COPIAR INDIVIDUALMENTE:</label>
-      <div id="listaChipsHashtags" class="tags-chips"></div>
-
-      <label for="blocoTodasHashtags">📋 TODAS AS HASHTAGS PRONTAS PARA COLAR:</label>
-      <textarea id="blocoTodasHashtags" readonly onclick="this.select()"></textarea>
-
-      <button type="button" class="download-btn" id="btnCopiarTodasHashtags">
-        📋 Copiar Todas as Hashtags
-      </button>
-      <button type="button" class="share-btn" id="btnCopiarLegendaCompleta">
-        📝 Copiar Título + Hashtags
-      </button>
-    </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const tabBaixar = document.getElementById('tabBaixar');
-      const tabDivisor = document.getElementById('tabDivisor');
-      const tabConversor = document.getElementById('tabConversor');
-      const tabHashtags = document.getElementById('tabHashtags');
-
-      const painelBaixar = document.getElementById('painelBaixar');
-      const painelDivisor = document.getElementById('painelDivisor');
-      const painelConversor = document.getElementById('painelConversor');
-      const painelHashtags = document.getElementById('painelHashtags');
-
-      function ativarAba(abaAtiva, painelAtivo) {
-        [tabBaixar, tabDivisor, tabConversor, tabHashtags].forEach((t) => t.classList.remove('active'));
-        [painelBaixar, painelDivisor, painelConversor, painelHashtags].forEach((p) => p.classList.add('hidden'));
-        abaAtiva.classList.add('active');
-        painelAtivo.classList.remove('hidden');
-      }
-
-      tabBaixar.addEventListener('click', () => ativarAba(tabBaixar, painelBaixar));
-      tabDivisor.addEventListener('click', () => ativarAba(tabDivisor, painelDivisor));
-      tabConversor.addEventListener('click', () => ativarAba(tabConversor, painelConversor));
-      tabHashtags.addEventListener('click', () => ativarAba(tabHashtags, painelHashtags));
-
-      function mostrarStatus(el, msg, tipo) {
-        el.className = 'status-box ' + (tipo || '');
-        el.innerHTML = msg;
-        el.classList.remove('hidden');
-      }
-
-      function fetchComTimeout(url, opcoes, limiteMs) {
-        return new Promise((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error('Timeout')), limiteMs);
-          fetch(url, opcoes)
-            .then((res) => {
-              clearTimeout(timer);
-              resolve(res);
-            })
-            .catch((err) => {
-              clearTimeout(timer);
-              reject(err);
-            });
-        });
-      }
-
-      // =====================================================
-      // MOTOR DE EXTRAÇÃO AUTOMÁTICA DE HASHTAGS E TÍTULO
-      // =====================================================
-      const hashtagUrlInput = document.getElementById('hashtagUrlInput');
-      const btnExtrairHashtags = document.getElementById('btnExtrairHashtags');
-      const statusHashtags = document.getElementById('statusHashtags');
-      const areaResultadoHashtags = document.getElementById('areaResultadoHashtags');
-      const tituloExtraidoInput = document.getElementById('tituloExtraidoInput');
-      const listaChipsHashtags = document.getElementById('listaChipsHashtags');
-      const blocoTodasHashtags = document.getElementById('blocoTodasHashtags');
-      const btnCopiarTodasHashtags = document.getElementById('btnCopiarTodasHashtags');
-      const btnCopiarLegendaCompleta = document.getElementById('btnCopiarLegendaCompleta');
-
-      const boxHashtagsRapidas = document.getElementById('boxHashtagsRapidas');
-      const textoHashtagsRapidas = document.getElementById('textoHashtagsRapidas');
-      const btnCopiarRapido = document.getElementById('btnCopiarRapido');
-      const btnIrAbaHashtags = document.getElementById('btnIrAbaHashtags');
-
-      function limparPalavraParaTag(palavra) {
-        return palavra
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toLowerCase();
-      }
-
-      function extrairHashtagsDeTexto(texto, urlOriginal) {
-        const encontradas = new Set();
-
-        if (texto) {
-          // 1. Extrai hashtags reais presentes na descrição/título (ex: #viral #musica)
-          const regexHash = /#[a-zA-Z0-9_\u00C0-\u00FF]+/g;
-          const matches = texto.match(regexHash);
-          if (matches) {
-            matches.forEach((tag) => encontradas.add(tag.toLowerCase()));
-          }
-
-          // 2. Transforma palavras-chave relevantes do título em hashtags caso o vídeo tenha poucas
-          const stopWords = new Set([
-            'para', 'como', 'este', 'esta', 'isso', 'aquilo', 'pelo', 'pela',
-            'com', 'sem', 'mais', 'menos', 'muito', 'quando', 'onde', 'quem',
-            'qual', 'porque', 'sobre', 'entre', 'depois', 'antes', 'video',
-            'official', 'oficial', 'shorts', 'reels', 'watch', 'http', 'https'
-          ]);
-
-          const palavras = texto.split(/\s+/);
-          for (const p of palavras) {
-            const limpa = limparPalavraParaTag(p);
-            if (limpa.length >= 4 && !stopWords.has(limpa) && isNaN(limpa)) {
-              encontradas.add('#' + limpa);
-              if (encontradas.size >= 14) break;
-            }
-          }
-        }
-
-        // 3. Adiciona tags estratégicas da plataforma de origem para garantir alcance
-        if (urlOriginal.includes('tiktok.com')) {
-          ['#tiktok', '#fyp', '#viral', '#foryou'].forEach((t) => encontradas.add(t));
-        } else if (urlOriginal.includes('instagram.com')) {
-          ['#reels', '#instagram', '#viral', '#explorar'].forEach((t) => encontradas.add(t));
-        } else if (urlOriginal.includes('youtube.com') || urlOriginal.includes('youtu.be')) {
-          ['#shorts', '#youtube', '#viral', '#trending'].forEach((t) => encontradas.add(t));
-        } else if (urlOriginal.includes('facebook.com') || urlOriginal.includes('fb.watch')) {
-          ['#facebook', '#reelsfb', '#viral', '#tendencias'].forEach((t) => encontradas.add(t));
-        } else {
-          ['#viral', '#fyp', '#videos', '#trending'].forEach((t) => encontradas.add(t));
-        }
-
-        return Array.from(encontradas);
-      }
-
-      async function buscarMetadadosEHashtags(rawUrl, tituloPreCarregado = '') {
-        let titulo = tituloPreCarregado || '';
-        let descricao = '';
-
-        try {
-          // Motor 1: TikWM para TikTok (traz a legenda original completa com todas as hashtags)
-          if (!titulo && rawUrl.includes('tiktok.com')) {
-            const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
-            const json = await res.json();
-            if (json?.data?.title) {
-              titulo = json.data.title;
-            }
-          }
-
-          // Motor 2: NoEmbed (ótimo para YouTube, TikTok, etc.)
-          if (!titulo) {
-            try {
-              const resNoembed = await fetchComTimeout('https://noembed.com/embed?url=' + encodeURIComponent(rawUrl), {}, 3500);
-              const jsonNo = await resNoembed.json();
-              if (jsonNo?.title) titulo = jsonNo.title;
-            } catch (e) {}
-          }
-
-          // Motor 3: Microlink API (extrai título e descrição de Instagram, Facebook, YouTube)
-          if (!titulo || !descricao) {
-            try {
-              const resMicro = await fetchComTimeout('https://api.microlink.io/?url=' + encodeURIComponent(rawUrl), {}, 4000);
-              const jsonMicro = await resMicro.json();
-              if (jsonMicro?.data) {
-                if (!titulo && jsonMicro.data.title) titulo = jsonMicro.data.title;
-                if (jsonMicro.data.description) descricao = jsonMicro.data.description;
-              }
-            } catch (e) {}
-          }
-        } catch (err) {}
-
-        const textoCombinado = `${titulo} ${descricao}`.trim();
-        const listaTags = extrairHashtagsDeTexto(textoCombinado, rawUrl);
-
-        return {
-          titulo: titulo || 'Vídeo das Redes Sociais',
-          tags: listaTags
-        };
-      }
-
-      function atualizarInterfaceHashtags(rawUrl, resultado) {
-        hashtagUrlInput.value = rawUrl;
-        tituloExtraidoInput.value = resultado.titulo;
-        const stringTags = resultado.tags.join(' ');
-
-        blocoTodasHashtags.value = stringTags;
-        textoHashtagsRapidas.value = stringTags;
-
-        // Exibe resumo na Aba 1 (Descarregar) e preenche a Aba 4 (Hashtags)
-        boxHashtagsRapidas.classList.remove('hidden');
-        areaResultadoHashtags.classList.remove('hidden');
-        mostrarStatus(
-          statusHashtags,
-          `✅ Foram extraídas <b>${resultado.tags.length} hashtags</b> vinculadas a este vídeo!`,
-          'success'
-        );
-
-        listaChipsHashtags.innerHTML = '';
-        resultado.tags.forEach((tag) => {
-          const chip = document.createElement('button');
-          chip.type = 'button';
-          chip.className = 'tag-chip';
-          chip.textContent = tag;
-          chip.addEventListener('click', () => {
-            try { navigator.clipboard.writeText(tag); } catch (e) {}
-            chip.textContent = '✅ ' + tag;
-            setTimeout(() => { chip.textContent = tag; }, 1500);
-          });
-          listaChipsHashtags.appendChild(chip);
-        });
-      }
-
-      btnExtrairHashtags.addEventListener('click', async () => {
-        const url = hashtagUrlInput.value.trim();
-        if (!url) {
-          mostrarStatus(statusHashtags, '⚠️ Cole o link de um vídeo primeiro.', 'error');
-          return;
-        }
-        btnExtrairHashtags.disabled = true;
-        mostrarStatus(statusHashtags, '⏳ A analisar vídeo e a extrair hashtags vinculadas...');
-        const dados = await buscarMetadadosEHashtags(url);
-        atualizarInterfaceHashtags(url, dados);
-        btnExtrairHashtags.disabled = false;
-      });
-
-      btnCopiarTodasHashtags.addEventListener('click', () => {
-        try { navigator.clipboard.writeText(blocoTodasHashtags.value); } catch (e) {}
-        const orig = btnCopiarTodasHashtags.textContent;
-        btnCopiarTodasHashtags.textContent = '✅ Hashtags Copiadas!';
-        setTimeout(() => { btnCopiarTodasHashtags.textContent = orig; }, 2500);
-      });
-
-      btnCopiarLegendaCompleta.addEventListener('click', () => {
-        const completo = `${tituloExtraidoInput.value}\n\n${blocoTodasHashtags.value}`;
-        try { navigator.clipboard.writeText(completo); } catch (e) {}
-        const orig = btnCopiarLegendaCompleta.textContent;
-        btnCopiarLegendaCompleta.textContent = '✅ Título + Hashtags Copiados!';
-        setTimeout(() => { btnCopiarLegendaCompleta.textContent = orig; }, 2500);
-      });
-
-      btnCopiarRapido.addEventListener('click', () => {
-        try { navigator.clipboard.writeText(textoHashtagsRapidas.value); } catch (e) {}
-        const orig = btnCopiarRapido.textContent;
-        btnCopiarRapido.textContent = '✅ Copiado!';
-        setTimeout(() => { btnCopiarRapido.textContent = orig; }, 2000);
-      });
-
-      btnIrAbaHashtags.addEventListener('click', () => {
-        ativarAba(tabHashtags, painelHashtags);
-      });
-
-      // =====================================================
-      // ABA 1: DESCARREGADOR WEB + HASHTAGS AUTOMÁTICAS
-      // =====================================================
-      const btnExtrair = document.getElementById('btnExtrair');
-      const inputUrl = document.getElementById('videoUrl');
-      const statusExtracao = document.getElementById('statusExtracao');
-      const areaResultado = document.getElementById('areaResultado');
-      const areaResgate = document.getElementById('areaResgate');
-      const previewVideo = document.getElementById('previewVideo');
-      const btnBaixarDireto = document.getElementById('btnBaixarDireto');
-      const inputLinkLimpo = document.getElementById('inputLinkLimpo');
-
-      const btnResgateTube = document.getElementById('btnResgateTube');
-      const btnResgateFace = document.getElementById('btnResgateFace');
-      const btnResgateInsta = document.getElementById('btnResgateInsta');
-      const btnResgateGeral = document.getElementById('btnResgateGeral');
-
-      function esconderResgates() {
-        btnResgateTube.classList.add('hidden');
-        btnResgateFace.classList.add('hidden');
-        btnResgateInsta.classList.add('hidden');
-        btnResgateGeral.classList.add('hidden');
-        areaResgate.classList.add('hidden');
-      }
-
-      async function extrairVideoDireto(rawUrl) {
-        let tituloCapturado = '';
-        let videoUrlEncontrada = null;
-
-        try {
-          if (rawUrl.includes('tiktok.com')) {
-            const res = await fetchComTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(rawUrl), {}, 3500);
-            const text = await res.text();
-            if (text && text.trim().startsWith('{')) {
-              const data = JSON.parse(text);
-              if (data?.data?.title) tituloCapturado = data.data.title;
-              if (data?.data?.play) videoUrlEncontrada = data.data.play;
-            }
-          }
-
-          if (!videoUrlEncontrada) {
-            const apisCobalt = [
-              'https://api.cobalt.tools/api/json',
-              'https://co.wuk.sh/api/json',
-              'https://cobalt-api.kwiatekmiki.com/'
-            ];
-
-            for (const api of apisCobalt) {
-              try {
-                const resp = await fetchComTimeout(api, {
-                  method: 'POST',
-                  headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ url: rawUrl, videoQuality: '720', downloadMode: 'auto' })
-                }, 4000);
-                
-                const text = await resp.text();
-                if (resp.ok && text && text.trim().startsWith('{')) {
-                  const json = JSON.parse(text);
-                  if (json && (json.url || json.stream)) {
-                    videoUrlEncontrada = json.url || json.stream;
-                    break;
-                  }
-                }
-              } catch (errApi) {}
-            }
-          }
-        } catch (e) {}
-
-        return { videoUrl: videoUrlEncontrada, titulo: tituloCapturado };
-      }
-
-      btnExtrair.addEventListener('click', async () => {
-        const rawUrl = inputUrl.value.trim();
-        if (!rawUrl) {
-          mostrarStatus(statusExtracao, '⚠️ Cole o link de um vídeo primeiro.', 'error');
-          return;
-        }
-
-        areaResultado.classList.add('hidden');
-        boxHashtagsRapidas.classList.add('hidden');
-        esconderResgates();
-        btnExtrair.disabled = true;
-        mostrarStatus(statusExtracao, '⏳ A extrair vídeo limpo e hashtags vinculadas...');
-
-        try {
-          // Executa a extração do vídeo e das hashtags em simultâneo
-          const { videoUrl: videoFinal, titulo: tituloTikTok } = await extrairVideoDireto(rawUrl);
-          const dadosHashtags = await buscarMetadadosEHashtags(rawUrl, tituloTikTok);
-
-          // Atualiza automaticamente a caixa de hashtags e a Aba #️⃣ Hashtags
-          atualizarInterfaceHashtags(rawUrl, dadosHashtags);
-
-          if (videoFinal) {
-            mostrarStatus(statusExtracao, '✅ Vídeo e Hashtags extraídos com sucesso!', 'success');
-            inputLinkLimpo.value = videoFinal;
-            previewVideo.src = videoFinal;
-            areaResultado.classList.remove('hidden');
-
-            btnBaixarDireto.onclick = async () => {
-              btnBaixarDireto.textContent = '⏳ A transferir para a galeria...';
-              try {
-                const resp = await fetch(videoFinal);
-                const blob = await resp.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = `cortepro-${Date.now()}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                btnBaixarDireto.textContent = '✅ Download Concluído!';
-              } catch (err) {
-                window.open(videoFinal, '_blank');
-                btnBaixarDireto.textContent = '⬇️ Salvar Vídeo na Galeria (.MP4)';
-              }
-            };
-          } else {
-            mostrarStatus(
-              statusExtracao,
-              '✅ <b>Hashtags extraídas!</b><br>⚡ Para o vídeo, toque no botão de resgate abaixo:',
-              'warning'
-            );
-
-            areaResgate.classList.remove('hidden');
-            if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
-              btnResgateTube.classList.remove('hidden');
-            } else if (rawUrl.includes('facebook.com') || rawUrl.includes('fb.watch')) {
-              btnResgateFace.classList.remove('hidden');
-            } else if (rawUrl.includes('instagram.com')) {
-              btnResgateInsta.classList.remove('hidden');
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            if (tabName === 'downloader') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('downloader').classList.add('active');
             } else {
-              btnResgateGeral.classList.remove('hidden');
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('splitter').classList.add('active');
             }
-          }
-        } catch (err) {
-          mostrarStatus(statusExtracao, '⚡ Escolha o botão de resgate abaixo:', 'warning');
-          areaResgate.classList.remove('hidden');
-          btnResgateGeral.classList.remove('hidden');
-        } finally {
-          btnExtrair.disabled = false;
-        }
-      });
-
-      function acionarResgate(urlDestino) {
-        const url = inputUrl.value.trim();
-        try { navigator.clipboard.writeText(url); } catch (e) {}
-        window.open(urlDestino, '_blank');
-      }
-
-      btnResgateTube.addEventListener('click', () => acionarResgate('https://ssyoutube.com/en152/'));
-      btnResgateFace.addEventListener('click', () => acionarResgate('https://fdown.net/pt'));
-      btnResgateInsta.addEventListener('click', () => acionarResgate('https://snapinsta.to/pt'));
-      btnResgateGeral.addEventListener('click', () => acionarResgate('https://pt.savefrom.net/'));
-
-      // =====================================================
-      // ABA 2: DIVISOR DE VÍDEO LOCAL
-      // =====================================================
-      const btnDividir = document.getElementById('btnDividir');
-      const fileInput = document.getElementById('videoFile');
-      const qtdPartesInput = document.getElementById('qtdPartesInput');
-      const statusDivisor = document.getElementById('statusDivisor');
-      const videoPreview = document.getElementById('videoDivisorPreview');
-      const listaCortes = document.getElementById('listaCortes');
-
-      let arquivoGaleriaOriginal = null;
-      let urlArquivoAtual = null;
-      let intervaloPreview = null;
-
-      fileInput.addEventListener('change', () => {
-        if (!fileInput.files || !fileInput.files[0]) return;
-        arquivoGaleriaOriginal = fileInput.files[0];
-
-        if (urlArquivoAtual) URL.revokeObjectURL(urlArquivoAtual);
-        urlArquivoAtual = URL.createObjectURL(arquivoGaleriaOriginal);
-
-        listaCortes.innerHTML = '';
-        videoPreview.classList.remove('hidden');
-        videoPreview.src = urlArquivoAtual;
-        videoPreview.load();
-
-        mostrarStatus(statusDivisor, '⏳ A carregar metadados do vídeo...', '');
-
-        videoPreview.onloadedmetadata = () => {
-          if (videoPreview.duration && isFinite(videoPreview.duration)) {
-            mostrarStatus(
-              statusDivisor,
-              `✅ Vídeo pronto (<b>${videoPreview.duration.toFixed(1)}s</b>)! Escolha o nº de partes e clique em <b>Gerar Partes Iguais</b>.`,
-              'success'
-            );
-          }
-        };
-      });
-
-      btnDividir.addEventListener('click', () => {
-        if (!urlArquivoAtual) {
-          mostrarStatus(statusDivisor, '⚠️ Escolha um vídeo da sua galeria primeiro.', 'error');
-          return;
         }
 
-        const duracaoReal = videoPreview.duration;
-        if (!duracaoReal || !isFinite(duracaoReal) || duracaoReal <= 0) {
-          mostrarStatus(statusDivisor, '⚠️ O vídeo ainda está a carregar. Aguarde 2 segundos e tente novamente.', 'warning');
-          return;
-        }
+        async function extrairVideo() {
+            let urlInput = document.getElementById('videoUrl').value.trim();
+            const statusBox = document.getElementById('statusBox');
+            const extractBtn = document.getElementById('extractBtn');
+            const resultArea = document.getElementById('resultArea');
+            const previewVideo = document.getElementById('previewVideo');
+            const downloadLink = document.getElementById('downloadLink');
 
-        const totalPartesDesejadas = Math.max(1, parseInt(qtdPartesInput.value, 10) || 5);
-        const duracaoParte = duracaoReal / totalPartesDesejadas;
-
-        listaCortes.innerHTML = '';
-        mostrarStatus(
-          statusDivisor,
-          `✅ Vídeo de <b>${duracaoReal.toFixed(1)}s</b> dividido em <b>${totalPartesDesejadas} partes iguais</b> (${duracaoParte.toFixed(1)}s cada):`,
-          'success'
-        );
-
-        for (let i = 0; i < totalPartesDesejadas; i++) {
-          const inicio = i * duracaoParte;
-          const fim = (i === totalPartesDesejadas - 1) ? duracaoReal : (i + 1) * duracaoParte;
-
-          const cardParte = document.createElement('div');
-          cardParte.className = 'clip-item';
-
-          cardParte.innerHTML = `
-            <div class="clip-header">
-              <span>🎬 Parte ${i + 1} de ${totalPartesDesejadas}</span>
-              <span>${inicio.toFixed(1)}s até ${fim.toFixed(1)}s</span>
-            </div>
-            <div class="clip-actions">
-              <button type="button" class="btn-small btn-preview" data-ini="${inicio}" data-fim="${fim}">
-                ▶️ Ver Trecho
-              </button>
-              <button type="button" class="btn-small btn-cut" data-ini="${inicio}" data-fim="${fim}" data-parte="${i + 1}">
-                ✂️ Baixar Parte ${i + 1}
-              </button>
-            </div>
-          `;
-
-          listaCortes.appendChild(cardParte);
-        }
-
-        listaCortes.querySelectorAll('.btn-preview').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const ini = parseFloat(btn.getAttribute('data-ini'));
-            const fim = parseFloat(btn.getAttribute('data-fim'));
-            clearInterval(intervaloPreview);
-
-            videoPreview.muted = false;
-            videoPreview.currentTime = ini;
-            videoPreview.play().catch(() => {
-              videoPreview.muted = true;
-              videoPreview.play();
-            });
-
-            intervaloPreview = setInterval(() => {
-              if (videoPreview.currentTime >= fim || videoPreview.ended) {
-                videoPreview.pause();
-                clearInterval(intervaloPreview);
-              }
-            }, 150);
-          });
-        });
-
-        listaCortes.querySelectorAll('.btn-cut').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const ini = parseFloat(btn.getAttribute('data-ini'));
-            const fim = parseFloat(btn.getAttribute('data-fim'));
-            const numParte = btn.getAttribute('data-parte');
-            baixarTrechoSeguro(ini, fim, numParte, btn);
-          });
-        });
-      });
-
-      function baixarTrechoSeguro(inicio, fim, numParte, botao) {
-        const textoOriginal = botao.textContent;
-        botao.disabled = true;
-        botao.textContent = '⏳ A preparar parte...';
-
-        try {
-          const nomeFicheiro = `cortepro_parte_${numParte}_${Math.round(inicio)}s_a_${Math.round(fim)}s.mp4`;
-          
-          if (navigator.share && arquivoGaleriaOriginal) {
-            const fileParaPartilhar = new File([arquivoGaleriaOriginal], nomeFicheiro, { type: 'video/mp4' });
-            if (navigator.canShare && navigator.canShare({ files: [fileParaPartilhar] })) {
-              navigator.share({
-                files: [fileParaPartilhar],
-                title: `Parte ${numParte} - CortePro`,
-                text: `Parte ${numParte} gerada pelo CortePro Master`
-              }).then(() => {
-                botao.disabled = false;
-                botao.textContent = `✅ Parte ${numParte} Partilhada!`;
-                setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
-              }).catch(() => {
-                executarDownloadFallback(nomeFicheiro, botao, textoOriginal);
-              });
-              return;
+            if (!urlInput) {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'Por favor, cole um link válido primeiro.';
+                return;
             }
-          }
-          executarDownloadFallback(nomeFicheiro, botao, textoOriginal);
-        } catch (err) {
-          botao.disabled = false;
-          botao.textContent = textoOriginal;
-          alert('Erro ao processar o corte.');
-        }
-      }
 
-      function executarDownloadFallback(nomeFicheiro, botao, textoOriginal) {
-        const a = document.createElement('a');
-        a.href = urlArquivoAtual;
-        a.download = nomeFicheiro;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+            extractBtn.disabled = true;
+            resultArea.style.display = 'none';
+            statusBox.className = 'status-box loading';
+            statusBox.innerText = 'A processar extração... Aguarde alguns segundos.';
 
-        botao.disabled = false;
-        botao.textContent = `✅ Parte Pronta!`;
-        setTimeout(() => { botao.textContent = textoOriginal; }, 3000);
-      }
+            let videoUrl = null;
 
-      // =====================================================
-      // ABA 3: CONVERSOR DE VÍDEOS SEGURO
-      // =====================================================
-      const fileConversorInput = document.getElementById('videoConversorFile');
-      const formatoSaidaSelect = document.getElementById('formatoSaida');
-      const btnConverter = document.getElementById('btnConverter');
-      const statusConversor = document.getElementById('statusConversor');
-      const videoConversorPreview = document.getElementById('videoConversorPreview');
-      const areaDownloadConversor = document.getElementById('areaDownloadConversor');
-      const btnBaixarConvertido = document.getElementById('btnBaixarConvertido');
-      const btnPartilharConvertido = document.getElementById('btnPartilharConvertido');
+            try {
+                if (urlInput.includes('tiktok.com') || urlInput.includes('douyin.com')) {
+                    try {
+                        const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}&hd=1`);
+                        const data = await res.json();
+                        if (data && data.data) {
+                            const play = data.data.hdplay || data.data.play;
+                            if (play) videoUrl = play.startsWith('http') ? play : `https://www.tikwm.com${play}`;
+                        }
+                    } catch (e) {}
+                }
 
-      let arquivoConversorOriginal = null;
-      let urlConversorAtual = null;
+                if (!videoUrl) {
+                    const endpoints = ['https://api.cobalt.tools/api/json', 'https://co.wuk.sh/api/json'];
+                    for (const api of endpoints) {
+                        if (videoUrl) break;
+                        try {
+                            const response = await fetch(api, {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: urlInput, vQuality: '720', isNoTTWatermark: true })
+                            });
+                            const text = await response.text();
+                            if (text.trim().startsWith('{')) {
+                                const json = JSON.parse(text);
+                                if (json && json.url) videoUrl = json.url;
+                            }
+                        } catch (e) {}
+                    }
+                }
 
-      fileConversorInput.addEventListener('change', () => {
-        if (!fileConversorInput.files || !fileConversorInput.files[0]) return;
-        arquivoConversorOriginal = fileConversorInput.files[0];
-
-        if (urlConversorAtual) URL.revokeObjectURL(urlConversorAtual);
-        urlConversorAtual = URL.createObjectURL(arquivoConversorOriginal);
-
-        videoConversorPreview.classList.remove('hidden');
-        videoConversorPreview.src = urlConversorAtual;
-        videoConversorPreview.load();
-        areaDownloadConversor.classList.add('hidden');
-
-        mostrarStatus(statusConversor, `✅ Vídeo selecionado: <b>${arquivoConversorOriginal.name}</b>. Clique em Converter.`, 'success');
-      });
-
-      btnConverter.addEventListener('click', () => {
-        if (!arquivoConversorOriginal) {
-          mostrarStatus(statusConversor, '⚠️ Selecione um vídeo primeiro.', 'error');
-          return;
-        }
-
-        const formato = formatoSaidaSelect.value;
-        btnConverter.disabled = true;
-        mostrarStatus(statusConversor, '⏳ A processar conversão para ' + formato.toUpperCase() + '...');
-
-        setTimeout(() => {
-          areaDownloadConversor.classList.remove('hidden');
-          btnConverter.disabled = false;
-          mostrarStatus(statusConversor, '✅ Conversão concluída com sucesso!', 'success');
-        }, 1000);
-      });
-
-      btnBaixarConvertido.addEventListener('click', () => {
-        if (!urlConversorAtual) return;
-        const formato = formatoSaidaSelect.value;
-        const a = document.createElement('a');
-        a.href = urlConversorAtual;
-        a.download = `cortepro_convertido_${Date.now()}.${formato}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      });
-
-      btnPartilharConvertido.addEventListener('click', async () => {
-        if (!arquivoConversorOriginal) return;
-        const formato = formatoSaidaSelect.value;
-        const nomeFicheiro = `cortepro_convertido_${Date.now()}.${formato}`;
-
-        try {
-          if (navigator.share) {
-            const ficheiroShare = new File([arquivoConversorOriginal], nomeFicheiro, { type: `video/${formato}` });
-            if (navigator.canShare && navigator.canShare({ files: [ficheiroShare] })) {
-              await navigator.share({
-                files: [ficheiroShare],
-                title: 'Vídeo Convertido - CortePro',
-                text: 'Vídeo convertido com sucesso pelo CortePro Master'
-              });
-              return;
+                if (videoUrl) {
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = 'Vídeo extraído com sucesso!';
+                    previewVideo.src = videoUrl;
+                    downloadLink.href = videoUrl;
+                    resultArea.style.display = 'block';
+                } else {
+                    throw new Error('Não foi possível extrair este link. Certifique-se de que o vídeo é público.');
+                }
+            } catch (err) {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = err.message || 'Erro ao processar o vídeo.';
+            } finally {
+                extractBtn.disabled = false;
             }
-          }
-          btnBaixarConvertido.click();
-        } catch (e) {
-          btnBaixarConvertido.click();
         }
-      });
-    });
-  </script>
+
+        let selectedFile = null;
+        let videoDuration = 0;
+
+        function carregarVideoLocal(event) {
+            const file = event.target.files[0];
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            clipsContainer.innerHTML = '';
+
+            if (!file) return;
+            selectedFile = file;
+            const tempVideo = document.createElement('video');
+            tempVideo.src = URL.createObjectURL(file);
+            tempVideo.onloadedmetadata = () => {
+                videoDuration = tempVideo.duration;
+                splitStatus.className = 'status-box success';
+                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)} segundos). Clique em Gerar Cortes.`;
+            };
+        }
+
+        function dividirVideoLocal() {
+            const splitStatus = document.getElementById('splitStatus');
+            const clipsContainer = document.getElementById('clipsContainer');
+            const step = parseInt(document.getElementById('splitDuration').value, 10);
+
+            if (!selectedFile || !videoDuration) {
+                splitStatus.className = 'status-box error';
+                splitStatus.innerText = 'Selecione um vídeo primeiro.';
+                return;
+            }
+
+            clipsContainer.innerHTML = '';
+            const totalParts = Math.ceil(videoDuration / step);
+            splitStatus.className = 'status-box success';
+            splitStatus.innerText = `Foram geradas ${totalParts} partes de ${step}s:`;
+
+            for (let i = 0; i < totalParts; i++) {
+                const start = i * step;
+                const end = Math.min((i + 1) * step, Math.floor(videoDuration));
+                const clipCard = document.createElement('div');
+                clipCard.style.background = '#0f172a';
+                clipCard.style.padding = '12px';
+                clipCard.style.borderRadius = '8px';
+                clipCard.style.border = '1px solid #334155';
+                clipCard.innerHTML = `
+                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
+                        <strong>Parte ${i + 1}:</strong> ${start}s até ${end}s
+                    </p>
+                    <button class="btn" style="background: var(--accent); font-size: 0.85rem; padding: 8px;" onclick="baixarTrecho(${start}, ${end}, ${i + 1})">📥 Descarregar Parte ${i + 1}</button>
+                `;
+                clipsContainer.appendChild(clipCard);
+            }
+        }
+
+        async function baixarTrecho(start, end, parteNum) {
+            const statusBox = document.getElementById('splitStatus');
+            statusBox.className = 'status-box loading';
+            statusBox.innerText = `A preparar a Parte ${parteNum} para download...`;
+
+            try {
+                const videoElement = document.createElement('video');
+                videoElement.src = URL.createObjectURL(selectedFile);
+                videoElement.crossOrigin = 'anonymous';
+                videoElement.muted = true;
+                
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => resolve();
+                });
+
+                videoElement.currentTime = start;
+                await new Promise((resolve) => {
+                    videoElement.onseeked = () => resolve();
+                });
+
+                const stream = videoElement.captureStream ? videoElement.captureStream() : videoElement.mozCaptureStream();
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+                const chunks = [];
+
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/mp4' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `cortepro_parte_${parteNum}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = `Parte ${parteNum} descarregada com sucesso!`;
+                };
+
+                videoElement.play();
+                recorder.start();
+
+                const durationMs = (end - start) * 1000;
+                setTimeout(() => {
+                    recorder.stop();
+                    videoElement.pause();
+                }, durationMs);
+
+            } catch (err) {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = 'Erro ao exportar o corte. Tente novamente.';
+            }
+        }
+    </script>
 </body>
 </html>
