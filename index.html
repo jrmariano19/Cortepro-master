@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CortePro Master - Descarregador, Divisor & Hashtags</title>
+    <!-- Motor FFmpeg WebAssembly para corte real de MP4 sem corromper partes -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -27,8 +29,8 @@
         .section.active { display: block; }
         .form-group { margin-bottom: 16px; }
         label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-muted); }
-        input[type="text"], input[type="file"], select, textarea { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
-        input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--primary); }
+        input[type="text"], input[type="number"], input[type="file"], select, textarea { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); }
         .btn { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
         .btn:hover { background: var(--primary-hover); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -40,12 +42,14 @@
         video { width: 100%; max-height: 320px; border-radius: 8px; margin-bottom: 12px; background: #000; }
         .platforms-hint { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap; }
         .platforms-hint span { background: #0f172a; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
+        .clip-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-secondary { background: #334155; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v10.0</span></h1>
-        <p class="subtitle">Descarregador, Divisor & Hashtags</p>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v11.0</span></h1>
+        <p class="subtitle">Descarregador, Divisor Real MP4 & Hashtags</p>
 
         <div class="tabs">
             <button class="tab active" onclick="switchTab('downloader')">Descarregador</button>
@@ -53,7 +57,7 @@
             <button class="tab" onclick="switchTab('hashtags')">Hashtags</button>
         </div>
 
-        <!-- SEÇÃO 1: DESCARREGADOR -->
+        <!-- SECÇÃO 1: DESCARREGADOR -->
         <div id="downloader" class="section active">
             <div class="platforms-hint">
                 <span>TikTok</span><span>Kwai</span><span>Facebook</span><span>Instagram</span><span>YouTube</span>
@@ -72,7 +76,7 @@
             </div>
         </div>
 
-        <!-- SEÇÃO 2: DIVISOR LOCAL -->
+        <!-- SECÇÃO 2: DIVISOR LOCAL EM PARTES IGUAIS -->
         <div id="splitter" class="section">
             <div class="form-group">
                 <label for="localVideoFile">Selecione o vídeo do telemóvel:</label>
@@ -80,39 +84,36 @@
             </div>
             <div class="form-group">
                 <label for="splitPartsCount">Dividir em quantas partes iguais?</label>
-                <select id="splitPartsCount">
-                    <option value="2">2 partes iguais</option>
-                    <option value="3">3 partes iguais</option>
-                    <option value="4">4 partes iguais</option>
-                    <option value="5">5 partes iguais</option>
-                    <option value="6" selected>6 partes iguais</option>
-                    <option value="8">8 partes iguais</option>
-                    <option value="10">10 partes iguais</option>
-                </select>
+                <input type="number" id="splitPartsCount" value="4" min="2" max="50">
             </div>
             <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Partes Iguais</button>
             <div id="splitStatus" class="status-box"></div>
+            
+            <div id="playerPreviewContainer" style="display:none; margin-top:16px;">
+                <video id="mainSplitVideo" controls playsinline></video>
+            </div>
+
             <div id="clipsContainer" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;"></div>
         </div>
 
-        <!-- SEÇÃO 3: HASHTAGS -->
+        <!-- SECÇÃO 3: HASHTAGS -->
         <div id="hashtags" class="section">
             <div class="form-group">
                 <label for="nicheSelect">Selecione o nicho do vídeo:</label>
                 <select id="nicheSelect">
                     <option value="geral">Geral / Virais (Reels, TikTok, Shorts)</option>
+                    <option value="filmes">Filmes, Séries & Doramas</option>
                     <option value="comedia">Comédia & Humor</option>
-                    <option value="fitness">Fitness & Estilo de Vida</option>
-                    <option value="negocios">Negócios & Empreendedorismo</option>
-                    <option value="tecnologia">Tecnologia & Inovação</option>
+                    <option value="achadinhos">Ofertas & Achadinhos</option>
+                    <option value="musica">Música & Clipes</option>
                 </select>
             </div>
-            <button class="btn" onclick="gerarHashtags()">Gerar Hashtags Otimizadas</button>
+            <button class="btn" onclick="gerarHashtags()">Gerar Hashtags Virais</button>
             <div class="form-group" style="margin-top: 16px;">
                 <label for="hashtagOutput">Hashtags prontas a copiar:</label>
                 <textarea id="hashtagOutput" rows="5" readonly placeholder="Clique em gerar para obter as tags..."></textarea>
             </div>
-            <button class="btn" style="background: var(--accent);" onclick="copiarHashtags()">📋 Copiar para o Clipboard</button>
+            <button class="btn" style="background: var(--accent);" onclick="copiarHashtags()">📋 Copiar Hashtags</button>
         </div>
     </div>
 
@@ -201,24 +202,47 @@
             }
         }
 
+        // MOTOR DE CORTE MP4 REAL COM RECONSTRUÇÃO DE MOOV ATOM (FFMPEG WASM SINGLE-THREAD)
         let selectedFile = null;
+        let selectedFileUrl = null;
         let videoDuration = 0;
+        let ffmpegInstance = null;
+        let isFileLoadedInFfmpeg = false;
 
         function carregarVideoLocal(event) {
             const file = event.target.files[0];
             const splitStatus = document.getElementById('splitStatus');
             const clipsContainer = document.getElementById('clipsContainer');
+            const playerPreviewContainer = document.getElementById('playerPreviewContainer');
+            const mainSplitVideo = document.getElementById('mainSplitVideo');
             clipsContainer.innerHTML = '';
 
             if (!file) return;
             selectedFile = file;
-            const tempVideo = document.createElement('video');
-            tempVideo.src = URL.createObjectURL(file);
-            tempVideo.onloadedmetadata = () => {
-                videoDuration = tempVideo.duration;
+            isFileLoadedInFfmpeg = false;
+            if (selectedFileUrl) URL.revokeObjectURL(selectedFileUrl);
+            selectedFileUrl = URL.createObjectURL(file);
+
+            mainSplitVideo.src = selectedFileUrl;
+            playerPreviewContainer.style.display = 'block';
+
+            mainSplitVideo.onloadedmetadata = () => {
+                videoDuration = mainSplitVideo.duration;
                 splitStatus.className = 'status-box success';
-                splitStatus.innerText = `Vídeo carregado (${Math.round(videoDuration)}s). Escolha as partes e clique em Gerar.`;
+                splitStatus.innerText = `✅ Vídeo de ${videoDuration.toFixed(1)}s carregado. Escolha em quantas partes dividir.`;
             };
+        }
+
+        function verTrecho(start, end) {
+            const v = document.getElementById('mainSplitVideo');
+            v.currentTime = start;
+            v.play();
+            const checkEnd = setInterval(() => {
+                if (v.currentTime >= end || v.paused) {
+                    v.pause();
+                    clearInterval(checkEnd);
+                }
+            }, 200);
         }
 
         function dividirVideoLocal() {
@@ -228,14 +252,20 @@
 
             if (!selectedFile || !videoDuration) {
                 splitStatus.className = 'status-box error';
-                splitStatus.innerText = 'Selecione um vídeo primeiro.';
+                splitStatus.innerText = 'Selecione um vídeo do telemóvel primeiro.';
+                return;
+            }
+
+            if (!totalParts || totalParts < 2) {
+                splitStatus.className = 'status-box error';
+                splitStatus.innerText = 'Informe pelo menos 2 partes iguais.';
                 return;
             }
 
             clipsContainer.innerHTML = '';
             const partDuration = videoDuration / totalParts;
             splitStatus.className = 'status-box success';
-            splitStatus.innerText = `Vídeo dividido em ${totalParts} partes iguais (${partDuration.toFixed(1)}s cada):`;
+            splitStatus.innerText = `✅ Vídeo de ${videoDuration.toFixed(1)}s dividido em ${totalParts} partes iguais (${partDuration.toFixed(1)}s cada):`;
 
             for (let i = 0; i < totalParts; i++) {
                 const start = i * partDuration;
@@ -247,49 +277,88 @@
                 clipCard.style.borderRadius = '8px';
                 clipCard.style.border = '1px solid #334155';
                 clipCard.innerHTML = `
-                    <p style="font-size: 0.85rem; margin-bottom: 8px; color: #94a3b8;">
-                        <strong>Parte ${i + 1} de ${totalParts}:</strong> ${start.toFixed(1)}s até ${end.toFixed(1)}s
-                    </p>
-                    <button class="btn" style="background: var(--accent); font-size: 0.85rem; padding: 8px;" onclick="baixarParteInstantanea(${start}, ${end}, ${i + 1})">📥 Descarregar Parte ${i + 1}</button>
+                    <div style="display:flex; justify-content:space-between; font-size: 0.85rem; margin-bottom: 8px; color: #f8fafc;">
+                        <strong>🎬 Parte ${i + 1} de ${totalParts}</strong>
+                        <span style="color:#94a3b8;">${start.toFixed(1)}s até ${end.toFixed(1)}s</span>
+                    </div>
+                    <div class="clip-actions">
+                        <button class="btn btn-secondary" style="font-size: 0.85rem; padding: 10px; flex: 1;" onclick="verTrecho(${start}, ${end})">▶️ Ver Trecho</button>
+                        <button class="btn" id="btnPart${i+1}" style="background: var(--primary); font-size: 0.85rem; padding: 10px; flex: 1;" onclick="cortarEBaixarMP4(${start}, ${end}, ${i + 1})">✂️ Baixar Parte ${i + 1}</button>
+                    </div>
                 `;
                 clipsContainer.appendChild(clipCard);
             }
         }
 
-        async function baixarParteInstantanea(start, end, parteNum) {
+        async function cortarEBaixarMP4(start, end, parteNum) {
             const statusBox = document.getElementById('splitStatus');
+            const btn = document.getElementById(`btnPart${parteNum}`);
+            const originalText = btn.innerText;
+
+            btn.disabled = true;
+            btn.innerText = `⏳ A cortar Parte ${parteNum}...`;
             statusBox.className = 'status-box loading';
-            statusBox.innerText = `A gerar a Parte ${parteNum} instantaneamente...`;
+            statusBox.innerText = `A cortar e gravar cabeçalho MP4 válido da Parte ${parteNum}... (Pode demorar 3 a 8 segundos na 1ª vez)`;
 
             try {
-                // Conversão precisa baseada na proporção de tempo para o tamanho do ficheiro Blob
-                const fileSize = selectedFile.size;
-                const startByte = Math.floor((start / videoDuration) * fileSize);
-                const endByte = Math.floor((end / videoDuration) * fileSize);
-                
-                // Extração direta dos dados binários do segmento
-                const rawSlice = selectedFile.slice(startByte, endByte, selectedFile.type || 'video/mp4');
-                
-                // Criação de um container limpo com cabeçalho de reprodução compatível com leitores móveis
-                const blob = new Blob([rawSlice], { type: 'video/mp4' });
-                const url = URL.createObjectURL(blob);
-                
+                // Inicializa o motor FFmpeg single-thread (compatível com Vercel sem headers especiais)
+                if (!ffmpegInstance) {
+                    const { createFFmpeg } = FFmpeg;
+                    ffmpegInstance = createFFmpeg({
+                        log: false,
+                        corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+                        mainName: 'main'
+                    });
+                    await ffmpegInstance.load();
+                }
+
+                // Carrega o vídeo na memória do FFmpeg apenas uma vez
+                if (!isFileLoadedInFfmpeg) {
+                    const arrayBuffer = await selectedFile.arrayBuffer();
+                    ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(arrayBuffer));
+                    isFileLoadedInFfmpeg = true;
+                }
+
+                const outputName = `parte_${parteNum}.mp4`;
+                const duration = (end - start).toFixed(2);
+
+                // Comando FFmpeg ultra-rápido: copia stream sem recodificar (-c copy) e recria índice MP4 (+faststart)
+                await ffmpegInstance.run(
+                    '-ss', String(start.toFixed(2)),
+                    '-i', 'input.mp4',
+                    '-t', String(duration),
+                    '-c', 'copy',
+                    '-avoid_negative_ts', 'make_zero',
+                    '-movflags', '+faststart',
+                    outputName
+                );
+
+                const data = ffmpegInstance.FS('readFile', outputName);
+                const validMp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+                const downloadUrl = URL.createObjectURL(validMp4Blob);
+
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `cortepro_parte_${parteNum}.mp4`;
+                a.href = downloadUrl;
+                a.download = `CortePro_Parte_${parteNum}.mp4`;
                 document.body.appendChild(a);
                 a.click();
-                
+
                 setTimeout(() => {
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 300);
+                    URL.revokeObjectURL(downloadUrl);
+                    try { ffmpegInstance.FS('unlink', outputName); } catch (e) {}
+                }, 1000);
 
                 statusBox.className = 'status-box success';
-                statusBox.innerText = `Parte ${parteNum} descarregada com sucesso!`;
+                statusBox.innerText = `✅ Parte ${parteNum} baixada com sucesso e pronta a abrir na galeria!`;
+                btn.innerText = `✅ Parte ${parteNum} Baixada`;
             } catch (err) {
+                console.error(err);
                 statusBox.className = 'status-box error';
-                statusBox.innerText = 'Erro ao transferir a parte. Tente novamente.';
+                statusBox.innerText = `Erro ao cortar a Parte ${parteNum}: ${err.message || 'Memória insuficiente no navegador.'}`;
+                btn.innerText = originalText;
+            } finally {
+                btn.disabled = false;
             }
         }
 
@@ -297,10 +366,10 @@
             const niche = document.getElementById('nicheSelect').value;
             const tagsMap = {
                 geral: "#reels #tiktok #viral #foryou #explore #cortes #trending #fyp #brasil #foryoupage",
+                filmes: "#filmes #series #doramas #kdrama #cenas #cortesdefilmes #dicasdefilmes #cinema #netflix #dramas",
                 comedia: "#humor #comedia #engracado #risos #piada #memes #zueira #comediantes #divertido",
-                fitness: "#fitness #academia #treino #foco #vidasaudavel #gym #dieta #musculacao #motivacao",
-                negocios: "#empreendedorismo #negocios #sucesso #marketing #dinheiro #lideranca #investimento #foco",
-                tecnologia: "#tecnologia #tech #inovacao #gadgets #futuro #inteligenciaartificial #programacao"
+                achadinhos: "#achadinhos #ofertas #promocao #desconto #compras #shopee #mercadolivre #dicas #valeapena",
+                musica: "#musica #sertanejo #anos90 #clipe #sucesso #hit #playlist #classicos #nostalgia"
             };
             document.getElementById('hashtagOutput').value = tagsMap[niche] || tagsMap.geral;
         }
