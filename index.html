@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CortePro Master - Descarregador, Divisor & Hashtags</title>
-    <!-- Motor FFmpeg WebAssembly para corte real de MP4 sem corromper partes -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
@@ -48,7 +47,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v11.0</span></h1>
+        <h1>CortePro Master <span style="font-size:0.75rem; color:#4ade80;">v12.0</span></h1>
         <p class="subtitle">Descarregador, Divisor Real MP4 & Hashtags</p>
 
         <div class="tabs">
@@ -87,6 +86,9 @@
                 <input type="number" id="splitPartsCount" value="4" min="2" max="50">
             </div>
             <button class="btn" id="splitBtn" onclick="dividirVideoLocal()">Gerar Partes Iguais</button>
+            
+            <button class="btn" id="downloadAllBtn" style="background: var(--accent); margin-top: 10px; display: none;" onclick="baixarTodasEmSequencia()">📥 Baixar Todas as Partes em Sequência</button>
+
             <div id="splitStatus" class="status-box"></div>
             
             <div id="playerPreviewContainer" style="display:none; margin-top:16px;">
@@ -202,12 +204,14 @@
             }
         }
 
-        // MOTOR DE CORTE MP4 REAL COM RECONSTRUÇÃO DE MOOV ATOM (FFMPEG WASM SINGLE-THREAD)
+        // MOTOR DE CORTE MP4 COM FILA DE EXECUÇÃO (IMPEDE O ERRO "can only run one command at a time")
         let selectedFile = null;
+        let cachedFileUint8 = null;
         let selectedFileUrl = null;
         let videoDuration = 0;
-        let ffmpegInstance = null;
-        let isFileLoadedInFfmpeg = false;
+        let generatedPartsList = [];
+        let cutQueue = [];
+        let isProcessingQueue = false;
 
         function carregarVideoLocal(event) {
             const file = event.target.files[0];
@@ -215,11 +219,13 @@
             const clipsContainer = document.getElementById('clipsContainer');
             const playerPreviewContainer = document.getElementById('playerPreviewContainer');
             const mainSplitVideo = document.getElementById('mainSplitVideo');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
             clipsContainer.innerHTML = '';
+            downloadAllBtn.style.display = 'none';
 
             if (!file) return;
             selectedFile = file;
-            isFileLoadedInFfmpeg = false;
+            cachedFileUint8 = null;
             if (selectedFileUrl) URL.revokeObjectURL(selectedFileUrl);
             selectedFileUrl = URL.createObjectURL(file);
 
@@ -248,6 +254,7 @@
         function dividirVideoLocal() {
             const splitStatus = document.getElementById('splitStatus');
             const clipsContainer = document.getElementById('clipsContainer');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
             const totalParts = parseInt(document.getElementById('splitPartsCount').value, 10);
 
             if (!selectedFile || !videoDuration) {
@@ -263,13 +270,17 @@
             }
 
             clipsContainer.innerHTML = '';
+            generatedPartsList = [];
             const partDuration = videoDuration / totalParts;
             splitStatus.className = 'status-box success';
             splitStatus.innerText = `✅ Vídeo de ${videoDuration.toFixed(1)}s dividido em ${totalParts} partes iguais (${partDuration.toFixed(1)}s cada):`;
+            downloadAllBtn.style.display = 'flex';
 
             for (let i = 0; i < totalParts; i++) {
                 const start = i * partDuration;
                 const end = (i === totalParts - 1) ? videoDuration : (i + 1) * partDuration;
+                const parteNum = i + 1;
+                generatedPartsList.push({ start, end, parteNum });
                 
                 const clipCard = document.createElement('div');
                 clipCard.style.background = '#0f172a';
@@ -278,88 +289,119 @@
                 clipCard.style.border = '1px solid #334155';
                 clipCard.innerHTML = `
                     <div style="display:flex; justify-content:space-between; font-size: 0.85rem; margin-bottom: 8px; color: #f8fafc;">
-                        <strong>🎬 Parte ${i + 1} de ${totalParts}</strong>
+                        <strong>🎬 Parte ${parteNum} de ${totalParts}</strong>
                         <span style="color:#94a3b8;">${start.toFixed(1)}s até ${end.toFixed(1)}s</span>
                     </div>
                     <div class="clip-actions">
                         <button class="btn btn-secondary" style="font-size: 0.85rem; padding: 10px; flex: 1;" onclick="verTrecho(${start}, ${end})">▶️ Ver Trecho</button>
-                        <button class="btn" id="btnPart${i+1}" style="background: var(--primary); font-size: 0.85rem; padding: 10px; flex: 1;" onclick="cortarEBaixarMP4(${start}, ${end}, ${i + 1})">✂️ Baixar Parte ${i + 1}</button>
+                        <button class="btn" id="btnPart${parteNum}" style="background: var(--primary); font-size: 0.85rem; padding: 10px; flex: 1;" onclick="enfileirarCorte(${start}, ${end}, ${parteNum})">✂️ Baixar Parte ${parteNum}</button>
                     </div>
                 `;
                 clipsContainer.appendChild(clipCard);
             }
         }
 
-        async function cortarEBaixarMP4(start, end, parteNum) {
-            const statusBox = document.getElementById('splitStatus');
+        function baixarTodasEmSequencia() {
+            for (const item of generatedPartsList) {
+                enfileirarCorte(item.start, item.end, item.parteNum);
+            }
+        }
+
+        function enfileirarCorte(start, end, parteNum) {
             const btn = document.getElementById(`btnPart${parteNum}`);
-            const originalText = btn.innerText;
+            if (cutQueue.some(q => q.parteNum === parteNum)) return;
 
-            btn.disabled = true;
-            btn.innerText = `⏳ A cortar Parte ${parteNum}...`;
-            statusBox.className = 'status-box loading';
-            statusBox.innerText = `A cortar e gravar cabeçalho MP4 válido da Parte ${parteNum}... (Pode demorar 3 a 8 segundos na 1ª vez)`;
+            cutQueue.push({ start, end, parteNum });
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = `⏳ Na fila (Parte ${parteNum})...`;
+            }
+            processarFilaDeCortes();
+        }
 
-            try {
-                // Inicializa o motor FFmpeg single-thread (compatível com Vercel sem headers especiais)
-                if (!ffmpegInstance) {
+        async function processarFilaDeCortes() {
+            if (isProcessingQueue || cutQueue.length === 0) return;
+            isProcessingQueue = true;
+
+            const statusBox = document.getElementById('splitStatus');
+
+            while (cutQueue.length > 0) {
+                const { start, end, parteNum } = cutQueue.shift();
+                const btn = document.getElementById(`btnPart${parteNum}`);
+
+                if (btn) btn.innerText = `⏳ A cortar Parte ${parteNum}...`;
+                statusBox.className = 'status-box loading';
+                statusBox.innerText = `A cortar e gerar MP4 da Parte ${parteNum}... Aguarde (Restam ${cutQueue.length} na fila).`;
+
+                try {
+                    if (!cachedFileUint8) {
+                        const arrayBuffer = await selectedFile.arrayBuffer();
+                        cachedFileUint8 = new Uint8Array(arrayBuffer);
+                    }
+
+                    // Cria uma instância nova e limpa para cada parte (evita o bloqueio do core-st após o 1º comando)
                     const { createFFmpeg } = FFmpeg;
-                    ffmpegInstance = createFFmpeg({
+                    const ffmpeg = createFFmpeg({
                         log: false,
                         corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
                         mainName: 'main'
                     });
-                    await ffmpegInstance.load();
-                }
+                    await ffmpeg.load();
 
-                // Carrega o vídeo na memória do FFmpeg apenas uma vez
-                if (!isFileLoadedInFfmpeg) {
-                    const arrayBuffer = await selectedFile.arrayBuffer();
-                    ffmpegInstance.FS('writeFile', 'input.mp4', new Uint8Array(arrayBuffer));
-                    isFileLoadedInFfmpeg = true;
-                }
+                    ffmpeg.FS('writeFile', 'input.mp4', cachedFileUint8);
 
-                const outputName = `parte_${parteNum}.mp4`;
-                const duration = (end - start).toFixed(2);
+                    const outputName = `parte_${parteNum}.mp4`;
+                    const duration = (end - start).toFixed(2);
 
-                // Comando FFmpeg ultra-rápido: copia stream sem recodificar (-c copy) e recria índice MP4 (+faststart)
-                await ffmpegInstance.run(
-                    '-ss', String(start.toFixed(2)),
-                    '-i', 'input.mp4',
-                    '-t', String(duration),
-                    '-c', 'copy',
-                    '-avoid_negative_ts', 'make_zero',
-                    '-movflags', '+faststart',
-                    outputName
-                );
+                    await ffmpeg.run(
+                        '-ss', String(start.toFixed(2)),
+                        '-i', 'input.mp4',
+                        '-t', String(duration),
+                        '-c', 'copy',
+                        '-avoid_negative_ts', 'make_zero',
+                        '-movflags', '+faststart',
+                        outputName
+                    );
 
-                const data = ffmpegInstance.FS('readFile', outputName);
-                const validMp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
-                const downloadUrl = URL.createObjectURL(validMp4Blob);
+                    const data = ffmpeg.FS('readFile', outputName);
+                    const validMp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+                    const downloadUrl = URL.createObjectURL(validMp4Blob);
 
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = `CortePro_Parte_${parteNum}.mp4`;
-                document.body.appendChild(a);
-                a.click();
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `CortePro_Parte_${parteNum}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
 
-                setTimeout(() => {
+                    await new Promise(r => setTimeout(r, 800));
                     document.body.removeChild(a);
                     URL.revokeObjectURL(downloadUrl);
-                    try { ffmpegInstance.FS('unlink', outputName); } catch (e) {}
-                }, 1000);
 
-                statusBox.className = 'status-box success';
-                statusBox.innerText = `✅ Parte ${parteNum} baixada com sucesso e pronta a abrir na galeria!`;
-                btn.innerText = `✅ Parte ${parteNum} Baixada`;
-            } catch (err) {
-                console.error(err);
-                statusBox.className = 'status-box error';
-                statusBox.innerText = `Erro ao cortar a Parte ${parteNum}: ${err.message || 'Memória insuficiente no navegador.'}`;
-                btn.innerText = originalText;
-            } finally {
-                btn.disabled = false;
+                    try {
+                        ffmpeg.FS('unlink', 'input.mp4');
+                        ffmpeg.FS('unlink', outputName);
+                        ffmpeg.exit();
+                    } catch (e) {}
+
+                    if (btn) {
+                        btn.innerText = `✅ Parte ${parteNum} Baixada`;
+                        btn.style.background = 'var(--accent)';
+                        btn.disabled = false;
+                    }
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = `✅ Parte ${parteNum} baixada com sucesso!`;
+                } catch (err) {
+                    console.error(err);
+                    statusBox.className = 'status-box error';
+                    statusBox.innerText = `Erro ao cortar a Parte ${parteNum}: ${err.message || 'Tente novamente.'}`;
+                    if (btn) {
+                        btn.innerText = `✂️ Baixar Parte ${parteNum}`;
+                        btn.disabled = false;
+                    }
+                }
             }
+
+            isProcessingQueue = false;
         }
 
         function gerarHashtags() {
