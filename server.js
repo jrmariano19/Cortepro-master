@@ -4,6 +4,7 @@ const YTDlpWrapModule = require('yt-dlp-wrap');
 const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,32 +12,87 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Caminho onde o executável do yt-dlp ficará salvo no Render
-const binaryPath = path.join(__dirname, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+// Usa a diretoria /tmp no Linux (Render) para garantir permissão total de escrita e execução
+const isWin = process.platform === 'win32';
+const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp_linux';
+const binaryPath = isWin ? path.join(__dirname, binaryName) : path.join('/tmp', binaryName);
+
 let ytDlpWrap = null;
 let isBinaryReady = false;
+let initError = null;
+let isDownloading = false;
 
-// Baixa e configura o binário do yt-dlp ao iniciar o servidor
-async function initYtDlp() {
+// Função auxiliar para descarregar ficheiros seguindo redirecionamentos (sem usar a API limitada do GitHub)
+function downloadFileDirect(url, dest) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/1.0' } }, (response) => {
+      // Segue redirecionamentos 301/302 do GitHub Releases
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        return downloadFileDirect(response.headers.location, dest).then(resolve).catch(reject);
+      }
+      if (response.statusCode !== 200) {
+        return reject(new Error(`Falha no download do binário. Status HTTP: ${response.statusCode}`));
+      }
+      const file = fs.createWriteStream(dest);
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close(resolve);
+      });
+      file.on('error', (err) => {
+        fs.unlink(dest, () => {});
+        reject(err);
+      });
+    });
+    request.on('error', (err) => {
+      fs.unlink(dest, () => {});
+      reject(err);
+    });
+  });
+}
+
+// Prepara o binário autónomo do yt-dlp
+async function ensureYtDlpReady() {
+  if (isBinaryReady && ytDlpWrap && fs.existsSync(binaryPath)) {
+    return true;
+  }
+  if (isDownloading) {
+    return false;
+  }
+
+  isDownloading = true;
+  initError = null;
+
   try {
-    if (!fs.existsSync(binaryPath)) {
-      console.log('Baixando binário atualizado do yt-dlp do GitHub...');
-      await YTDlpWrap.downloadFromGithub(binaryPath);
+    if (!fs.existsSync(binaryPath) || fs.statSync(binaryPath).size < 1000000) {
+      const downloadUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+
+      console.log('A transferir binário oficial diretamente de:', downloadUrl);
+      await downloadFileDirect(downloadUrl, binaryPath);
     }
-    if (process.platform !== 'win32') {
-      fs.chmodSync(binaryPath, '755');
+
+    if (!isWin) {
+      fs.chmodSync(binaryPath, 0o755);
     }
+
     ytDlpWrap = new YTDlpWrap(binaryPath);
     isBinaryReady = true;
+    isDownloading = false;
     console.log('yt-dlp pronto e operacional em:', binaryPath);
+    return true;
   } catch (err) {
-    console.error('Erro crítico ao preparar o yt-dlp:', err.message);
+    initError = err.message;
+    isDownloading = false;
+    console.error('Erro ao preparar o yt-dlp:', err.message);
+    return false;
   }
 }
 
-initYtDlp();
+// Inicia o download assim que o servidor arranca
+ensureYtDlpReady();
 
-// Validação de segurança para impedir acesso a redes internas (SSRF) e validar protocolo
+// Validação de segurança de URL
 function isValidPublicUrl(urlString) {
   try {
     const parsed = new URL(urlString);
@@ -59,17 +115,19 @@ function isValidPublicUrl(urlString) {
   }
 }
 
-// Rota raiz (Status do servidor)
+// Rota raiz com diagnóstico completo
 app.get('/', (req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
     binaryReady: isBinaryReady,
+    isDownloading: isDownloading,
+    initError: initError,
     endpoint: '/api/extract?url=LINK_DO_VIDEO',
     downloadEndpoint: '/api/download?url=LINK_DO_VIDEO'
   });
 });
 
-// Rota 1: Extrai informações do vídeo e valida se pode ser baixado
+// Rota 1: Extração de metadados e validação do vídeo
 app.get('/api/extract', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -81,16 +139,21 @@ app.get('/api/extract', async (req, res) => {
     return res.status(400).json({ error: 'Link inválido ou não permitido.' });
   }
 
-  if (!isBinaryReady || !ytDlpWrap) {
-    return res.status(503).json({
-      error: 'O servidor ainda está preparando o extrator. Aguarde 10 segundos e tente novamente.'
-    });
+  // Se ainda não estiver pronto, tenta concluir a preparação na hora
+  if (!isBinaryReady) {
+    const readyNow = await ensureYtDlpReady();
+    if (!readyNow) {
+      return res.status(503).json({
+        error: initError
+          ? `Erro ao preparar extrator no servidor: ${initError}`
+          : 'O extrator está a ser transferido no servidor. Aguarde 10 segundos e toque novamente.'
+      });
+    }
   }
 
   try {
-    console.log(`Verificando vídeo: ${videoUrl}`);
+    console.log(`A extrair vídeo: ${videoUrl}`);
 
-    // Executa o yt-dlp de forma limpa e retorna o JSON com os metadados
     const stdout = await ytDlpWrap.execPromise([
       videoUrl,
       '--dump-single-json',
@@ -102,7 +165,6 @@ app.get('/api/extract', async (req, res) => {
 
     const metadata = JSON.parse(stdout);
 
-    // Procura o melhor formato em MP4 que já tenha vídeo e áudio juntos
     let directUrl = metadata.url || null;
     if (!directUrl && Array.isArray(metadata.formats)) {
       const progressiveFormats = metadata.formats.filter(
@@ -118,7 +180,6 @@ app.get('/api/extract', async (req, res) => {
       }
     }
 
-    // Link seguro passando pelo nosso próprio servidor para forçar o download no Android
     const serverDownloadUrl = `/api/download?url=${encodeURIComponent(videoUrl)}`;
 
     res.json({
@@ -139,7 +200,7 @@ app.get('/api/extract', async (req, res) => {
   }
 });
 
-// Rota 2: Faz o download real do arquivo MP4 e entrega direto para a galeria/downloads do celular
+// Rota 2: Download direto do ficheiro MP4 para o telemóvel
 app.get('/api/download', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -147,15 +208,18 @@ app.get('/api/download', async (req, res) => {
     return res.status(400).send('URL inválida ou ausente.');
   }
 
-  if (!isBinaryReady || !ytDlpWrap) {
-    return res.status(503).send('Extrator iniciando. Tente novamente em instantes.');
+  if (!isBinaryReady) {
+    const readyNow = await ensureYtDlpReady();
+    if (!readyNow) {
+      return res.status(503).send('Extrator indisponível no momento.');
+    }
   }
 
   const tempId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.mp4`;
   const tempFilePath = path.join('/tmp', tempId);
 
   try {
-    console.log(`Baixando arquivo para envio: ${videoUrl}`);
+    console.log(`A transferir ficheiro MP4: ${videoUrl}`);
 
     await ytDlpWrap.execPromise([
       videoUrl,
@@ -169,7 +233,7 @@ app.get('/api/download', async (req, res) => {
     ]);
 
     if (!fs.existsSync(tempFilePath)) {
-      return res.status(422).send('Não foi possível gerar o arquivo de vídeo para download.');
+      return res.status(422).send('Não foi possível gerar o ficheiro de vídeo para download.');
     }
 
     res.setHeader('Content-Type', 'video/mp4');
@@ -178,7 +242,6 @@ app.get('/api/download', async (req, res) => {
     const readStream = fs.createReadStream(tempFilePath);
     readStream.pipe(res);
 
-    // Apaga o arquivo temporário do servidor assim que o envio terminar ou se a conexão cair
     const cleanup = () => {
       if (fs.existsSync(tempFilePath)) {
         fs.unlink(tempFilePath, () => {});
@@ -188,18 +251,17 @@ app.get('/api/download', async (req, res) => {
     readStream.on('close', cleanup);
     readStream.on('error', cleanup);
     res.on('close', cleanup);
-
   } catch (error) {
     console.error('Erro no download direto:', error.message);
     if (fs.existsSync(tempFilePath)) {
       fs.unlink(tempFilePath, () => {});
     }
     if (!res.headersSent) {
-      res.status(500).send('Falha ao baixar o arquivo de vídeo. O vídeo pode exigir login ou exceder o limite.');
+      res.status(500).send('Falha ao descarregar o vídeo. O conteúdo pode ser privado ou bloqueado pela plataforma.');
     }
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor CortePro Master rodando na porta ${PORT}`);
+  console.log(`Servidor CortePro Master a correr na porta ${PORT}`);
 });
