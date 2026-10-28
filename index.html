@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -27,7 +26,7 @@ input,select{width:100%;padding:13px;border-radius:9px;border:1px solid #43536a;
 .status{padding:12px;border-radius:9px;background:#0e1828;color:#c1ccda;overflow-wrap:anywhere;margin-top:12px;font-size:14px}
 .hidden{display:none}
 small{color:#9cabc0;line-height:1.5}
-a{color:#48e0b0}
+a{color:#48e0b0;overflow-wrap:anywhere}
 video{width:100%;max-height:280px;margin-top:12px;border-radius:10px;background:#000}
 footer{text-align:center;padding:20px;color:#8190a5;font-size:12px}
 </style>
@@ -60,7 +59,7 @@ footer{text-align:center;padding:20px;color:#8190a5;font-size:12px}
 </select>
 <button class="action" id="downloadBtn" onclick="downloadVideo()">Tentar obter vídeo</button>
 <div id="downloadStatus" class="status">Pronto para receber um link.</div>
-<p><small>O resultado depende de um serviço externo, da disponibilidade do vídeo e das regras da plataforma. Links privados, protegidos ou que exigem login podem não funcionar. Use apenas conteúdo que você tem autorização para baixar.</small></p>
+<p><small>O funcionamento depende da disponibilidade do vídeo e das regras da plataforma. Links privados, protegidos ou que exigem login podem não funcionar. Use apenas conteúdo que você tem autorização para baixar.</small></p>
 </section>
 
 <section id="split" class="panel hidden">
@@ -86,166 +85,257 @@ footer{text-align:center;padding:20px;color:#8190a5;font-size:12px}
 <footer>CortePro Master · Ferramentas de vídeo</footer>
 
 <script>
+"use strict";
+
 function showTab(name){
- document.getElementById('download').classList.toggle('hidden',name!=='download');
- document.getElementById('split').classList.toggle('hidden',name!=='split');
- document.getElementById('tabDownload').classList.toggle('active',name==='download');
- document.getElementById('tabSplit').classList.toggle('active',name==='split');
+  document.getElementById("download").classList.toggle("hidden",name!=="download");
+  document.getElementById("split").classList.toggle("hidden",name!=="split");
+  document.getElementById("tabDownload").classList.toggle("active",name==="download");
+  document.getElementById("tabSplit").classList.toggle("active",name==="split");
 }
 
 async function downloadVideo(){
- const url=document.getElementById('videoUrl').value.trim();
- const status=document.getElementById('downloadStatus');
- const btn=document.getElementById('downloadBtn');
- if(!url){status.textContent='Cole primeiro o link do vídeo.';return;}
- try{new URL(url)}catch(e){status.textContent='O link não parece válido. Confira o endereço.';return;}
- btn.disabled=true;
- status.textContent='Consultando serviço externo. Aguarde...';
- const apis=[
-  'https://api.cobalt.tools/',
-  'https://cobalt-api.karasu.rest/'
- ];
- let lastError='Os serviços externos não responderam.';
- for(const api of apis){
+  const url = document.getElementById("videoUrl").value.trim();
+  const status = document.getElementById("downloadStatus");
+  const btn = document.getElementById("downloadBtn");
+
+  if(!url){
+    status.textContent = "Cole primeiro o link do vídeo.";
+    return;
+  }
+
   try{
-   const response=await fetch(api,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Accept':'application/json'},
-    body:JSON.stringify({url:url,videoQuality:'720',downloadMode:'auto',filenameStyle:'basic'})
-   });
-   if(!response.ok)throw new Error('Serviço indisponível ('+response.status+').');
-   const data=await response.json();
-   if(data.url && ['tunnel','redirect','stream','download'].includes(data.status)){
-    status.innerHTML='';
-    const link=document.createElement('a');
-    link.href=data.url;link.target='_blank';link.rel='noopener';
-    link.textContent='Abrir ou baixar vídeo';
-    link.style.display='block';link.style.padding='12px';
-    status.appendChild(link);
-    btn.disabled=false;return;
-   }
-   if(data.url){
-    status.innerHTML='';
-    const link=document.createElement('a');
-    link.href=data.url;link.target='_blank';link.rel='noopener';
-    link.textContent='Abrir resultado do serviço';
-    status.appendChild(link);
-    btn.disabled=false;return;
-   }
-   lastError=data.error?.code||data.text||'O serviço não forneceu um arquivo.';
-  }catch(e){lastError=e.message||lastError;}
- }
- status.textContent='Não foi possível obter o vídeo automaticamente. '+lastError+
- ' Tente um link público ou outra plataforma. Este HTML não consegue contornar bloqueios ou autenticação.';
- btn.disabled=false;
+    const parsed = new URL(url);
+    if(parsed.protocol !== "https:"){
+      throw new Error("Use um link HTTPS válido.");
+    }
+  }catch(e){
+    status.textContent = e.message || "O link não parece válido. Confira o endereço.";
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = "Conectando ao servidor de download. Aguarde...";
+
+  try{
+    const endpoint = "https://cortepro-master.onrender.com/api/extract?url=" + encodeURIComponent(url);
+    const response = await fetch(endpoint);
+    const contentType = response.headers.get("content-type") || "";
+
+    if(!response.ok){
+      let message = "Falha no servidor (" + response.status + ").";
+      if(contentType.includes("application/json")){
+        const data = await response.json();
+        message = data.error || message;
+      }else{
+        const body = await response.text();
+        if(body) message += " " + body.slice(0,180);
+      }
+      throw new Error(message);
+    }
+
+    if(contentType.includes("application/json")){
+      const data = await response.json();
+      throw new Error(data.error || "O servidor não retornou um arquivo de vídeo.");
+    }
+
+    const blob = await response.blob();
+    if(!blob.size){
+      throw new Error("O arquivo recebido está vazio.");
+    }
+
+    const fileUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = "cortepro-video.mp4";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+
+    status.textContent = "Download solicitado. Confira a pasta Downloads do navegador.";
+  }catch(error){
+    const message = error && error.message ? error.message : "Erro desconhecido.";
+    status.textContent = "Erro no download: " + message +
+      " Verifique se o servidor está disponível e se o vídeo é público.";
+  }finally{
+    btn.disabled = false;
+  }
 }
 
-let selectedFile=null;
-let previewUrl=null;
-document.getElementById('videoFile').addEventListener('change',function(){
- selectedFile=this.files&&this.files[0];
- const status=document.getElementById('splitStatus');
- const preview=document.getElementById('preview');
- document.getElementById('parts').innerHTML='';
- if(!selectedFile){status.textContent='Nenhum vídeo selecionado.';preview.classList.add('hidden');return;}
- if(previewUrl)URL.revokeObjectURL(previewUrl);
- previewUrl=URL.createObjectURL(selectedFile);
- preview.src=previewUrl;preview.classList.remove('hidden');
- status.textContent='Selecionado: '+selectedFile.name+' ('+(selectedFile.size/1024/1024).toFixed(1)+' MB).';
+let selectedFile = null;
+let previewUrl = null;
+
+document.getElementById("videoFile").addEventListener("change", function(){
+  selectedFile = this.files && this.files[0] ? this.files[0] : null;
+  const status = document.getElementById("splitStatus");
+  const preview = document.getElementById("preview");
+  document.getElementById("parts").innerHTML = "";
+
+  if(!selectedFile){
+    status.textContent = "Nenhum vídeo selecionado.";
+    preview.classList.add("hidden");
+    return;
+  }
+
+  if(previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(selectedFile);
+  preview.src = previewUrl;
+  preview.classList.remove("hidden");
+  status.textContent = "Selecionado: " + selectedFile.name + " (" +
+    (selectedFile.size / 1024 / 1024).toFixed(1) + " MB).";
 });
 
 function splitVideo(){
- const status=document.getElementById('splitStatus');
- const parts=document.getElementById('parts');
- if(!selectedFile){status.textContent='Escolha um vídeo primeiro.';return;}
- if(!window.MediaRecorder){status.textContent='Este navegador não suporta a gravação necessária para dividir o vídeo. Tente atualizar o Chrome.';return;}
- const duration=Number(document.getElementById('chunkDuration').value);
- const video=document.getElementById('preview');
- const btn=document.getElementById('splitBtn');
- btn.disabled=true;parts.innerHTML='';
- status.textContent='Preparando vídeo...';
- video.pause();
- video.currentTime=0;
- video.onseeked=null;
- video.onerror=()=>{
-  status.textContent='Não foi possível ler este vídeo. Tente outro arquivo ou formato.';
-  btn.disabled=false;
- };
- video.onloadedmetadata=()=>{
-  const total=video.duration;
-  if(!Number.isFinite(total)||total<=0){
-   status.textContent='Não foi possível identificar a duração do vídeo.';
-   btn.disabled=false;return;
+  const status = document.getElementById("splitStatus");
+  const parts = document.getElementById("parts");
+  const btn = document.getElementById("splitBtn");
+  const video = document.getElementById("preview");
+
+  if(!selectedFile){
+    status.textContent = "Escolha um vídeo primeiro.";
+    return;
   }
-  const chunks=Math.ceil(total/duration);
-  status.textContent='Preparando '+chunks+' parte(s). A gravação será feita em tempo real; mantenha a página aberta.';
-  let index=0;
-  function next(){
-   if(index>=chunks){
-    status.textContent='Processamento concluído. Confira os arquivos abaixo.';
-    btn.disabled=false;return;
-   }
-   const start=index*duration;
-   const end=Math.min(start+duration,total);
-   video.currentTime=start;
-   video.onseeked=()=>{
-    try{
-     const stream=video.captureStream?video.captureStream():video.mozCaptureStream?video.mozCaptureStream():null;
-     if(!stream){
-      status.textContent='Seu navegador não permite capturar o vídeo para divisão. Tente outro navegador.';
-      btn.disabled=false;return;
-     }
-     const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':
-       MediaRecorder.isTypeSupported('video/webm;codecs=vp8')?'video/webm;codecs=vp8':'video/webm';
-     const recorder=new MediaRecorder(stream,{mimeType:mime});
-     const blobs=[];
-     recorder.ondataavailable=e=>{if(e.data&&e.data.size)blobs.push(e.data)};
-     recorder.onerror=()=>{
-      status.textContent='Falha ao gravar a parte '+(index+1)+'.';
-      btn.disabled=false;
-     };
-     recorder.onstop=()=>{
-      const blob=new Blob(blobs,{type:'video/webm'});
-      const url=URL.createObjectURL(blob);
-      const row=document.createElement('div');
-      row.className='status';
-      const link=document.createElement('a');
-      link.href=url;
-      link.download='cortepro_parte_'+String(index+1).padStart(2,'0')+'.webm';
-      link.textContent='Baixar parte '+(index+1)+' ('+start.toFixed(0)+'–'+end.toFixed(0)+' s)';
-      row.appendChild(link);parts.appendChild(row);
-      index++;
-      status.textContent='Parte '+index+' de '+chunks+' processada.';
-      next();
-     };
-     recorder.start(250);
-     video.play().then(()=>{
-      const stopAt=()=>{
-       if(video.currentTime>=end || video.ended){
-        video.pause();
-        video.removeEventListener('timeupdate',stopAt);
-        if(recorder.state!=='inactive')recorder.stop();
-       }
-      };
-      video.addEventListener('timeupdate',stopAt);
-      video.onended=()=>{
-       if(recorder.state!=='inactive')recorder.stop();
-      };
-     }).catch(()=>{
-      recorder.stop();
-      status.textContent='Toque no vídeo para permitir a reprodução e tente novamente.';
-      btn.disabled=false;
-     });
-    }catch(e){
-     status.textContent='Erro ao dividir: '+e.message;
-     btn.disabled=false;
+  if(!window.MediaRecorder){
+    status.textContent = "Este navegador não suporta a gravação necessária. Tente atualizar o Chrome.";
+    return;
+  }
+
+  const duration = Number(document.getElementById("chunkDuration").value);
+  parts.innerHTML = "";
+  btn.disabled = true;
+  video.pause();
+
+  const startProcessing = () => {
+    const total = video.duration;
+    if(!Number.isFinite(total) || total <= 0){
+      status.textContent = "Não foi possível identificar a duração do vídeo.";
+      btn.disabled = false;
+      return;
     }
-   };
+
+    const chunks = Math.ceil(total / duration);
+    let index = 0;
+    status.textContent = "Preparando " + chunks + " parte(s). O processamento ocorre em tempo real; mantenha a página aberta.";
+
+    function next(){
+      if(index >= chunks){
+        status.textContent = "Processamento concluído. Confira os arquivos abaixo.";
+        btn.disabled = false;
+        return;
+      }
+
+      const partIndex = index;
+      const start = partIndex * duration;
+      const end = Math.min(start + duration, total);
+
+      const seekHandler = () => {
+        video.removeEventListener("seeked", seekHandler);
+
+        let stream;
+        try{
+          stream = video.captureStream ? video.captureStream() :
+            (video.mozCaptureStream ? video.mozCaptureStream() : null);
+          if(!stream){
+            status.textContent = "Seu navegador não permite capturar o vídeo para divisão. Tente outro navegador.";
+            btn.disabled = false;
+            return;
+          }
+
+          const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ?
+            "video/webm;codecs=vp9" :
+            (MediaRecorder.isTypeSupported("video/webm;codecs=vp8") ?
+              "video/webm;codecs=vp8" : "video/webm");
+
+          const recorder = new MediaRecorder(stream, {mimeType:mime});
+          const blobs = [];
+          let finished = false;
+
+          const cleanup = () => {
+            video.pause();
+            video.removeEventListener("timeupdate", stopAtEnd);
+            video.removeEventListener("ended", stopAtEnd);
+            try{ stream.getTracks().forEach(track => track.stop()); }catch(e){}
+          };
+
+          const stopAtEnd = () => {
+            if(video.currentTime >= end || video.ended){
+              if(!finished){
+                finished = true;
+                cleanup();
+                if(recorder.state !== "inactive") recorder.stop();
+              }
+            }
+          };
+
+          recorder.ondataavailable = e => {
+            if(e.data && e.data.size) blobs.push(e.data);
+          };
+
+          recorder.onerror = () => {
+            cleanup();
+            status.textContent = "Falha ao gravar a parte " + (partIndex + 1) + ".";
+            btn.disabled = false;
+          };
+
+          recorder.onstop = () => {
+            const blob = new Blob(blobs, {type:"video/webm"});
+            if(!blob.size){
+              status.textContent = "A parte " + (partIndex + 1) + " ficou vazia. O navegador pode não permitir essa operação.";
+              btn.disabled = false;
+              return;
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            const row = document.createElement("div");
+            row.className = "status";
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = "cortepro_parte_" + String(partIndex + 1).padStart(2,"0") + ".webm";
+            link.textContent = "Baixar parte " + (partIndex + 1) + " (" + start.toFixed(0) + "–" + end.toFixed(0) + " s)";
+            row.appendChild(link);
+            parts.appendChild(row);
+            index++;
+            status.textContent = "Parte " + index + " de " + chunks + " processada.";
+            next();
+          };
+
+          recorder.start(250);
+          video.currentTime = start;
+          video.play().then(() => {
+            video.addEventListener("timeupdate", stopAtEnd);
+            video.addEventListener("ended", stopAtEnd);
+          }).catch(() => {
+            if(recorder.state !== "inactive") recorder.stop();
+            cleanup();
+            status.textContent = "O navegador bloqueou a reprodução. Toque em reproduzir no vídeo e tente novamente.";
+            btn.disabled = false;
+          });
+        }catch(e){
+          status.textContent = "Erro ao dividir: " + e.message;
+          btn.disabled = false;
+        }
+      };
+
+      video.addEventListener("seeked", seekHandler, {once:true});
+      video.currentTime = start;
+      if(Math.abs(video.currentTime - start) < 0.01){
+        setTimeout(() => {
+          if(video.readyState >= 2 && video.currentTime <= start + 0.01){
+            video.dispatchEvent(new Event("seeked"));
+          }
+        }, 100);
+      }
+    }
+
+    next();
+  };
+
+  if(video.readyState >= 1){
+    startProcessing();
+  }else{
+    video.addEventListener("loadedmetadata", startProcessing, {once:true});
+    video.load();
   }
-  next();
- };
- if(video.readyState>=1)video.onloadedmetadata();
- else video.load();
 }
 </script>
 </body>
