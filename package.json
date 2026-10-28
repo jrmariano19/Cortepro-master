@@ -1,18 +1,17 @@
-
 {
   "name": "cortepro-master-backend",
   "version": "1.0.0",
-  "private": true,
+  "description": "Backend para CortePro Master - Extrator e Processador de Vídeos",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": ">=20"
-  },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "yt-dlp-wrap": "^2.3.12"
+    "express": "^4.19.2",
+    "yt-dlp-wrap": "^2.3.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
