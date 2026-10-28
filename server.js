@@ -1,10 +1,8 @@
-
-const express = require("express");
-const cors = require("cors");
-const YTDlpWrap = require("yt-dlp-wrap").default;
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
+const express = require('express');
+const cors = require('cors');
+const YTDlpWrap = require('yt-dlp-wrap');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,126 +10,80 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
+// Inicializa o yt-dlp-wrap e baixa o binário executável mais recente se necessário
+const ytDlpWrap = new YTDlpWrap();
+
+// Assegura que o binário do yt-dlp está disponível no ambiente do Render
+(async () => {
+  try {
+    const binaryPath = await YTDlpWrap.downloadBinary();
+    console.log(`yt-dlp binário pronto em: ${binaryPath}`);
+  } catch (error) {
+    console.error("Erro ao baixar o binário do yt-dlp:", error);
+  }
+})();
+
+// Rota raiz para verificação de status operacional
+app.get('/', (req, res) => {
   res.json({
     status: "CortePro Master Backend operacional",
     endpoint: "/api/extract?url=LINK_DO_VIDEO"
   });
 });
 
-app.get("/api/extract", async (req, res) => {
-  const url = req.query.url;
+// Rota de extração de vídeos
+app.get('/api/extract', async (req, res) => {
+  const videoUrl = req.query.url;
 
-  if (!url) {
-    return res.status(400).json({
-      success: false,
-      error: "URL não fornecida."
-    });
+  if (!videoUrl) {
+    return res.status(400).json({ error: "Parâmetro 'url' não fornecido." });
   }
-
-  let parsedUrl;
 
   try {
-    parsedUrl = new URL(url);
-  } catch {
-    return res.status(400).json({
-      success: false,
-      error: "Link inválido."
-    });
-  }
+    // Validação básica de URL
+    const parsedUrl = new URL(videoUrl);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ error: "URL inválida." });
+    }
 
-  const allowedHosts = [
-    "youtube.com",
-    "www.youtube.com",
-    "m.youtube.com",
-    "youtu.be",
-    "instagram.com",
-    "www.instagram.com",
-    "facebook.com",
-    "www.facebook.com",
-    "m.facebook.com",
-    "tiktok.com",
-    "www.tiktok.com",
-    "vm.tiktok.com",
-    "kwai.com",
-    "www.kwai.com"
-  ];
+    console.log(`Extraindo informações para: ${videoUrl}`);
 
-  if (
-    parsedUrl.protocol !== "https:" ||
-    !allowedHosts.includes(parsedUrl.hostname.toLowerCase())
-  ) {
-    return res.status(400).json({
-      success: false,
-      error: "Plataforma não permitida ou link inválido."
-    });
-  }
-
-  const tempDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "cortepro-")
-  );
-
-  const outputTemplate = path.join(tempDir, "video.%(ext)s");
-  let filePath;
-
-  try {
-    const ytDlp = new YTDlpWrap();
-
-    await ytDlp.execPromise([
-      url,
-      "--no-playlist",
-      "--no-warnings",
-      "--format",
-      "best[ext=mp4]/best",
-      "--output",
-      outputTemplate
+    // Obtém metadados e o link direto de download do vídeo
+    const metadata = await ytDlpWrap.getVideoInfo([
+      videoUrl,
+      '--no-playlist',
+      '--dump-json'
     ]);
 
-    const files = fs.readdirSync(tempDir);
-    filePath = files.length
-      ? path.join(tempDir, files[0])
-      : null;
-
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error("Nenhum arquivo de vídeo foi gerado.");
+    // Seleciona a melhor URL de formato direto disponível
+    let downloadUrl = metadata.url;
+    if (!downloadUrl && metadata.formats && metadata.formats.length > 0) {
+      // Pega o último formato com vídeo e áudio ou apenas vídeo progressivo
+      const bestFormat = metadata.formats.reverse().find(f => f.url && f.vcodec !== 'none');
+      if (bestFormat) downloadUrl = bestFormat.url;
     }
 
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="cortepro-video.mp4"'
-    );
-    res.setHeader("Content-Type", "video/mp4");
+    if (!downloadUrl) {
+      return res.status(422).json({ error: "Não foi possível extrair o link direto de mídia deste vídeo. Verifique se é público." });
+    }
 
-    const stream = fs.createReadStream(filePath);
-
-    stream.on("error", () => {
-      if (!res.headersSent) {
-        res.status(500).json({
-          success: false,
-          error: "Erro ao enviar o vídeo."
-        });
-      } else {
-        res.destroy();
-      }
+    res.json({
+      success: true,
+      title: metadata.title || "Vídeo CortePro",
+      duration: metadata.duration || 0,
+      thumbnail: metadata.thumbnail || "",
+      downloadUrl: downloadUrl
     });
 
-    stream.on("close", () => {
-      fs.rm(tempDir, { recursive: true, force: true }, () => {});
-    });
-
-    stream.pipe(res);
   } catch (error) {
-    fs.rm(tempDir, { recursive: true, force: true }, () => {});
-
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: "Não foi possível extrair o vídeo. Verifique se é público e se a plataforma permite o acesso."
-      });
-    }
+    console.error("Erro na extração:", error.message);
+    res.status(500).json({ 
+      error: "Falha ao processar a extração do vídeo. O conteúdo pode ser privado, protegido ou a plataforma bloqueou o acesso temporariamente.",
+      details: error.message 
+    });
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`CortePro Master iniciado na porta ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
