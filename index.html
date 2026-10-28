@@ -21,7 +21,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         body {
@@ -111,11 +111,12 @@
             transition: background 0.2s;
         }
 
-        button:active {
-            transform: scale(0.98);
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: var(--primary-hover);
         }
 
@@ -135,6 +136,7 @@
         .msg {
             font-size: 0.9rem;
             margin-bottom: 10px;
+            line-height: 1.4;
         }
 
         .msg.error {
@@ -156,7 +158,7 @@
         .parts-list {
             list-style: none;
             margin-top: 10px;
-            max-height: 200px;
+            max-height: 220px;
             overflow-y: auto;
         }
 
@@ -173,13 +175,15 @@
         }
 
         .btn-download {
-            padding: 6px 12px;
+            padding: 10px 14px;
             background-color: var(--success);
             color: white;
-            border-radius: 6px;
+            border-radius: 8px;
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             font-weight: 600;
+            display: inline-block;
+            text-align: center;
         }
 
         .loading {
@@ -211,7 +215,7 @@
         <div class="card">
             <h2>📥 Baixador de Vídeos</h2>
             <div class="form-group">
-                <label for="videoUrl">Cole o link público (Instagram, TikTok, Facebook, etc.):</label>
+                <label for="videoUrl">Cole o link público (TikTok, Instagram, Kwai, Facebook, YouTube):</label>
                 <input type="text" id="videoUrl" placeholder="https://...">
             </div>
             <button id="btnExtract" onclick="extractVideo()">Processar e Baixar</button>
@@ -258,15 +262,15 @@
             const container = document.getElementById('extractContainer');
 
             if (!urlInput) {
-                alert("Por favor, cole um link válido.");
+                alert("Por favor, cole um link de vídeo válido.");
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> Processando...';
+            btn.innerHTML = '<span class="loading"></span> Extraindo vídeo...';
             resultArea.classList.add('active');
             msgDiv.className = "msg";
-            msgDiv.innerText = "Conectando ao servidor e extraindo vídeo...";
+            msgDiv.innerText = "Conectando ao servidor... (Se o servidor estiver em repouso, a 1ª vez pode levar até 40 segundos).";
             container.innerHTML = "";
 
             try {
@@ -277,24 +281,36 @@
                     throw new Error(data.error || "Falha ao extrair o vídeo.");
                 }
 
+                // Monta a URL completa apontando para a rota /api/download do Render
+                const finalDownloadUrl = data.downloadUrl.startsWith('http')
+                    ? data.downloadUrl
+                    : `${BACKEND_URL}${data.downloadUrl}`;
+
                 msgDiv.className = "msg success";
-                msgDiv.innerText = `Sucesso: ${data.title}`;
-                
+                msgDiv.innerText = `Vídeo pronto: ${data.title}`;
+
                 container.innerHTML = `
-                    <div style="margin-top: 10px;">
-                        <a href="${data.downloadUrl}" target="_blank" class="btn-download" style="display:block; text-align:center; padding: 12px;">📥 Baixar Arquivo de Vídeo</a>
+                    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                        <a href="${finalDownloadUrl}" class="btn-download" style="width: 100%; padding: 14px;">
+                            📥 Baixar Vídeo MP4 no Celular
+                        </a>
+                        ${data.directUrl ? `<a href="${data.directUrl}" target="_blank" rel="noopener" style="color: #94a3b8; font-size: 0.8rem; text-align: center; text-decoration: underline;">Abrir link direto alternativo</a>` : ''}
                     </div>
                 `;
             } catch (err) {
                 msgDiv.className = "msg error";
-                msgDiv.innerText = err.message;
+                if (err.message.includes("Failed to fetch")) {
+                    msgDiv.innerText = "O servidor do Render está acordando ou atualizando. Aguarde 20 segundos e toque em 'Processar e Baixar' novamente.";
+                } else {
+                    msgDiv.innerText = err.message;
+                }
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = 'Processar e Baixar';
             }
         }
 
-        // --- DIVISOR DE VÍDEOS (Fatiamento por Blob seguro para Android) ---
+        // --- DIVISOR DE VÍDEOS LOCAL ---
         let selectedFile = null;
 
         function loadLocalVideo(event) {
@@ -332,16 +348,13 @@
             partsList.innerHTML = "";
 
             try {
-                // Divisão segura baseada em blocos do arquivo (Blob.slice) compatível com celular
-                // Ideal para garantir que os arquivos gerados não corrompam e possam ser baixados imediatamente.
                 const fileSize = selectedFile.size;
-                // Estimativa de bytes por segundo baseada no tamanho e duração aproximada
                 const videoElement = document.getElementById('previewVideo');
                 
                 setTimeout(() => {
-                    const duration = videoElement.duration || 60;
+                    const duration = (videoElement.duration && isFinite(videoElement.duration)) ? videoElement.duration : 60;
                     const bytesPerSecond = fileSize / duration;
-                    const bytesPerPart = bytesPerSecond * partDuration;
+                    const bytesPerPart = Math.ceil(bytesPerSecond * partDuration);
 
                     let start = 0;
                     let partIndex = 1;
@@ -354,7 +367,7 @@
                         const li = document.createElement('li');
                         li.innerHTML = `
                             <span>Parte ${partIndex}</span>
-                            <a href="${chunkUrl}" download="parte_${partIndex}_${selectedFile.name}" class="btn-download">Baixar Parte ${partIndex}</a>
+                            <a href="${chunkUrl}" download="parte_${partIndex}_${selectedFile.name}" class="btn-download" style="padding: 6px 12px; font-size: 0.85rem;">Baixar Parte ${partIndex}</a>
                         `;
                         partsList.appendChild(li);
 
@@ -363,7 +376,7 @@
                     }
 
                     msgDiv.className = "msg success";
-                    msgDiv.innerText = `Vídeo dividido com sucesso em ${partIndex - 1} partes!`;
+                    msgDiv.innerText = `Vídeo dividido em ${partIndex - 1} partes!`;
                     btn.disabled = false;
                     btn.innerHTML = 'Dividir Vídeo Novamente';
                 }, 500);
