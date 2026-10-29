@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -49,7 +48,7 @@
 
     header {
       text-align: center;
-      margin: 12px 0 24px;
+      margin: 12px 0 20px;
     }
 
     header h1 {
@@ -61,6 +60,36 @@
     header p {
       color: var(--muted);
       font-size: 0.9rem;
+    }
+
+    .server-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #eab308;
+    }
+
+    .status-dot.online {
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e88;
+    }
+
+    .status-dot.offline {
+      background: #ef4444;
     }
 
     .card {
@@ -285,6 +314,10 @@
         Baixe vídeos com áudio e divida
         em partes inteligentes
       </p>
+      <div class="server-status" id="serverStatusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Conectando ao servidor...</span>
+      </div>
     </header>
 
     <section class="card">
@@ -423,73 +456,89 @@
   </main>
 
   <script>
-    // Endereço do backend no Render.
-    const BACKEND_URL =
-      "https://cortepro-master.onrender.com";
+    const BACKEND_URL = "https://cortepro-master.onrender.com";
+    const MAX_UPLOAD_BYTES = 180 * 1024 * 1024;
 
-    const MAX_UPLOAD_BYTES =
-      180 * 1024 * 1024;
+    const $ = id => document.getElementById(id);
+    let isServerAwake = false;
 
-    const $ = id =>
-      document.getElementById(id);
-
-    function setMessage(
-      element,
-      message,
-      type = "info"
-    ) {
+    function setMessage(element, message, type = "info") {
       element.className = "msg " + type;
       element.textContent = message;
     }
 
-    function setLoading(
-      button,
-      loading,
-      text
-    ) {
+    function setLoading(button, loading, text) {
       button.disabled = loading;
-
       if (loading) {
-        button.innerHTML =
-          '<span class="loading"></span>' +
-          text;
+        button.innerHTML = '<span class="loading"></span>' + text;
       } else {
         button.textContent = text;
       }
     }
 
-    // Garante links de download do próprio servidor.
+    // Despertador automático do Render
+    async function wakeUpServer(retries = 6) {
+      const dot = $("statusDot");
+      const text = $("statusText");
+
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 12000);
+
+          const res = await fetch(BACKEND_URL + "/", {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal
+          });
+
+          clearTimeout(timer);
+
+          if (res.ok) {
+            isServerAwake = true;
+            dot.className = "status-dot online";
+            text.textContent = "Servidor Online";
+            return true;
+          }
+        } catch (_) {
+          dot.className = "status-dot";
+          text.textContent = `Acordando servidor Render (${attempt}/${retries})...`;
+          await new Promise(r => setTimeout(r, 4000));
+        }
+      }
+
+      dot.className = "status-dot offline";
+      text.textContent = "Servidor offline (verifique o Render)";
+      return false;
+    }
+
+    // Inicia o despertador assim que abre o site
+    wakeUpServer();
+
     function makeBackendUrl(url) {
       if (!url) {
-        throw new Error(
-          "O servidor não forneceu o endereço do arquivo."
-        );
+        throw new Error("O servidor não forneceu o endereço do arquivo.");
       }
 
       const backend = new URL(BACKEND_URL);
       const absolute = new URL(url, BACKEND_URL);
 
       if (absolute.origin !== backend.origin) {
-        throw new Error(
-          "O servidor retornou um link de download não autorizado."
-        );
+        throw new Error("O servidor retornou um link de download não autorizado.");
       }
 
       return absolute.href;
     }
 
-    // Lê respostas JSON do servidor.
     async function readJsonResponse(response) {
       const text = await response.text();
-
       let data;
 
       try {
         data = JSON.parse(text);
       } catch (_) {
         throw new Error(
-          "O servidor retornou uma resposta inválida. " +
-          "Verifique os logs do Render."
+          "O servidor retornou uma resposta inválida. Verifique os logs do Render."
         );
       }
 
@@ -504,16 +553,13 @@
       return data;
     }
 
-    // Verifica links das plataformas suportadas.
     function validateVideoUrl(url) {
       let parsed;
 
       try {
         parsed = new URL(url);
       } catch (_) {
-        throw new Error(
-          "Informe um endereço de vídeo válido."
-        );
+        throw new Error("Informe um endereço de vídeo válido.");
       }
 
       const domains = [
@@ -524,16 +570,14 @@
         "instagram.com",
         "kwai.com",
         "facebook.com",
-        "fb.watch"
+        "fb.watch",
+        "fb.gg"
       ];
 
-      const host = parsed.hostname
-        .toLowerCase()
-        .replace(/\.$/, "");
+      const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
 
       const allowed = domains.some(domain =>
-        host === domain ||
-        host.endsWith("." + domain)
+        host === domain || host.endsWith("." + domain)
       );
 
       if (
@@ -543,8 +587,7 @@
         !allowed
       ) {
         throw new Error(
-          "Informe um link público do YouTube, " +
-          "TikTok, Instagram, Kwai ou Facebook."
+          "Informe um link público do YouTube, TikTok, Instagram, Kwai ou Facebook."
         );
       }
 
@@ -563,11 +606,7 @@
       const container = $("extractContainer");
 
       if (!url) {
-        setMessage(
-          message,
-          "Cole primeiro o link do vídeo.",
-          "error"
-        );
+        setMessage(message, "Cole primeiro o link do vídeo.", "error");
         result.classList.add("active");
         return;
       }
@@ -577,11 +616,7 @@
       try {
         validatedUrl = validateVideoUrl(url);
       } catch (error) {
-        setMessage(
-          message,
-          error.message,
-          "error"
-        );
+        setMessage(message, error.message, "error");
         result.classList.add("active");
         return;
       }
@@ -589,31 +624,29 @@
       result.classList.add("active");
       container.replaceChildren();
 
-      setLoading(
-        button,
-        true,
-        "Extraindo vídeo e verificando áudio..."
-      );
+      if (!isServerAwake) {
+        setLoading(button, true, "Acordando servidor no Render...");
+        setMessage(
+          message,
+          "O servidor gratuito do Render estava hibernando e está iniciando (leva cerca de 40 segundos)...",
+          "info"
+        );
+        await wakeUpServer(8);
+      }
 
+      setLoading(button, true, "Extraindo vídeo e verificando áudio...");
       setMessage(
         message,
-        "Aguarde. A extração e a conversão " +
-        "podem levar alguns minutos.",
+        "Aguarde. A extração e a conversão podem levar alguns instantes.",
         "info"
       );
 
       const controller = new AbortController();
-
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        12 * 60 * 1000
-      );
+      const timeoutId = setTimeout(() => controller.abort(), 12 * 60 * 1000);
 
       try {
         const response = await fetch(
-          BACKEND_URL +
-          "/api/extract?url=" +
-          encodeURIComponent(validatedUrl),
+          BACKEND_URL + "/api/extract?url=" + encodeURIComponent(validatedUrl),
           {
             method: "GET",
             signal: controller.signal,
@@ -621,77 +654,50 @@
           }
         );
 
-        const data =
-          await readJsonResponse(response);
-
-        const downloadUrl =
-          makeBackendUrl(data.downloadUrl);
+        const data = await readJsonResponse(response);
+        const downloadUrl = makeBackendUrl(data.downloadUrl);
 
         setMessage(
           message,
-          "Vídeo processado. Use o botão " +
-          "abaixo para iniciar o download.",
+          "Vídeo processado com sucesso! Use o botão abaixo para baixar.",
           "success"
         );
 
-        const link =
-          document.createElement("a");
-
+        const link = document.createElement("a");
         link.className = "btn-download";
         link.href = downloadUrl;
         link.download = "CortePro_Video.mp4";
-        link.textContent =
-          "📥 Baixar vídeo MP4";
+        link.textContent = "📥 Baixar vídeo MP4";
         link.rel = "noopener";
 
         container.appendChild(link);
       } catch (error) {
-        let text =
-          error.message ||
-          "Falha ao processar o vídeo.";
+        let text = error.message || "Falha ao processar o vídeo.";
 
         if (error.name === "AbortError") {
-          text =
-            "O processamento demorou mais " +
-            "que o limite de espera. " +
-            "Confira os logs do Render.";
+          text = "O processamento demorou mais que o limite de espera. Confira os logs do Render.";
         } else if (
           error instanceof TypeError ||
-          text.toLowerCase().includes(
-            "failed to fetch"
-          )
+          text.toLowerCase().includes("failed to fetch")
         ) {
+          isServerAwake = false;
           text =
-            "Não foi possível conectar ao Render. " +
-            "O servidor pode estar iniciando " +
-            "ou indisponível. Tente novamente.";
+            "Não foi possível conectar ao Render. Verifique no painel do Render se o serviço está 'Live' e sem erros no Deploy.";
         }
 
         setMessage(message, text, "error");
       } finally {
         clearTimeout(timeoutId);
-
-        setLoading(
-          button,
-          false,
-          "Processar e baixar"
-        );
+        setLoading(button, false, "Processar e baixar");
       }
     }
 
-    $("btnExtract").addEventListener(
-      "click",
-      extractVideo
-    );
-
-    $("videoUrl").addEventListener(
-      "keydown",
-      event => {
-        if (event.key === "Enter") {
-          extractVideo();
-        }
+    $("btnExtract").addEventListener("click", extractVideo);
+    $("videoUrl").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        extractVideo();
       }
-    );
+    });
 
     // ========================================
     // DIVISOR INTELIGENTE
@@ -701,17 +707,9 @@
     let previewObjectUrl = null;
 
     function formatTime(seconds) {
-      const total = Math.max(
-        0,
-        Math.floor(Number(seconds) || 0)
-      );
-
-      const hours =
-        Math.floor(total / 3600);
-
-      const minutes =
-        Math.floor((total % 3600) / 60);
-
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
       const secs = total % 60;
 
       if (hours > 0) {
@@ -729,154 +727,91 @@
     }
 
     function updatePartsButtons() {
-      const current =
-        Number($("partsCount").value);
-
-      document
-        .querySelectorAll(".chip-btn")
-        .forEach(button => {
-          button.classList.toggle(
-            "active",
-            Number(button.dataset.parts) === current
-          );
-        });
-    }
-
-    document
-      .querySelectorAll(".chip-btn")
-      .forEach(button => {
-        button.addEventListener(
-          "click",
-          () => {
-            $("partsCount").value =
-              button.dataset.parts;
-
-            updatePartsButtons();
-          }
+      const current = Number($("partsCount").value);
+      document.querySelectorAll(".chip-btn").forEach(button => {
+        button.classList.toggle(
+          "active",
+          Number(button.dataset.parts) === current
         );
       });
+    }
 
-    $("partsCount").addEventListener(
-      "change",
-      () => {
-        let count = parseInt(
-          $("partsCount").value,
-          10
-        );
-
-        if (!Number.isFinite(count)) {
-          count = 2;
-        }
-
-        count = Math.max(
-          2,
-          Math.min(20, count)
-        );
-
-        $("partsCount").value = count;
-
+    document.querySelectorAll(".chip-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        $("partsCount").value = button.dataset.parts;
         updatePartsButtons();
+      });
+    });
+
+    $("partsCount").addEventListener("change", () => {
+      let count = parseInt($("partsCount").value, 10);
+      if (!Number.isFinite(count)) count = 2;
+      count = Math.max(2, Math.min(20, count));
+      $("partsCount").value = count;
+      updatePartsButtons();
+    });
+
+    $("localVideo").addEventListener("change", event => {
+      const file = event.target.files && event.target.files[0];
+
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
       }
-    );
 
-    // Seleção e validação do arquivo.
-    $("localVideo").addEventListener(
-      "change",
-      event => {
-        const file =
-          event.target.files &&
-          event.target.files[0];
+      selectedFile = null;
+      $("btnSplit").hidden = true;
+      $("previewVideo").hidden = true;
 
-        if (previewObjectUrl) {
-          URL.revokeObjectURL(previewObjectUrl);
-          previewObjectUrl = null;
-        }
+      if (!file) return;
 
-        selectedFile = null;
-        $("btnSplit").hidden = true;
-        $("previewVideo").hidden = true;
+      const validType =
+        file.type.startsWith("video/") ||
+        /\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(file.name);
 
-        if (!file) {
-          return;
-        }
-
-        const validType =
-          file.type.startsWith("video/") ||
-          /\.(mp4|mov|m4v|webm|mkv|avi)$/i
-            .test(file.name);
-
-        if (!validType) {
-          alert(
-            "Selecione um arquivo de vídeo válido."
-          );
-
-          event.target.value = "";
-          return;
-        }
-
-        if (file.size > MAX_UPLOAD_BYTES) {
-          alert(
-            "O vídeo ultrapassa o limite de 180 MB."
-          );
-
-          event.target.value = "";
-          return;
-        }
-
-        if (file.size < 1000) {
-          alert(
-            "O arquivo selecionado está vazio ou inválido."
-          );
-
-          event.target.value = "";
-          return;
-        }
-
-        selectedFile = file;
-
-        const video = $("previewVideo");
-
-        previewObjectUrl =
-          URL.createObjectURL(file);
-
-        video.src = previewObjectUrl;
-        video.hidden = false;
-
-        $("btnSplit").hidden = false;
-
-        $("splitResult").classList.remove(
-          "active"
-        );
-
-        $("partsList").replaceChildren();
+      if (!validType) {
+        alert("Selecione um arquivo de vídeo válido.");
+        event.target.value = "";
+        return;
       }
-    );
 
-    // Envia o vídeo para divisão no servidor.
-    function splitVideoSmart() {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        alert("O vídeo ultrapassa o limite de 180 MB.");
+        event.target.value = "";
+        return;
+      }
+
+      if (file.size < 1000) {
+        alert("O arquivo selecionado está vazio ou inválido.");
+        event.target.value = "";
+        return;
+      }
+
+      selectedFile = file;
+      const video = $("previewVideo");
+      previewObjectUrl = URL.createObjectURL(file);
+      video.src = previewObjectUrl;
+      video.hidden = false;
+
+      $("btnSplit").hidden = false;
+      $("splitResult").classList.remove("active");
+      $("partsList").replaceChildren();
+    });
+
+    async function splitVideoSmart() {
       if (!selectedFile) {
-        alert(
-          "Selecione um vídeo da galeria primeiro."
-        );
+        alert("Selecione um vídeo da galeria primeiro.");
         return;
       }
 
       if (selectedFile.size > MAX_UPLOAD_BYTES) {
-        alert(
-          "O vídeo ultrapassa o limite de 180 MB."
-        );
+        alert("O vídeo ultrapassa o limite de 180 MB.");
         return;
       }
 
       const partsCount = Math.max(
         2,
-        Math.min(
-          20,
-          parseInt(
-            $("partsCount").value,
-            10
-          ) || 2
-        )
+        Math.min(20, parseInt($("partsCount").value, 10) || 2)
       );
 
       const button = $("btnSplit");
@@ -887,91 +822,60 @@
       result.classList.add("active");
       list.replaceChildren();
 
-      setLoading(
-        button,
-        true,
-        "Enviando vídeo..."
-      );
+      if (!isServerAwake) {
+        setLoading(button, true, "Acordando servidor no Render...");
+        setMessage(
+          message,
+          "Acordando o servidor gratuito no Render antes de iniciar o upload...",
+          "info"
+        );
+        await wakeUpServer(8);
+      }
 
+      setLoading(button, true, "Enviando vídeo...");
       setMessage(
         message,
-        "Enviando o vídeo ao servidor. " +
-        "Não feche esta página.",
+        "Enviando o vídeo ao servidor. Não feche esta página.",
         "info"
       );
 
       const xhr = new XMLHttpRequest();
-
-      xhr.open(
-        "POST",
-        BACKEND_URL +
-        "/api/smart-split?parts=" +
-        partsCount,
-        true
-      );
-
-      xhr.setRequestHeader(
-        "Content-Type",
-        "application/octet-stream"
-      );
-
+      xhr.open("POST", BACKEND_URL + "/api/smart-split?parts=" + partsCount, true);
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
       xhr.timeout = 20 * 60 * 1000;
 
-      // Acompanha o upload.
       xhr.upload.onprogress = event => {
         if (event.lengthComputable) {
-          const percent = Math.round(
-            event.loaded /
-            event.total *
-            100
-          );
-
+          const percent = Math.round((event.loaded / event.total) * 100);
           setMessage(
             message,
             percent < 100
-              ? "Enviando vídeo: " +
-                percent + "%."
-              : "Upload concluído. " +
-                "Analisando áudio e criando as partes...",
+              ? "Enviando vídeo: " + percent + "%."
+              : "Upload concluído. Analisando áudio e criando as partes...",
             "info"
           );
         }
       };
 
-      // Resultado do processamento.
       xhr.onload = () => {
-        setLoading(
-          button,
-          false,
-          "✂️ Analisar e dividir novamente"
-        );
+        setLoading(button, false, "✂️ Analisar e dividir novamente");
 
         let data;
-
         try {
-          data = JSON.parse(
-            xhr.responseText
-          );
+          data = JSON.parse(xhr.responseText);
         } catch (_) {
           setMessage(
             message,
-            "O servidor retornou uma " +
-            "resposta inválida. " +
-            "Verifique os logs do Render.",
+            "O servidor retornou uma resposta inválida. Verifique os logs do Render.",
             "error"
           );
           return;
         }
 
-        if (
-          xhr.status < 200 ||
-          xhr.status >= 300 ||
-          !data.success
-        ) {
+        if (xhr.status < 200 || xhr.status >= 300 || !data.success) {
           setMessage(
             message,
-            data.error ||
-            "Não foi possível dividir o vídeo.",
+            data.error || "Não foi possível dividir o vídeo.",
             "error"
           );
           return;
@@ -980,8 +884,7 @@
         if (!Array.isArray(data.parts)) {
           setMessage(
             message,
-            "Resposta do servidor sem " +
-            "a lista de partes.",
+            "Resposta do servidor sem a lista de partes.",
             "error"
           );
           return;
@@ -990,25 +893,19 @@
         setMessage(
           message,
           "Concluído! Duração: " +
-          formatTime(data.totalDuration) +
-          ". Partes criadas: " +
-          data.partsCount + ".",
+            formatTime(data.totalDuration) +
+            ". Partes criadas: " +
+            data.partsCount +
+            ".",
           "success"
         );
 
-        // Cria os botões de download.
         data.parts.forEach(part => {
-          const li =
-            document.createElement("li");
-
-          const info =
-            document.createElement("div");
-
+          const li = document.createElement("li");
+          const info = document.createElement("div");
           info.className = "part-info";
 
-          const title =
-            document.createElement("strong");
-
+          const title = document.createElement("strong");
           title.textContent =
             "Parte " +
             part.partNumber +
@@ -1016,119 +913,61 @@
             Number(part.duration).toFixed(1) +
             " s)";
 
-          const time =
-            document.createElement("span");
-
-          time.textContent =
-            formatTime(part.start) +
-            " – " +
-            formatTime(part.end);
+          const time = document.createElement("span");
+          time.textContent = formatTime(part.start) + " – " + formatTime(part.end);
 
           info.append(title, time);
 
-          const meta =
-            document.createElement("div");
-
+          const meta = document.createElement("div");
           meta.className = "part-meta";
-          meta.textContent =
-            "🎯 " +
-            (part.reason || "Parte do vídeo");
+          meta.textContent = "🎯 " + (part.reason || "Parte do vídeo");
 
-          const link =
-            document.createElement("a");
-
+          const link = document.createElement("a");
           link.className = "btn-download";
 
           try {
-            link.href =
-              makeBackendUrl(part.downloadUrl);
+            link.href = makeBackendUrl(part.downloadUrl);
           } catch (error) {
-            setMessage(
-              message,
-              error.message,
-              "error"
-            );
+            setMessage(message, error.message, "error");
             return;
           }
 
-          link.download =
-            "CortePro_Parte_" +
-            part.partNumber +
-            ".mp4";
-
+          link.download = "CortePro_Parte_" + part.partNumber + ".mp4";
           link.rel = "noopener";
+          link.textContent = "📥 Baixar parte " + part.partNumber;
 
-          link.textContent =
-            "📥 Baixar parte " +
-            part.partNumber;
-
-          li.append(
-            info,
-            meta,
-            link
-          );
-
+          li.append(info, meta, link);
           list.appendChild(li);
         });
       };
 
-      // Falha de conexão.
       xhr.onerror = () => {
-        setLoading(
-          button,
-          false,
-          "✂️ Analisar e dividir novamente"
-        );
-
+        setLoading(button, false, "✂️ Analisar e dividir novamente");
         setMessage(
           message,
-          "Falha de conexão com o Render. " +
-          "O upload ou processamento " +
-          "pode ter sido interrompido.",
+          "Falha de conexão com o Render. O upload ou processamento pode ter sido interrompido.",
           "error"
         );
       };
 
-      // Tempo limite.
       xhr.ontimeout = () => {
-        setLoading(
-          button,
-          false,
-          "✂️ Analisar e dividir novamente"
-        );
-
+        setLoading(button, false, "✂️ Analisar e dividir novamente");
         setMessage(
           message,
-          "O processamento excedeu " +
-          "o tempo limite. " +
-          "Verifique os logs do Render.",
+          "O processamento excedeu o tempo limite. Verifique os logs do Render.",
           "error"
         );
       };
 
-      // Operação cancelada.
       xhr.onabort = () => {
-        setLoading(
-          button,
-          false,
-          "✂️ Analisar e dividir novamente"
-        );
-
-        setMessage(
-          message,
-          "Operação cancelada.",
-          "error"
-        );
+        setLoading(button, false, "✂️ Analisar e dividir novamente");
+        setMessage(message, "Operação cancelada.", "error");
       };
 
       xhr.send(selectedFile);
     }
 
-    $("btnSplit").addEventListener(
-      "click",
-      splitVideoSmart
-    );
-
+    $("btnSplit").addEventListener("click", splitVideoSmart);
   </script>
 </body>
 </html>
