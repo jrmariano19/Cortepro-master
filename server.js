@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const YTDlpWrapModule = require('yt-dlp-wrap');
@@ -18,14 +17,22 @@ const PORT = process.env.PORT || 3000;
 const MAX_UPLOAD_BYTES = 180 * 1024 * 1024;
 const TEMP_DIR = os.tmpdir();
 
-app.use(cors());
+// CORS liberado para qualquer origem (Vercel, GitHub Pages, localhost)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Range', 'Accept']
+}));
+
 app.use(express.json({ limit: '1mb' }));
 
 const isWin = process.platform === 'win32';
 const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp_linux';
-const binaryPath = isWin
-  ? path.join(__dirname, binaryName)
-  : path.join(TEMP_DIR, binaryName);
+
+// Salva na pasta do projeto primeiro para não perder quando o Render reiniciar a /tmp
+const localBinaryPath = path.join(__dirname, binaryName);
+const tempBinaryPath = path.join(TEMP_DIR, binaryName);
+let activeBinaryPath = localBinaryPath;
 
 let ytDlpWrap = null;
 let isBinaryReady = false;
@@ -86,8 +93,8 @@ function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
     }
 
     const request = lib.get(urlString, {
-      headers: { 'User-Agent': 'CortePro-Master/4.0' },
-      timeout: 20000
+      headers: { 'User-Agent': 'CortePro-Master/4.1' },
+      timeout: 25000
     }, response => {
       const status = response.statusCode || 0;
 
@@ -147,10 +154,9 @@ function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
   });
 }
 
-// Evita inicializações concorrentes do yt-dlp.
 async function ensureYtDlpReady() {
   if (isBinaryReady && ytDlpWrap &&
-      fs.existsSync(binaryPath)) {
+      fs.existsSync(activeBinaryPath)) {
     return true;
   }
 
@@ -162,25 +168,35 @@ async function ensureYtDlpReady() {
     initError = null;
 
     try {
-      if (!fs.existsSync(binaryPath) ||
-          fs.statSync(binaryPath).size < 1000000) {
+      // Verifica se já existe no diretório local ou no TEMP_DIR
+      if (fs.existsSync(localBinaryPath) && fs.statSync(localBinaryPath).size > 1000000) {
+        activeBinaryPath = localBinaryPath;
+      } else if (fs.existsSync(tempBinaryPath) && fs.statSync(tempBinaryPath).size > 1000000) {
+        activeBinaryPath = tempBinaryPath;
+      } else {
         const downloadUrl = isWin
           ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
           : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
 
         console.log('Baixando yt-dlp:', downloadUrl);
 
-        await downloadFileDirect(downloadUrl, binaryPath);
+        try {
+          await downloadFileDirect(downloadUrl, localBinaryPath);
+          activeBinaryPath = localBinaryPath;
+        } catch (_) {
+          await downloadFileDirect(downloadUrl, tempBinaryPath);
+          activeBinaryPath = tempBinaryPath;
+        }
       }
 
       if (!isWin) {
-        fs.chmodSync(binaryPath, 0o755);
+        fs.chmodSync(activeBinaryPath, 0o755);
       }
 
-      ytDlpWrap = new YTDlpWrap(binaryPath);
+      ytDlpWrap = new YTDlpWrap(activeBinaryPath);
       isBinaryReady = true;
 
-      console.log('yt-dlp pronto:', binaryPath);
+      console.log('yt-dlp pronto em:', activeBinaryPath);
 
       return true;
     } catch (err) {
@@ -188,11 +204,7 @@ async function ensureYtDlpReady() {
       ytDlpWrap = null;
       initError = err.message;
 
-      console.error(
-        'Erro ao preparar yt-dlp:',
-        err.message
-      );
-
+      console.error('Erro ao preparar yt-dlp:', err.message);
       return false;
     } finally {
       binaryReadyPromise = null;
@@ -235,7 +247,6 @@ function runFfmpeg(args) {
   });
 }
 
-// Verifica faixas de vídeo e áudio.
 function inspectMediaStreams(mediaPath) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
@@ -282,9 +293,7 @@ function inspectMediaStreams(mediaPath) {
         if (!hasVideo && !hasAudio &&
             error && !info.includes('Input #')) {
           return reject(
-            new Error(
-              'Não foi possível ler o arquivo de mídia.'
-            )
+            new Error('Não foi possível ler o arquivo de mídia.')
           );
         }
 
@@ -302,7 +311,6 @@ function inspectMediaStreams(mediaPath) {
   });
 }
 
-// Prepara MP4 compatível com dispositivos móveis.
 async function prepareAndroidMp4(inputPath, outputPath) {
   const inputInfo = await inspectMediaStreams(inputPath);
 
@@ -344,8 +352,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
         outputPath
       ]);
 
-      const remuxInfo =
-        await inspectMediaStreams(outputPath);
+      const remuxInfo = await inspectMediaStreams(outputPath);
 
       if (
         remuxInfo.hasVideo &&
@@ -356,20 +363,13 @@ async function prepareAndroidMp4(inputPath, outputPath) {
           fs.unlinkSync(inputPath);
         } catch (_) {}
 
-        console.log(
-          'MP4 compatível: conversão rápida sem recodificação.'
-        );
-
+        console.log('MP4 compatível: conversão rápida sem recodificação.');
         return outputPath;
       }
 
       throw new Error('O MP4 não passou na validação.');
     } catch (err) {
-      console.warn(
-        'Remux rápido falhou:',
-        err.message
-      );
-
+      console.warn('Remux rápido falhou:', err.message);
       try {
         fs.unlinkSync(outputPath);
       } catch (_) {}
@@ -402,13 +402,10 @@ async function prepareAndroidMp4(inputPath, outputPath) {
     !fs.existsSync(outputPath) ||
     fs.statSync(outputPath).size < 1000
   ) {
-    throw new Error(
-      'A conversão não gerou um MP4 válido.'
-    );
+    throw new Error('A conversão não gerou um MP4 válido.');
   }
 
-  const outputInfo =
-    await inspectMediaStreams(outputPath);
+  const outputInfo = await inspectMediaStreams(outputPath);
 
   if (!outputInfo.hasVideo || !outputInfo.hasAudio) {
     try {
@@ -416,8 +413,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
     } catch (_) {}
 
     throw new Error(
-      'O arquivo final não passou na validação ' +
-      'de áudio e vídeo.'
+      'O arquivo final não passou na validação de áudio e vídeo.'
     );
   }
 
@@ -426,11 +422,9 @@ async function prepareAndroidMp4(inputPath, outputPath) {
   } catch (_) {}
 
   console.log('MP4 convertido e validado com áudio.');
-
   return outputPath;
 }
 
-// Restringe links às plataformas suportadas.
 function isValidPublicUrl(urlString) {
   try {
     const parsed = new URL(urlString);
@@ -451,7 +445,8 @@ function isValidPublicUrl(urlString) {
       'instagram.com',
       'kwai.com',
       'facebook.com',
-      'fb.watch'
+      'fb.watch',
+      'fb.gg'
     ];
 
     const hostname = parsed.hostname
@@ -467,7 +462,6 @@ function isValidPublicUrl(urlString) {
   }
 }
 
-// Download e preparação do arquivo.
 async function downloadAndPrepareVideo(rawUrl) {
   cleanupOldTempFiles();
 
@@ -492,10 +486,14 @@ async function downloadAndPrepareVideo(rawUrl) {
     '--no-playlist',
     '--no-warnings',
     '--no-part',
+    '--no-check-certificates',
+    '--geo-bypass',
+    '--user-agent',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     '--max-filesize', '180M',
-    '--retries', '2',
-    '--fragment-retries', '2',
-    '--socket-timeout', '20',
+    '--retries', '3',
+    '--fragment-retries', '3',
+    '--socket-timeout', '25',
     '-o', rawTemplate
   ];
 
@@ -560,7 +558,7 @@ async function downloadAndPrepareVideo(rawUrl) {
   };
 }
 
-// Status do servidor.
+// Rota de Healthcheck / Despertador
 app.get('/', (_req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
@@ -572,7 +570,14 @@ app.get('/', (_req, res) => {
   });
 });
 
-// Endpoint de extração.
+app.get('/api/ping', (_req, res) => {
+  res.json({
+    ok: true,
+    binaryReady: isBinaryReady,
+    timestamp: Date.now()
+  });
+});
+
 app.get('/api/extract', async (req, res) => {
   const videoUrl =
     typeof req.query.url === 'string'
@@ -600,16 +605,14 @@ app.get('/api/extract', async (req, res) => {
       success: false,
       error: initError
         ? `Erro ao preparar o extrator: ${initError}`
-        : 'O extrator ainda está iniciando. ' +
-          'Aguarde e tente novamente.'
+        : 'O extrator ainda está iniciando. Aguarde e tente novamente.'
     });
   }
 
   try {
     console.log('Iniciando extração:', videoUrl);
 
-    const result =
-      await downloadAndPrepareVideo(videoUrl);
+    const result = await downloadAndPrepareVideo(videoUrl);
 
     return res.json({
       success: true,
@@ -617,37 +620,26 @@ app.get('/api/extract', async (req, res) => {
       downloadUrl: `/api/file/${result.fileName}`
     });
   } catch (error) {
-    console.error(
-      'Erro ao transferir vídeo:',
-      error.message
-    );
+    console.error('Erro ao transferir vídeo:', error.message);
 
     return res.status(500).json({
       success: false,
-      error: error.message ||
-        'Não foi possível transferir este vídeo.'
+      error: error.message || 'Não foi possível transferir este vídeo.'
     });
   }
 });
 
-// Download do arquivo com suporte a Range.
 app.get('/api/file/:fileName', (req, res) => {
-  const fileName =
-    path.basename(req.params.fileName);
+  const fileName = path.basename(req.params.fileName);
 
   if (
     !/^cortepro_[a-zA-Z0-9_-]+\.mp4$/i.test(fileName) &&
     !/^splitjob_[a-zA-Z0-9_-]+\.mp4$/i.test(fileName)
   ) {
-    return res.status(400).send(
-      'Nome de arquivo inválido.'
-    );
+    return res.status(400).send('Nome de arquivo inválido.');
   }
 
-  const filePath = path.join(
-    TEMP_DIR,
-    fileName
-  );
+  const filePath = path.join(TEMP_DIR, fileName);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).send(
@@ -660,9 +652,7 @@ app.get('/api/file/:fileName', (req, res) => {
   try {
     stat = fs.statSync(filePath);
   } catch (_) {
-    return res.status(404).send(
-      'Arquivo não encontrado.'
-    );
+    return res.status(404).send('Arquivo não encontrado.');
   }
 
   const range = req.headers.range;
@@ -670,26 +660,18 @@ app.get('/api/file/:fileName', (req, res) => {
   let end = stat.size - 1;
 
   if (range) {
-    const match =
-      /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
 
     if (!match || (!match[1] && !match[2])) {
-      res.setHeader(
-        'Content-Range',
-        `bytes */${stat.size}`
-      );
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
       return res.status(416).end();
     }
 
     if (!match[1]) {
       const suffix = Number(match[2]);
 
-      if (!Number.isSafeInteger(suffix) ||
-          suffix <= 0) {
-        res.setHeader(
-          'Content-Range',
-          `bytes */${stat.size}`
-        );
+      if (!Number.isSafeInteger(suffix) || suffix <= 0) {
+        res.setHeader('Content-Range', `bytes */${stat.size}`);
         return res.status(416).end();
       }
 
@@ -709,10 +691,7 @@ app.get('/api/file/:fileName', (req, res) => {
       end < start ||
       end < 0
     ) {
-      res.setHeader(
-        'Content-Range',
-        `bytes */${stat.size}`
-      );
+      res.setHeader('Content-Range', `bytes */${stat.size}`);
       return res.status(416).end();
     }
 
@@ -726,10 +705,7 @@ app.get('/api/file/:fileName', (req, res) => {
   }
 
   res.setHeader('Content-Type', 'video/mp4');
-  res.setHeader(
-    'Content-Length',
-    end - start + 1
-  );
+  res.setHeader('Content-Length', end - start + 1);
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader(
@@ -737,16 +713,10 @@ app.get('/api/file/:fileName', (req, res) => {
     `attachment; filename="${fileName}"`
   );
 
-  const stream = fs.createReadStream(
-    filePath,
-    { start, end }
-  );
+  const stream = fs.createReadStream(filePath, { start, end });
 
   stream.on('error', err => {
-    console.error(
-      'Erro ao enviar arquivo:',
-      err.message
-    );
+    console.error('Erro ao enviar arquivo:', err.message);
 
     if (!res.headersSent) {
       res.status(500);
@@ -758,7 +728,6 @@ app.get('/api/file/:fileName', (req, res) => {
   stream.pipe(res);
 });
 
-// Detecta pausas naturais no áudio.
 async function detectSpeechPauses(filePath) {
   if (!ffmpegPath) return [];
 
@@ -780,9 +749,7 @@ async function detectSpeechPauses(filePath) {
         timeout: 15 * 60 * 1000
       },
       (_err, stdout, stderr) => {
-        const output =
-          `${stderr || ''}\n${stdout || ''}`;
-
+        const output = `${stderr || ''}\n${stdout || ''}`;
         const pauses = [];
         let currentStart = null;
 
@@ -792,21 +759,16 @@ async function detectSpeechPauses(filePath) {
           );
 
           if (startMatch) {
-            currentStart =
-              parseFloat(startMatch[1]);
+            currentStart = parseFloat(startMatch[1]);
           }
 
           const endMatch = line.match(
             /silence_end:\s*([\d.]+)\s*\|\s*silence_duration:\s*([\d.]+)/
           );
 
-          if (
-            endMatch &&
-            currentStart !== null
-          ) {
+          if (endMatch && currentStart !== null) {
             const end = parseFloat(endMatch[1]);
-            const duration =
-              parseFloat(endMatch[2]);
+            const duration = parseFloat(endMatch[2]);
 
             pauses.push({
               start: currentStart,
@@ -825,31 +787,21 @@ async function detectSpeechPauses(filePath) {
   });
 }
 
-// Calcula os segmentos sem espaços e sem sobreposições.
-function computeSmartSegments(
-  totalDuration,
-  partsCount,
-  pauses
-) {
+function computeSmartSegments(totalDuration, partsCount, pauses) {
   const segments = [];
   let currentStart = 0;
   const minPartDuration = 1;
 
   for (let i = 1; i < partsCount; i++) {
-    const remainingParts =
-      partsCount - i + 1;
+    const remainingParts = partsCount - i + 1;
 
     const targetCut =
       currentStart +
-      (totalDuration - currentStart) /
-        remainingParts;
+      (totalDuration - currentStart) / remainingParts;
 
     const searchRadius = Math.max(
       1,
-      Math.min(
-        20,
-        (totalDuration / partsCount) * 0.35
-      )
+      Math.min(20, (totalDuration / partsCount) * 0.35)
     );
 
     const minCut = Math.max(
@@ -858,8 +810,7 @@ function computeSmartSegments(
     );
 
     const maxCut = Math.min(
-      totalDuration -
-        (remainingParts - 1) * minPartDuration,
+      totalDuration - (remainingParts - 1) * minPartDuration,
       targetCut + searchRadius
     );
 
@@ -870,42 +821,30 @@ function computeSmartSegments(
     );
 
     let cut = targetCut;
-    let reason =
-      'Corte próximo à duração equilibrada';
+    let reason = 'Corte próximo à duração equilibrada';
 
     if (candidates.length) {
-      const bestPause = candidates.reduce(
-        (best, candidate) => {
-          const score = p =>
-            Math.min(p.duration, 1.5) * 1.8 -
-            Math.abs(p.mid - targetCut) /
-              Math.max(searchRadius, 1);
+      const bestPause = candidates.reduce((best, candidate) => {
+        const score = p =>
+          Math.min(p.duration, 1.5) * 1.8 -
+          Math.abs(p.mid - targetCut) / Math.max(searchRadius, 1);
 
-          return score(candidate) > score(best)
-            ? candidate
-            : best;
-        }
-      );
+        return score(candidate) > score(best) ? candidate : best;
+      });
 
       cut = bestPause.mid;
-      reason =
-        'Pausa natural no áudio detectada';
+      reason = 'Pausa natural no áudio detectada';
     }
 
     cut = Number(
-      Math.max(
-        minCut,
-        Math.min(maxCut, cut)
-      ).toFixed(2)
+      Math.max(minCut, Math.min(maxCut, cut)).toFixed(2)
     );
 
     segments.push({
       partNumber: i,
       start: Number(currentStart.toFixed(2)),
       end: cut,
-      duration: Number(
-        (cut - currentStart).toFixed(2)
-      ),
+      duration: Number((cut - currentStart).toFixed(2)),
       reason
     });
 
@@ -916,40 +855,29 @@ function computeSmartSegments(
     partNumber: partsCount,
     start: Number(currentStart.toFixed(2)),
     end: Number(totalDuration.toFixed(2)),
-    duration: Number(
-      (totalDuration - currentStart).toFixed(2)
-    ),
+    duration: Number((totalDuration - currentStart).toFixed(2)),
     reason: 'Conclusão do vídeo'
   });
 
   return segments;
 }
 
-// Divisão inteligente de vídeos enviados.
 app.post('/api/smart-split', async (req, res) => {
   cleanupOldTempFiles();
 
   const partsCount = Math.max(
     2,
-    Math.min(
-      20,
-      parseInt(req.query.parts, 10) || 2
-    )
+    Math.min(20, parseInt(req.query.parts, 10) || 2)
   );
 
   const jobId =
     `splitjob_${Date.now()}_` +
     Math.random().toString(36).slice(2, 8);
 
-  const inputPath = path.join(
-    TEMP_DIR,
-    `${jobId}_input.mp4`
-  );
+  const inputPath = path.join(TEMP_DIR, `${jobId}_input.mp4`);
 
   try {
-    const contentLength = Number(
-      req.headers['content-length']
-    );
+    const contentLength = Number(req.headers['content-length']);
 
     if (
       Number.isFinite(contentLength) &&
@@ -957,9 +885,7 @@ app.post('/api/smart-split', async (req, res) => {
     ) {
       return res.status(413).json({
         success: false,
-        error:
-          'Vídeo maior que 180 MB. ' +
-          'Selecione um arquivo menor.'
+        error: 'Vídeo maior que 180 MB. Selecione um arquivo menor.'
       });
     }
 
@@ -970,10 +896,7 @@ app.post('/api/smart-split', async (req, res) => {
         receivedBytes += chunk.length;
 
         if (receivedBytes > MAX_UPLOAD_BYTES) {
-          const error = new Error(
-            'Vídeo maior que 180 MB.'
-          );
-
+          const error = new Error('Vídeo maior que 180 MB.');
           error.statusCode = 413;
           callback(error);
         } else {
@@ -998,14 +921,12 @@ app.post('/api/smart-split', async (req, res) => {
       });
     }
 
-    const mediaInfo =
-      await inspectMediaStreams(inputPath);
+    const mediaInfo = await inspectMediaStreams(inputPath);
 
     if (!mediaInfo.hasVideo) {
       return res.status(400).json({
         success: false,
-        error:
-          'O arquivo enviado não contém vídeo válido.'
+        error: 'O arquivo enviado não contém vídeo válido.'
       });
     }
 
@@ -1014,17 +935,14 @@ app.post('/api/smart-split', async (req, res) => {
     if (!totalDuration || totalDuration < 4) {
       return res.status(400).json({
         success: false,
-        error:
-          'Vídeo curto demais ou duração não identificada.'
+        error: 'Vídeo curto demais ou duração não identificada.'
       });
     }
 
     if (totalDuration < partsCount) {
       return res.status(400).json({
         success: false,
-        error:
-          'Vídeo curto demais para a quantidade ' +
-          'de partes selecionada.'
+        error: 'Vídeo curto demais para a quantidade de partes selecionada.'
       });
     }
 
@@ -1041,24 +959,14 @@ app.post('/api/smart-split', async (req, res) => {
     const generatedParts = [];
 
     for (const segment of segments) {
-      const partFileName =
-        `${jobId}_parte_${segment.partNumber}.mp4`;
-
-      const partPath = path.join(
-        TEMP_DIR,
-        partFileName
-      );
+      const partFileName = `${jobId}_parte_${segment.partNumber}.mp4`;
+      const partPath = path.join(TEMP_DIR, partFileName);
 
       const args = [
         '-y',
         '-ss', String(segment.start),
         '-i', inputPath,
-        '-t', String(
-          Math.max(
-            0.1,
-            segment.end - segment.start
-          )
-        ),
+        '-t', String(Math.max(0.1, segment.end - segment.start)),
         '-map', '0:v:0',
         '-vf',
         'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
@@ -1088,21 +996,18 @@ app.post('/api/smart-split', async (req, res) => {
 
       await runFfmpeg(args);
 
-      const partInfo =
-        await inspectMediaStreams(partPath);
+      const partInfo = await inspectMediaStreams(partPath);
 
       if (
         !partInfo.hasVideo ||
-        (mediaInfo.hasAudio &&
-         !partInfo.hasAudio)
+        (mediaInfo.hasAudio && !partInfo.hasAudio)
       ) {
         try {
           fs.unlinkSync(partPath);
         } catch (_) {}
 
         throw new Error(
-          `A validação da parte ` +
-          `${segment.partNumber} falhou.`
+          `A validação da parte ${segment.partNumber} falhou.`
         );
       }
 
@@ -1112,8 +1017,7 @@ app.post('/api/smart-split', async (req, res) => {
         end: segment.end,
         duration: segment.duration,
         reason: segment.reason,
-        downloadUrl:
-          `/api/file/${partFileName}`
+        downloadUrl: `/api/file/${partFileName}`
       });
     }
 
@@ -1123,44 +1027,30 @@ app.post('/api/smart-split', async (req, res) => {
 
     return res.json({
       success: true,
-      totalDuration: Number(
-        totalDuration.toFixed(1)
-      ),
+      totalDuration: Number(totalDuration.toFixed(1)),
       partsCount: generatedParts.length,
       parts: generatedParts
     });
   } catch (error) {
-    console.error(
-      'Erro no divisor:',
-      error.message
-    );
+    console.error('Erro no divisor:', error.message);
 
     try {
       fs.unlinkSync(inputPath);
     } catch (_) {}
 
     if (!res.headersSent) {
-      return res.status(
-        error.statusCode || 500
-      ).json({
+      return res.status(error.statusCode || 500).json({
         success: false,
-        error: error.message ||
-          'Falha ao dividir o vídeo.'
+        error: error.message || 'Falha ao dividir o vídeo.'
       });
     }
   }
 });
 
-// Inicialização do servidor.
-app.listen(PORT, () => {
-  console.log(
-    `Servidor CortePro Master ouvindo na porta ${PORT}`
-  );
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor CortePro Master ouvindo na porta ${PORT}`);
 });
 
 ensureYtDlpReady().catch(err => {
-  console.error(
-    'Falha ao inicializar yt-dlp:',
-    err.message
-  );
+  console.error('Falha ao inicializar yt-dlp:', err.message);
 });
