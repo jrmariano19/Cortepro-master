@@ -220,15 +220,17 @@
         }
 
         .btn-download {
-            padding: 10px 14px;
+            padding: 12px 14px;
             background-color: var(--success);
             color: white;
             border-radius: 8px;
             text-decoration: none;
-            font-size: 0.92rem;
+            font-size: 0.95rem;
             font-weight: 600;
             display: inline-block;
             text-align: center;
+            border: none;
+            cursor: pointer;
         }
 
         .loading {
@@ -336,10 +338,10 @@
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> Extraindo vídeo e áudio...';
+            btn.innerHTML = '<span class="loading"></span> Preparando vídeo MP4 com áudio...';
             resultArea.classList.add('active');
             msgDiv.className = "msg";
-            msgDiv.innerText = "Conectando ao servidor... (Se estiver em repouso, pode levar até 40 segundos).";
+            msgDiv.innerText = "A extrair e juntar vídeo + áudio no servidor... Isso leva cerca de 10 a 25 segundos.";
             container.innerHTML = "";
 
             try {
@@ -355,19 +357,22 @@
                     : `${BACKEND_URL}${data.downloadUrl}`;
 
                 msgDiv.className = "msg success";
-                msgDiv.innerText = `Vídeo pronto: ${data.title}`;
+                msgDiv.innerText = `✅ ${data.title}! O download começou automaticamente (ou toque no botão verde abaixo):`;
 
                 container.innerHTML = `
                     <div style="margin-top: 10px;">
-                        <a href="${finalDownloadUrl}" class="btn-download" style="width: 100%; padding: 14px;">
+                        <a href="${finalDownloadUrl}" download="CortePro_Video.mp4" class="btn-download" style="width: 100%; padding: 14px;">
                             📥 Baixar Vídeo MP4 (Com Áudio)
                         </a>
                     </div>
                 `;
+
+                // Inicia o download automaticamente no telemóvel assim que o ficheiro fica pronto
+                window.location.assign(finalDownloadUrl);
             } catch (err) {
                 msgDiv.className = "msg error";
                 if (err.message.includes("Failed to fetch")) {
-                    msgDiv.innerText = "O servidor está acordando. Aguarde 15 segundos e toque em 'Processar e Baixar' novamente.";
+                    msgDiv.innerText = "O servidor do Render estava em repouso e acabou de acordar. Toque em 'Processar e Baixar' mais uma vez.";
                 } else {
                     msgDiv.innerText = err.message;
                 }
@@ -454,7 +459,7 @@
                                 <span>${formatTime(part.start)} até ${formatTime(part.end)}</span>
                             </div>
                             <div class="part-meta">🎯 ${part.reason}</div>
-                            <a href="${downloadHref}" class="btn-download">📥 Baixar Parte ${part.partNumber} (MP4)</a>
+                            <a href="${downloadHref}" download="CortePro_Parte_${part.partNumber}.mp4" class="btn-download">📥 Baixar Parte ${part.partNumber} (MP4)</a>
                         `;
                         partsList.appendChild(li);
                     });
