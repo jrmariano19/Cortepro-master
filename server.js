@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const YTDlpWrapModule = require('yt-dlp-wrap');
 const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
-const ffmpegStaticPath = require('ffmpeg-static');
-const { execFile, exec } = require('child_process');
+const ffmpegPath = require('ffmpeg-static');
+const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -15,30 +15,21 @@ app.use(cors());
 app.use(express.json());
 
 const isWin = process.platform === 'win32';
-if (!isWin && ffmpegStaticPath && fs.existsSync(ffmpegStaticPath)) {
+if (!isWin && ffmpegPath && fs.existsSync(ffmpegPath)) {
   try {
-    fs.chmodSync(ffmpegStaticPath, 0o755);
+    fs.chmodSync(ffmpegPath, 0o755);
   } catch (e) {}
 }
 
 const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp_linux';
 const binaryPath = isWin ? path.join(__dirname, binaryName) : path.join('/tmp', binaryName);
-const modernFfmpegPath = isWin ? ffmpegStaticPath : '/tmp/ffmpeg_modern';
 
 let ytDlpWrap = null;
 let isBinaryReady = false;
 let initError = null;
 let isDownloading = false;
 
-// Retorna o FFmpeg 7+ (com suporte a xHE-AAC do Facebook/Instagram) ou o ffmpeg-static como reserva
-function getFfmpegBinary() {
-  if (!isWin && fs.existsSync(modernFfmpegPath) && fs.statSync(modernFfmpegPath).size > 10000000) {
-    return modernFfmpegPath;
-  }
-  return ffmpegStaticPath;
-}
-
-// Limpa arquivos temporários com mais de 15 minutos em /tmp para não lotar o servidor
+// Limpa ficheiros temporários com mais de 10 minutos para manter a memória RAM do Render livre
 function cleanupOldTempFiles() {
   try {
     const now = Date.now();
@@ -48,7 +39,7 @@ function cleanupOldTempFiles() {
         const fullPath = path.join('/tmp', f);
         try {
           const stat = fs.statSync(fullPath);
-          if (now - stat.mtimeMs > 15 * 60 * 1000) {
+          if (now - stat.mtimeMs > 10 * 60 * 1000) {
             fs.unlinkSync(fullPath);
           }
         } catch (e) {}
@@ -57,10 +48,9 @@ function cleanupOldTempFiles() {
   } catch (e) {}
 }
 
-// Baixa arquivo seguindo redirecionamentos
 function downloadFileDirect(url, dest) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/2.0' } }, (response) => {
+    const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/2.5' } }, (response) => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         return downloadFileDirect(response.headers.location, dest).then(resolve).catch(reject);
       }
@@ -82,32 +72,6 @@ function downloadFileDirect(url, dest) {
   });
 }
 
-// Baixa o FFmpeg 7.1+ oficial do yt-dlp no Linux para decodificar áudio xHE-AAC (40.42) sem falhas
-async function ensureModernFfmpeg() {
-  if (isWin) return;
-  if (fs.existsSync(modernFfmpegPath) && fs.statSync(modernFfmpegPath).size > 10000000) {
-    return;
-  }
-  const archivePath = '/tmp/ffmpeg_build.tar.xz';
-  try {
-    console.log('Baixando FFmpeg 7+ atualizado para suporte completo de áudio...');
-    const url = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz';
-    await downloadFileDirect(url, archivePath);
-    await new Promise((resolve, reject) => {
-      exec(
-        `tar -xJf ${archivePath} -C /tmp --strip-components=2 --wildcards '*/bin/ffmpeg' && mv /tmp/ffmpeg ${modernFfmpegPath} && chmod 755 ${modernFfmpegPath}`,
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
-    if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
-    console.log('FFmpeg 7+ pronto em:', modernFfmpegPath);
-  } catch (err) {
-    console.warn('Usando ffmpeg-static padrão (aviso ao atualizar FFmpeg 7+):', err.message);
-    if (fs.existsSync(archivePath)) fs.unlink(archivePath, () => {});
-  }
-}
-
-// Prepara o yt-dlp e o FFmpeg
 async function ensureYtDlpReady() {
   if (isBinaryReady && ytDlpWrap && fs.existsSync(binaryPath)) {
     return true;
@@ -125,7 +89,7 @@ async function ensureYtDlpReady() {
         ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
         : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
 
-      console.log('Baixando binário oficial do yt-dlp:', downloadUrl);
+      console.log('A transferir binário oficial do yt-dlp:', downloadUrl);
       await downloadFileDirect(downloadUrl, binaryPath);
     }
 
@@ -137,9 +101,6 @@ async function ensureYtDlpReady() {
     isBinaryReady = true;
     isDownloading = false;
     console.log('yt-dlp pronto em:', binaryPath);
-
-    // Inicia o download do FFmpeg 7+ em segundo plano
-    ensureModernFfmpeg();
     return true;
   } catch (err) {
     initError = err.message;
@@ -153,26 +114,22 @@ ensureYtDlpReady();
 
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
-    const bin = getFfmpegBinary();
-    execFile(bin, args, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+    execFile(ffmpegPath, args, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
       if (error) return reject(new Error(stderr || error.message));
       resolve({ stdout, stderr });
     });
   });
 }
 
-// Inspeciona se o arquivo tem vídeo, se tem áudio, duração e codecs
 function inspectMediaStreams(filePath) {
   return new Promise((resolve) => {
-    const bin = getFfmpegBinary();
-    if (!bin) return resolve({ hasVideo: true, hasAudio: true, isH264: true, isAacLc: true, duration: 0 });
-    execFile(bin, ['-hide_banner', '-i', filePath], (error, stdout, stderr) => {
+    if (!ffmpegPath) return resolve({ hasVideo: true, hasAudio: true, isH264: true, isAacLc: true, duration: 0 });
+    execFile(ffmpegPath, ['-hide_banner', '-i', filePath], (error, stdout, stderr) => {
       const info = (stderr || '') + (stdout || '');
       const hasVideo = /Stream #\d+:\d+.*Video:/i.test(info);
       const hasAudio = /Stream #\d+:\d+.*Audio:/i.test(info);
       const isH264 = /Video:\s*h264/i.test(info);
-      const isXheAac = /40\.42|usac|xhe-aac/i.test(info);
-      const isAacLc = /Audio:\s*aac\s*\(LC\)/i.test(info) && !isXheAac;
+      const isAacLc = /Audio:\s*aac/i.test(info);
 
       let duration = 0;
       const durMatch = info.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
@@ -180,49 +137,42 @@ function inspectMediaStreams(filePath) {
         duration = parseInt(durMatch[1], 10) * 3600 + parseInt(durMatch[2], 10) * 60 + parseFloat(durMatch[3]);
       }
 
-      resolve({ hasVideo, hasAudio, isH264, isAacLc, isXheAac, duration, rawInfo: info });
+      resolve({ hasVideo, hasAudio, isH264, isAacLc, duration, rawInfo: info });
     });
   });
 }
 
-// Converte e garante que o arquivo final tenha Vídeo H.264 + Áudio AAC-LC audível em qualquer Android
+// Normaliza o ficheiro para MP4 (H.264 + AAC) garantindo compatibilidade com Android
 async function prepareAndroidMp4(inputPath, outputPath) {
-  const bin = getFfmpegBinary();
-  if (!bin) return inputPath;
+  if (!ffmpegPath) return inputPath;
 
   const check = await inspectMediaStreams(inputPath);
-  console.log(`Inspeção -> Video: ${check.hasVideo}, Audio: ${check.hasAudio}, H264: ${check.isH264}, AAC-LC: ${check.isAacLc}`);
+  console.log(`Inspeção -> Video: ${check.hasVideo}, Audio: ${check.hasAudio}, H264: ${check.isH264}, AAC: ${check.isAacLc}`);
 
   if (!check.hasVideo) {
-    throw new Error('O arquivo obtido não contém faixa de vídeo.');
+    throw new Error('O ficheiro obtido não contém faixa de vídeo.');
   }
 
-  // Se o vídeo já é H.264 e tem áudio, converte o áudio para AAC-LC padrão (corrige som mudo no Android)
-  if (check.isH264 && check.hasAudio) {
+  // Se já é H.264, faz a cópia rápida de vídeo e garante áudio AAC padrão + faststart
+  if (check.isH264) {
     try {
-      await runFfmpeg([
-        '-y',
-        '-i', inputPath,
-        '-map', '0:v:0',
-        '-map', '0:a:0',
-        '-c:v', 'copy',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-ar', '44100',
-        '-ac', '2',
-        '-movflags', '+faststart',
-        outputPath
-      ]);
-      const outCheck = await inspectMediaStreams(outputPath);
-      if (fs.existsSync(outputPath) && outCheck.hasVideo && outCheck.hasAudio) {
+      const args = ['-y', '-i', inputPath, '-c:v', 'copy'];
+      if (check.hasAudio) {
+        args.push('-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2');
+      }
+      args.push('-movflags', '+faststart', outputPath);
+
+      await runFfmpeg(args);
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
+        fs.unlink(inputPath, () => {});
         return outputPath;
       }
     } catch (e) {
-      console.warn('Aviso na conversão rápida de áudio, tentando recodificação completa:', e.message);
+      console.warn('Aviso na normalização rápida, a recodificar:', e.message);
     }
   }
 
-  // Recodificação completa para H.264 + AAC-LC
+  // Se veio noutro codec (VP9, HEVC, AV1), converte para H.264 + AAC
   try {
     const ffArgs = [
       '-y',
@@ -230,7 +180,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
       '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
-      '-crf', '25',
+      '-crf', '26',
       '-profile:v', 'main',
       '-level', '3.1'
     ];
@@ -241,6 +191,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
 
     await runFfmpeg(ffArgs);
     if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
+      fs.unlink(inputPath, () => {});
       return outputPath;
     }
   } catch (err) {
@@ -272,21 +223,83 @@ function isValidPublicUrl(urlString) {
   }
 }
 
+// Função central que transfere e prepara o vídeo MP4 num único passo
+async function downloadAndPrepareVideo(videoUrl) {
+  cleanupOldTempFiles();
+
+  const uniqueId = `cortepro_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const rawTemplate = path.join('/tmp', `${uniqueId}_raw.%(ext)s`);
+  const finalFileName = `${uniqueId}_ready.mp4`;
+  const finalFilePath = path.join('/tmp', finalFileName);
+
+  const findByPrefix = (prefix) => {
+    const files = fs.readdirSync('/tmp');
+    const matches = files.filter(
+      f => f.startsWith(prefix) && !f.endsWith('.part') && !f.endsWith('.ytdl')
+    );
+    const mp4Match = matches.find(f => f.endsWith('.mp4'));
+    const chosen = mp4Match || matches[0];
+    return chosen ? path.join('/tmp', chosen) : null;
+  };
+
+  // Seletor compatível com Instagram, TikTok, Facebook, Kwai e YouTube garantindo Vídeo + Áudio
+  const formatSelector = [
+    'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.2]',
+    'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.5]',
+    'bv*[vcodec^=avc]+ba[acodec!*=40.42]',
+    'hd',
+    'sd',
+    'bv*+ba[acodec!*=40.42]',
+    'b[ext=mp4]',
+    'bv*+ba',
+    'best'
+  ].join('/');
+
+  const args = [
+    videoUrl,
+    '-f', formatSelector,
+    '--merge-output-format', 'mp4',
+    '--no-playlist',
+    '--no-warnings',
+    '--no-check-certificates',
+    '--geo-bypass',
+    '--no-part',
+    '--max-filesize', '150M',
+    '-o', rawTemplate
+  ];
+
+  if (ffmpegPath) {
+    args.push('--ffmpeg-location', ffmpegPath);
+  }
+
+  await ytDlpWrap.execPromise(args);
+
+  const rawFilePath = findByPrefix(`${uniqueId}_raw`);
+  if (!rawFilePath || !fs.existsSync(rawFilePath)) {
+    throw new Error('Não foi possível transferir o ficheiro de vídeo desta publicação.');
+  }
+
+  const preparedPath = await prepareAndroidMp4(rawFilePath, finalFilePath);
+  const readyFileName = path.basename(preparedPath);
+
+  return {
+    fileName: readyFileName,
+    filePath: preparedPath
+  };
+}
+
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
     binaryReady: isBinaryReady,
-    ffmpegReady: Boolean(getFfmpegBinary()),
-    modernFfmpegReady: fs.existsSync(modernFfmpegPath),
+    ffmpegReady: Boolean(ffmpegPath && fs.existsSync(ffmpegPath)),
     initError: initError,
-    endpoint: '/api/extract?url=LINK_DO_VIDEO',
-    downloadEndpoint: '/api/download?url=LINK_DO_VIDEO',
-    smartSplitEndpoint: '/api/smart-split?parts=QUANTIDADE'
+    endpoint: '/api/extract?url=LINK_DO_VIDEO'
   });
 });
 
-// Rota 1: Extração de informações do vídeo
+// Rota 1: Descarrega, prepara o ficheiro MP4 com áudio e devolve o link pronto para download imediato
 app.get('/api/extract', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -303,201 +316,78 @@ app.get('/api/extract', async (req, res) => {
       return res.status(503).json({
         error: initError
           ? `Erro ao preparar extrator: ${initError}`
-          : 'O servidor está preparando o extrator. Aguarde 10 segundos e tente novamente.'
+          : 'O servidor está a iniciar o extrator. Aguarde 10 segundos e toque novamente.'
       });
     }
   }
 
   try {
-    const stdout = await ytDlpWrap.execPromise([
-      videoUrl,
-      '--dump-single-json',
-      '--no-playlist',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--geo-bypass'
-    ]);
-
-    const metadata = JSON.parse(stdout);
-    const serverDownloadUrl = `/api/download?url=${encodeURIComponent(videoUrl)}`;
+    console.log(`A preparar vídeo completo para: ${videoUrl}`);
+    const result = await downloadAndPrepareVideo(videoUrl);
 
     res.json({
       success: true,
-      title: metadata.title || 'Vídeo CortePro',
-      duration: metadata.duration || 0,
-      thumbnail: metadata.thumbnail || '',
-      extractor: metadata.extractor_key || 'Web',
-      downloadUrl: serverDownloadUrl
+      title: 'Vídeo MP4 Pronto (Com Áudio)',
+      downloadUrl: `/api/file/${result.fileName}`
     });
   } catch (error) {
-    console.error('Erro na extração:', error.message);
+    console.error('Erro ao preparar vídeo:', error.message);
     res.status(500).json({
-      error: 'Não foi possível extrair este vídeo. Verifique se o link é público e tente novamente.',
+      error: 'Não foi possível transferir este vídeo. Verifique se o link é público e tente novamente.',
       details: error.message
     });
   }
 });
 
-// Rota 2: Download do vídeo garantindo Vídeo + Áudio funcionando no Android
+// Rota 2: Entrega instantaneamente o ficheiro MP4 já preparado para o Android
+app.get('/api/file/:fileName', (req, res) => {
+  const fileName = path.basename(req.params.fileName);
+  if (!fileName.startsWith('cortepro_') && !fileName.startsWith('splitjob_')) {
+    return res.status(400).send('Ficheiro inválido.');
+  }
+
+  const filePath = path.join('/tmp', fileName);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('O ficheiro expirou no servidor. Por favor, clique em Processar e Baixar novamente.');
+  }
+
+  const stat = fs.statSync(filePath);
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Content-Length', stat.size);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Disposition', `attachment; filename="CortePro_${Date.now()}.mp4"`);
+
+  const stream = fs.createReadStream(filePath);
+  stream.pipe(res);
+});
+
+// Rota reserva caso seja chamada diretamente
 app.get('/api/download', async (req, res) => {
-  cleanupOldTempFiles();
   const videoUrl = req.query.url;
-
   if (!videoUrl || !isValidPublicUrl(videoUrl)) {
-    return res.status(400).send('URL inválida ou ausente.');
+    return res.status(400).send('URL inválida.');
   }
-
-  if (!isBinaryReady) {
-    const readyNow = await ensureYtDlpReady();
-    if (!readyNow) {
-      return res.status(503).send('Extrator iniciando. Tente novamente em alguns segundos.');
-    }
-  }
-
-  const uniquePrefix = `cortepro_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  const outputTemplate = path.join('/tmp', `${uniquePrefix}_raw.%(ext)s`);
-  const normalizedPath = path.join('/tmp', `${uniquePrefix}_android.mp4`);
-
-  const findFileByPrefix = (prefix) => {
-    const files = fs.readdirSync('/tmp');
-    const matches = files.filter(
-      f => f.startsWith(prefix) && !f.endsWith('.part') && !f.endsWith('.ytdl')
-    );
-    const mp4Match = matches.find(f => f.endsWith('.mp4'));
-    const chosen = mp4Match || matches[0];
-    return chosen ? path.join('/tmp', chosen) : null;
-  };
-
-  const cleanupFiles = () => {
-    try {
-      const files = fs.readdirSync('/tmp');
-      files.forEach(f => {
-        if (f.startsWith(uniquePrefix)) {
-          fs.unlink(path.join('/tmp', f), () => {});
-        }
-      });
-    } catch (e) {}
-  };
-
   try {
-    const activeFfmpeg = getFfmpegBinary();
-
-    // Prioriza formatos com Vídeo + Áudio compatíveis, mantendo fallback bv*+ba para NUNCA baixar sem som
-    const formatSelector = [
-      'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.2]',
-      'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.5]',
-      'hd',
-      'sd',
-      'b[ext=mp4][vcodec^=avc][acodec!=none]',
-      'bv*[vcodec^=avc]+ba[ext=m4a]',
-      'bv*[vcodec^=avc]+ba',
-      'bv*+ba',
-      'b[vcodec!=none][acodec!=none]',
-      'best'
-    ].join('/');
-
-    const args = [
-      videoUrl,
-      '-f', formatSelector,
-      '--merge-output-format', 'mp4',
-      '--no-playlist',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--geo-bypass',
-      '--no-part',
-      '-o', outputTemplate
-    ];
-
-    if (activeFfmpeg) {
-      args.push('--ffmpeg-location', activeFfmpeg);
-    }
-
-    await ytDlpWrap.execPromise(args);
-
-    let rawFilePath = findFileByPrefix(`${uniquePrefix}_raw`);
-    if (!rawFilePath || !fs.existsSync(rawFilePath)) {
-      cleanupFiles();
-      return res.status(422).send('Não foi possível gerar o arquivo de vídeo para download.');
-    }
-
-    // Verifica se o arquivo baixado possui faixa de áudio; se não tiver, baixa a faixa de áudio separada e une!
-    const initialCheck = await inspectMediaStreams(rawFilePath);
-    if (!initialCheck.hasAudio && activeFfmpeg) {
-      console.log('Arquivo veio sem áudio na 1ª tentativa. Extraindo faixa de áudio separada para unir...');
-      const audioTemplate = path.join('/tmp', `${uniquePrefix}_audio.%(ext)s`);
-      try {
-        await ytDlpWrap.execPromise([
-          videoUrl,
-          '-f', 'ba[acodec^=mp4a.40.2]/ba[acodec^=mp4a.40.5]/ba/bestaudio/best',
-          '--no-playlist',
-          '--no-warnings',
-          '--no-check-certificates',
-          '-o', audioTemplate
-        ]);
-        const audioFilePath = findFileByPrefix(`${uniquePrefix}_audio`);
-        if (audioFilePath && fs.existsSync(audioFilePath)) {
-          const mergedPath = path.join('/tmp', `${uniquePrefix}_merged.mp4`);
-          await runFfmpeg([
-            '-y',
-            '-i', rawFilePath,
-            '-i', audioFilePath,
-            '-map', '0:v:0',
-            '-map', '1:a:0',
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            '-b:a', '128k',
-            '-ar', '44100',
-            '-ac', '2',
-            '-shortest',
-            '-movflags', '+faststart',
-            mergedPath
-          ]);
-          if (fs.existsSync(mergedPath)) {
-            rawFilePath = mergedPath;
-          }
-        }
-      } catch (audioErr) {
-        console.warn('Não foi possível unir áudio extra:', audioErr.message);
-      }
-    }
-
-    const finalFilePath = await prepareAndroidMp4(rawFilePath, normalizedPath);
-    const stat = fs.statSync(finalFilePath);
-
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Length', stat.size);
-    res.setHeader('Content-Disposition', `attachment; filename="cortepro_${Date.now()}.mp4"`);
-
-    const readStream = fs.createReadStream(finalFilePath);
-    readStream.pipe(res);
-
-    readStream.on('close', cleanupFiles);
-    readStream.on('error', cleanupFiles);
-    res.on('close', cleanupFiles);
-  } catch (error) {
-    console.error('Erro no download:', error.message);
-    cleanupFiles();
-    if (!res.headersSent) {
-      res.status(500).send(`Falha ao baixar o vídeo: ${error.message}`);
-    }
+    const result = await downloadAndPrepareVideo(videoUrl);
+    return res.redirect(`/api/file/${result.fileName}`);
+  } catch (err) {
+    return res.status(500).send(`Falha ao transferir vídeo: ${err.message}`);
   }
 });
 
 // --- FUNCIONALIDADE B: DIVISOR AUTO-INTELIGENTE ---
 
-// Detecta pausas de fala usando silencedetect em múltiplos níveis de ruído (funciona mesmo com música de fundo)
 async function detectSpeechPauses(filePath) {
-  const bin = getFfmpegBinary();
-  if (!bin) return [];
+  if (!ffmpegPath) return [];
 
-  const thresholds = ['-32dB', '-24dB', '-18dB'];
+  const thresholds = ['-30dB', '-22dB'];
   let allPauses = [];
 
   for (const noiseLevel of thresholds) {
     const pauses = await new Promise((resolve) => {
       execFile(
-        bin,
-        ['-hide_banner', '-vn', '-i', filePath, '-af', `silencedetect=noise=${noiseLevel}:d=0.22`, '-f', 'null', '-'],
+        ffmpegPath,
+        ['-hide_banner', '-vn', '-i', filePath, '-af', `silencedetect=noise=${noiseLevel}:d=0.25`, '-f', 'null', '-'],
         { maxBuffer: 1024 * 1024 * 10 },
         (err, stdout, stderr) => {
           const output = (stderr || '') + (stdout || '');
@@ -539,7 +429,6 @@ async function detectSpeechPauses(filePath) {
   return allPauses;
 }
 
-// Calcula onde cortar cada parte e onde começar a próxima de forma inteligente (sem partes obrigatoriamente iguais)
 function computeSmartSegments(totalDuration, partsCount, pauses) {
   const segments = [];
   let currentStart = 0;
@@ -550,7 +439,6 @@ function computeSmartSegments(totalDuration, partsCount, pauses) {
     const targetCut = currentStart + remainingDuration / remainingParts;
     const avgPartLen = totalDuration / partsCount;
 
-    // Janela flexível (+/- 35% da duração média) para permitir partes de tamanhos diferentes onde a fala pausa
     const searchRadius = Math.max(4, Math.min(20, avgPartLen * 0.35));
     const minCut = Math.max(currentStart + 3, targetCut - searchRadius);
     const maxCut = Math.min(totalDuration - 3 * (remainingParts - 1), targetCut + searchRadius);
@@ -562,7 +450,6 @@ function computeSmartSegments(totalDuration, partsCount, pauses) {
     let cutReason = 'Transição suave com continuidade';
 
     if (candidates.length > 0) {
-      // Escolhe a melhor pausa combinando duração do silêncio e proximidade do alvo
       let bestPause = candidates[0];
       let bestScore = -Infinity;
 
@@ -576,12 +463,10 @@ function computeSmartSegments(totalDuration, partsCount, pauses) {
         }
       }
 
-      // Termina a parte atual logo após a frase acabar e inicia a próxima exatamente antes da nova frase
       chosenCutEnd = Math.min(totalDuration, bestPause.start + Math.min(bestPause.duration * 0.65, 0.35));
       nextPartStart = Math.max(0, bestPause.end - Math.min(bestPause.duration * 0.35, 0.25));
-      cutReason = 'Pausa natural na fala detectada';
+      cutReason = 'Pausa natural na fala detetada';
     } else {
-      // Se for uma cena contínua sem pausa, aplica 0.35s de recapitulação para não cortar sílabas
       chosenCutEnd = targetCut;
       nextPartStart = Math.max(currentStart, targetCut - 0.35);
     }
@@ -597,7 +482,6 @@ function computeSmartSegments(totalDuration, partsCount, pauses) {
     currentStart = nextPartStart;
   }
 
-  // Última parte vai até o final do vídeo
   segments.push({
     partNumber: partsCount,
     start: Number(currentStart.toFixed(2)),
@@ -609,7 +493,6 @@ function computeSmartSegments(totalDuration, partsCount, pauses) {
   return segments;
 }
 
-// Rota 3: Recebe o vídeo da galeria, analisa pausas de fala e gera as partes em MP4 compatível com Android
 app.post('/api/smart-split', async (req, res) => {
   cleanupOldTempFiles();
 
@@ -618,7 +501,6 @@ app.post('/api/smart-split', async (req, res) => {
   const inputPath = path.join('/tmp', `${jobId}_input.mp4`);
 
   try {
-    // Salva o fluxo do vídeo enviado pelo celular direto em /tmp
     await new Promise((resolve, reject) => {
       const writeStream = fs.createWriteStream(inputPath);
       req.pipe(writeStream);
@@ -628,7 +510,7 @@ app.post('/api/smart-split', async (req, res) => {
     });
 
     if (!fs.existsSync(inputPath) || fs.statSync(inputPath).size < 1000) {
-      return res.status(400).json({ error: 'Arquivo de vídeo inválido ou vazio.' });
+      return res.status(400).json({ error: 'Ficheiro de vídeo inválido ou vazio.' });
     }
 
     const mediaInfo = await inspectMediaStreams(inputPath);
@@ -638,7 +520,6 @@ app.post('/api/smart-split', async (req, res) => {
       return res.status(400).json({ error: 'O vídeo é muito curto para ser dividido.' });
     }
 
-    console.log(`Analisando pausas inteligentes para ${partsCount} partes (Duração total: ${totalDuration}s)...`);
     const pauses = await detectSpeechPauses(inputPath);
     const segments = computeSmartSegments(totalDuration, partsCount, pauses);
 
@@ -656,7 +537,7 @@ app.post('/api/smart-split', async (req, res) => {
         '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
         '-c:v', 'libx264',
         '-preset', 'ultrafast',
-        '-crf', '25',
+        '-crf', '26',
         '-profile:v', 'main',
         '-level', '3.1',
         '-c:a', 'aac',
@@ -673,11 +554,10 @@ app.post('/api/smart-split', async (req, res) => {
         end: seg.end,
         duration: seg.duration,
         reason: seg.reason,
-        downloadUrl: `/api/split-download/${partFileName}`
+        downloadUrl: `/api/file/${partFileName}`
       });
     }
 
-    // Remove o arquivo original bruto para economizar espaço, mantendo apenas as partes prontas
     if (fs.existsSync(inputPath)) {
       fs.unlink(inputPath, () => {});
     }
@@ -698,29 +578,6 @@ app.post('/api/smart-split', async (req, res) => {
   }
 });
 
-// Rota 4: Entrega cada parte dividida para download no Android
-app.get('/api/split-download/:fileName', (req, res) => {
-  const fileName = path.basename(req.params.fileName);
-  if (!fileName.startsWith('splitjob_') || !fileName.endsWith('.mp4')) {
-    return res.status(400).send('Arquivo inválido.');
-  }
-
-  const filePath = path.join('/tmp', fileName);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send('Esta parte expirou. Por favor, divida o vídeo novamente.');
-  }
-
-  const stat = fs.statSync(filePath);
-  const partMatch = fileName.match(/parte_(\d+)\.mp4$/);
-  const friendlyName = partMatch ? `CortePro_Parte_${partMatch[1]}.mp4` : `CortePro_${fileName}`;
-
-  res.setHeader('Content-Type', 'video/mp4');
-  res.setHeader('Content-Length', stat.size);
-  res.setHeader('Content-Disposition', `attachment; filename="${friendlyName}"`);
-
-  fs.createReadStream(filePath).pipe(res);
-});
-
 app.listen(PORT, () => {
-  console.log(`Servidor CortePro Master rodando na porta ${PORT}`);
+  console.log(`Servidor CortePro Master a correr na porta ${PORT}`);
 });
