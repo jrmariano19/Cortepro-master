@@ -1,483 +1,804 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master</title>
-    <style>
-        :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-secondary: #94a3b8;
-            --border: #334155;
-            --success: #22c55e;
-            --error: #ef4444;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>CortePro Master</title>
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, sans-serif;
+    }
 
-        .container {
-            width: 100%;
-            max-width: 600px;
-        }
+    body {
+      min-height: 100vh;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
 
-        header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+    .container {
+      width: 100%;
+      max-width: 620px;
+    }
 
-        header h1 {
-            font-size: 1.8rem;
-            color: var(--primary);
-            margin-bottom: 4px;
-        }
+    header {
+      text-align: center;
+      margin: 12px 0 24px;
+    }
 
-        header p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
+    header h1 {
+      color: #818cf8;
+      font-size: 1.9rem;
+      margin-bottom: 6px;
+    }
 
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
 
-        .card h2 {
-            font-size: 1.2rem;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 5px 18px rgba(0, 0, 0, 0.15);
+    }
 
-        .form-group {
-            margin-bottom: 14px;
-        }
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 16px;
+    }
 
-        label {
-            display: block;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-        }
+    .form-group {
+      margin-bottom: 15px;
+    }
 
-        input[type="text"], input[type="number"], input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 1rem;
-        }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.86rem;
+      margin-bottom: 7px;
+    }
 
-        input[type="file"] {
-            padding: 8px;
-            cursor: pointer;
-        }
+    input[type="text"],
+    input[type="number"],
+    input[type="file"] {
+      width: 100%;
+      min-width: 0;
+      padding: 12px;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+    }
 
-        .quick-parts {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
+    input:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
 
-        .chip-btn {
-            flex: 1;
-            padding: 8px;
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
+    .primary-btn {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 9px;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-        .chip-btn.active {
-            border-color: var(--primary);
-            background-color: rgba(99, 102, 241, 0.15);
-            color: var(--text);
-        }
+    .primary-btn:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
 
-        .smart-badge {
-            background-color: rgba(99, 102, 241, 0.12);
-            border: 1px solid rgba(99, 102, 241, 0.35);
-            color: #c7d2fe;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            line-height: 1.4;
-            margin-bottom: 14px;
-        }
+    .primary-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
 
-        button.primary-btn {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+    .quick-parts {
+      display: flex;
+      gap: 7px;
+      margin-top: 8px;
+    }
 
-        button.primary-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+    .chip-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 3px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
 
-        button.primary-btn:hover:not(:disabled) {
-            background-color: var(--primary-hover);
-        }
+    .chip-btn.active {
+      color: white;
+      border-color: var(--primary);
+      background: #312e81;
+    }
 
-        .result-area {
-            margin-top: 16px;
-            padding: 12px;
-            background-color: var(--bg);
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            display: none;
-        }
+    .smart-badge {
+      margin-bottom: 15px;
+      padding: 11px;
+      border: 1px solid #4338ca;
+      border-radius: 8px;
+      background: #1e1b4b;
+      color: #c7d2fe;
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
 
-        .result-area.active {
-            display: block;
-        }
+    .result-area {
+      display: none;
+      margin-top: 15px;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+    }
 
-        .msg {
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-            line-height: 1.4;
-        }
+    .result-area.active {
+      display: block;
+    }
 
-        .msg.error {
-            color: var(--error);
-        }
+    .msg {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
 
-        .msg.success {
-            color: var(--success);
-        }
+    .msg.success {
+      color: var(--success);
+    }
 
-        video {
-            width: 100%;
-            border-radius: 8px;
-            margin-top: 10px;
-            max-height: 280px;
-            background: #000;
-        }
+    .msg.error {
+      color: #fca5a5;
+    }
 
-        .parts-list {
-            list-style: none;
-            margin-top: 10px;
-        }
+    .msg.info {
+      color: #cbd5e1;
+    }
 
-        .parts-list li {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
-        }
+    .btn-download {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--success);
+      color: #052e16;
+      font-weight: 800;
+      font-size: 0.95rem;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
 
-        .parts-list li:last-child {
-            border-bottom: none;
-        }
+    video {
+      display: block;
+      width: 100%;
+      max-height: 300px;
+      margin-top: 12px;
+      border-radius: 8px;
+      background: black;
+    }
 
-        .part-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.9rem;
-        }
+    .parts-list {
+      list-style: none;
+      margin-top: 10px;
+    }
 
-        .part-meta {
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-        }
+    .parts-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
 
-        .btn-download {
-            padding: 12px 14px;
-            background-color: var(--success);
-            color: white;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.95rem;
-            font-weight: 600;
-            display: inline-block;
-            text-align: center;
-            border: none;
-            cursor: pointer;
-        }
+    .parts-list li:last-child {
+      border-bottom: 0;
+    }
 
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 0.8s ease infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
+    .part-info {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 0.88rem;
+    }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    .part-meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      margin-right: 8px;
+      border: 2px solid #ffffff66;
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .small-note {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+  </style>
 </head>
+
 <body>
+  <main class="container">
+    <header>
+      <h1>CortePro Master</h1>
+      <p>Baixe vídeos com áudio e divida em partes inteligentes</p>
+    </header>
 
-    <div class="container">
-        <header>
-            <h1>CortePro Master</h1>
-            <p>Baixe vídeos com áudio e divida em partes auto-inteligentes</p>
-        </header>
+    <section class="card">
+      <h2>📥 Baixador de vídeos</h2>
 
-        <!-- FUNCIONALIDADE A: BAIXADOR -->
-        <div class="card">
-            <h2>📥 Baixador de Vídeos</h2>
-            <div class="form-group">
-                <label for="videoUrl">Cole o link público (TikTok, Instagram, Kwai, Facebook, YouTube):</label>
-                <input type="text" id="videoUrl" placeholder="https://...">
-            </div>
-            <button id="btnExtract" class="primary-btn" onclick="extractVideo()">Processar e Baixar</button>
-            
-            <div id="extractResult" class="result-area">
-                <div id="extractMsg" class="msg"></div>
-                <div id="extractContainer"></div>
-            </div>
+      <div class="form-group">
+        <label for="videoUrl">
+          Cole o link público do TikTok, Instagram, Kwai,
+          Facebook ou YouTube:
+        </label>
+        <input
+          type="text"
+          id="videoUrl"
+          placeholder="https://..."
+          autocomplete="url"
+          inputmode="url"
+        >
+      </div>
+
+      <button id="btnExtract" class="primary-btn" type="button">
+        Processar e baixar
+      </button>
+
+      <div id="extractResult" class="result-area" aria-live="polite">
+        <div id="extractMsg" class="msg info"></div>
+        <div id="extractContainer"></div>
+      </div>
+
+      <p class="small-note">
+        O tempo depende do tamanho do vídeo, da conexão e da
+        disponibilidade da plataforma. Use apenas conteúdo que
+        você tenha autorização para baixar.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>✂️ Divisor auto-inteligente</h2>
+
+      <div class="smart-badge">
+        🧠 <strong>Corte inteligente:</strong>
+        escolha o número de partes. O servidor analisa as pausas
+        no áudio para tentar evitar cortes no meio das frases.
+        As durações podem variar.
+      </div>
+
+      <div class="form-group">
+        <label for="localVideo">
+          1. Selecione um vídeo da galeria:
+        </label>
+        <input
+          type="file"
+          id="localVideo"
+          accept="video/*"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="partsCount">
+          2. Em quantas partes deseja dividir?
+        </label>
+        <input
+          type="number"
+          id="partsCount"
+          value="2"
+          min="2"
+          max="20"
+          step="1"
+        >
+
+        <div class="quick-parts">
+          <button type="button" class="chip-btn active" data-parts="2">2 partes</button>
+          <button type="button" class="chip-btn" data-parts="3">3 partes</button>
+          <button type="button" class="chip-btn" data-parts="4">4 partes</button>
+          <button type="button" class="chip-btn" data-parts="5">5 partes</button>
         </div>
+      </div>
 
-        <!-- FUNCIONALIDADE B: DIVISOR AUTO-INTELIGENTE -->
-        <div class="card">
-            <h2>✂️ Divisor Auto-Inteligente</h2>
-            <div class="smart-badge">
-                🧠 <strong>Corte Inteligente Ativo:</strong> Você escolhe em quantas partes quer dividir e o sistema encontra pausas naturais na fala para não cortar frases no meio (as partes podem ter durações diferentes).
-            </div>
+      <video id="previewVideo" controls playsinline hidden></video>
 
-            <div class="form-group">
-                <label for="localVideo">1. Selecione um vídeo da galeria:</label>
-                <input type="file" id="localVideo" accept="video/*" onchange="loadLocalVideo(event)">
-            </div>
-            
-            <div class="form-group">
-                <label for="partsCount">2. Em quantas partes deseja dividir o vídeo?</label>
-                <input type="number" id="partsCount" value="2" min="2" max="20">
-                <div class="quick-parts">
-                    <button type="button" class="chip-btn active" onclick="setPartsCount(2, this)">2 Partes</button>
-                    <button type="button" class="chip-btn" onclick="setPartsCount(3, this)">3 Partes</button>
-                    <button type="button" class="chip-btn" onclick="setPartsCount(4, this)">4 Partes</button>
-                    <button type="button" class="chip-btn" onclick="setPartsCount(5, this)">5 Partes</button>
-                </div>
-            </div>
+      <button
+        id="btnSplit"
+        class="primary-btn"
+        type="button"
+        style="margin-top:14px"
+        hidden
+      >
+        ✂️ Analisar e dividir vídeo
+      </button>
 
-            <video id="previewVideo" controls style="display:none;"></video>
-            
-            <button id="btnSplit" class="primary-btn" onclick="splitVideoSmart()" style="margin-top: 14px; display:none;">
-                ✂️ Analisar e Dividir Vídeo
-            </button>
+      <div id="splitResult" class="result-area" aria-live="polite">
+        <div id="splitMsg" class="msg info"></div>
+        <ul id="partsList" class="parts-list"></ul>
+      </div>
+    </section>
+  </main>
 
-            <div id="splitResult" class="result-area">
-                <div id="splitMsg" class="msg"></div>
-                <ul id="partsList" class="parts-list"></ul>
-            </div>
-        </div>
-    </div>
+  <script>
+    // Endereço do backend no Render.
+    const BACKEND_URL = "https://cortepro-master.onrender.com";
 
-    <script>
-        const BACKEND_URL = "https://cortepro-master.onrender.com";
+    const $ = id => document.getElementById(id);
 
-        function setPartsCount(num, btnEl) {
-            document.getElementById('partsCount').value = num;
-            document.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
-            if (btnEl) btnEl.classList.add('active');
+    function setMessage(element, message, type = "info") {
+      element.className = "msg " + type;
+      element.textContent = message;
+    }
+
+    function setLoading(button, loading, text) {
+      button.disabled = loading;
+
+      if (loading) {
+        button.innerHTML =
+          '<span class="loading"></span>' + text;
+      } else {
+        button.textContent = text;
+      }
+    }
+
+    function makeBackendUrl(url) {
+      if (!url) {
+        throw new Error("O servidor não forneceu o endereço do arquivo.");
+      }
+
+      if (/^https?:\/\//i.test(url)) {
+        return url;
+      }
+
+      return BACKEND_URL + (
+        url.startsWith("/") ? url : "/" + url
+      );
+    }
+
+    async function readJsonResponse(response) {
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (_) {
+        throw new Error(
+          "O servidor retornou uma resposta inválida. " +
+          "Verifique os logs do Render."
+        );
+      }
+
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.error ||
+          data.details ||
+          "Não foi possível processar o vídeo."
+        );
+      }
+
+      return data;
+    }
+
+    // BAIXADOR
+    async function extractVideo() {
+      const url = $("videoUrl").value.trim();
+      const button = $("btnExtract");
+      const result = $("extractResult");
+      const message = $("extractMsg");
+      const container = $("extractContainer");
+
+      if (!url) {
+        setMessage(message, "Cole primeiro o link do vídeo.", "error");
+        result.classList.add("active");
+        return;
+      }
+
+      try {
+        const parsed = new URL(url);
+
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          throw new Error("Informe um link HTTP ou HTTPS válido.");
+        }
+      } catch (error) {
+        setMessage(
+          message,
+          error.message || "O endereço informado não é válido.",
+          "error"
+        );
+        result.classList.add("active");
+        return;
+      }
+
+      result.classList.add("active");
+      container.replaceChildren();
+
+      setLoading(
+        button,
+        true,
+        "Extraindo vídeo e verificando áudio..."
+      );
+
+      setMessage(
+        message,
+        "Aguarde. A extração e a conversão podem levar alguns minutos.",
+        "info"
+      );
+
+      // O download pode demorar mais que uma requisição comum.
+      // Não usamos um timeout curto que interrompa vídeos grandes.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12 * 60 * 1000);
+
+      try {
+        const response = await fetch(
+          BACKEND_URL + "/api/extract?url=" + encodeURIComponent(url),
+          {
+            method: "GET",
+            signal: controller.signal,
+            cache: "no-store"
+          }
+        );
+
+        const data = await readJsonResponse(response);
+        const downloadUrl = makeBackendUrl(data.downloadUrl);
+
+        setMessage(
+          message,
+          "Vídeo processado. Use o botão abaixo para iniciar o download.",
+          "success"
+        );
+
+        const link = document.createElement("a");
+        link.className = "btn-download";
+        link.href = downloadUrl;
+        link.download = "CortePro_Video.mp4";
+        link.textContent = "📥 Baixar vídeo MP4";
+        link.rel = "noopener";
+
+        container.appendChild(link);
+
+        // Não redireciona a página automaticamente:
+        // o usuário inicia o download tocando no botão.
+      } catch (error) {
+        let text = error.message || "Falha ao processar o vídeo.";
+
+        if (error.name === "AbortError") {
+          text =
+            "O processamento demorou mais que o limite de espera. " +
+            "Confira os logs do Render e tente novamente.";
+        } else if (
+          error instanceof TypeError ||
+          text.toLowerCase().includes("failed to fetch")
+        ) {
+          text =
+            "Não foi possível conectar ao Render. " +
+            "O servidor pode estar iniciando ou indisponível. " +
+            "Aguarde e tente novamente.";
         }
 
-        function formatTime(seconds) {
-            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
+        setMessage(message, text, "error");
+      } finally {
+        clearTimeout(timeoutId);
+        setLoading(button, false, "Processar e baixar");
+      }
+    }
+
+    $("btnExtract").addEventListener("click", extractVideo);
+
+    $("videoUrl").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        extractVideo();
+      }
+    });
+
+    // DIVISOR
+    let selectedFile = null;
+    let previewObjectUrl = null;
+
+    function formatTime(seconds) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const secs = total % 60;
+
+      if (hours > 0) {
+        return [
+          String(hours).padStart(2, "0"),
+          String(minutes).padStart(2, "0"),
+          String(secs).padStart(2, "0")
+        ].join(":");
+      }
+
+      return [
+        String(minutes).padStart(2, "0"),
+        String(secs).padStart(2, "0")
+      ].join(":");
+    }
+
+    function updatePartsButtons() {
+      const current = Number($("partsCount").value);
+
+      document.querySelectorAll(".chip-btn").forEach(button => {
+        button.classList.toggle(
+          "active",
+          Number(button.dataset.parts) === current
+        );
+      });
+    }
+
+    document.querySelectorAll(".chip-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        $("partsCount").value = button.dataset.parts;
+        updatePartsButtons();
+      });
+    });
+
+    $("partsCount").addEventListener("change", () => {
+      let count = parseInt($("partsCount").value, 10);
+
+      if (!Number.isFinite(count)) count = 2;
+
+      count = Math.max(2, Math.min(20, count));
+
+      $("partsCount").value = count;
+      updatePartsButtons();
+    });
+
+    $("localVideo").addEventListener("change", event => {
+      const file = event.target.files && event.target.files[0];
+
+      if (!file) return;
+
+      if (!file.type.startsWith("video/")) {
+        alert("Selecione um arquivo de vídeo válido.");
+        event.target.value = "";
+        return;
+      }
+
+      selectedFile = file;
+
+      const video = $("previewVideo");
+
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+      }
+
+      previewObjectUrl = URL.createObjectURL(file);
+      video.src = previewObjectUrl;
+      video.hidden = false;
+      $("btnSplit").hidden = false;
+
+      $("splitResult").classList.remove("active");
+      $("partsList").replaceChildren();
+    });
+
+    function splitVideoSmart() {
+      if (!selectedFile) {
+        alert("Selecione um vídeo da galeria primeiro.");
+        return;
+      }
+
+      const partsCount = Math.max(
+        2,
+        Math.min(
+          20,
+          parseInt($("partsCount").value, 10) || 2
+        )
+      );
+
+      const button = $("btnSplit");
+      const result = $("splitResult");
+      const message = $("splitMsg");
+      const list = $("partsList");
+
+      result.classList.add("active");
+      list.replaceChildren();
+
+      setLoading(button, true, "Enviando vídeo...");
+      setMessage(
+        message,
+        "Enviando o vídeo ao servidor. Não feche esta página.",
+        "info"
+      );
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.open(
+        "POST",
+        BACKEND_URL + "/api/smart-split?parts=" + partsCount,
+        true
+      );
+
+      xhr.setRequestHeader(
+        "Content-Type",
+        "application/octet-stream"
+      );
+
+      xhr.timeout = 20 * 60 * 1000;
+
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable) {
+          const percent = Math.round(
+            event.loaded / event.total * 100
+          );
+
+          setMessage(
+            message,
+            percent < 100
+              ? "Enviando vídeo: " + percent + "%."
+              : "Upload concluído. Analisando áudio e criando as partes...",
+            "info"
+          );
+        }
+      };
+
+      xhr.onload = () => {
+        setLoading(
+          button,
+          false,
+          "✂️ Analisar e dividir novamente"
+        );
+
+        let data;
+
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch (_) {
+          setMessage(
+            message,
+            "O servidor retornou uma resposta inválida. Verifique os logs do Render.",
+            "error"
+          );
+          return;
         }
 
-        // --- FUNCIONALIDADE A: BAIXADOR DE VÍDEOS ---
-        async function extractVideo() {
-            const urlInput = document.getElementById('videoUrl').value.trim();
-            const btn = document.getElementById('btnExtract');
-            const resultArea = document.getElementById('extractResult');
-            const msgDiv = document.getElementById('extractMsg');
-            const container = document.getElementById('extractContainer');
-
-            if (!urlInput) {
-                alert("Por favor, cole um link de vídeo válido.");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> Preparando vídeo MP4 com áudio...';
-            resultArea.classList.add('active');
-            msgDiv.className = "msg";
-            msgDiv.innerText = "A extrair e juntar vídeo + áudio no servidor... Isso leva cerca de 10 a 25 segundos.";
-            container.innerHTML = "";
-
-            try {
-                const response = await fetch(`${BACKEND_URL}/api/extract?url=${encodeURIComponent(urlInput)}`);
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || "Falha ao extrair o vídeo.");
-                }
-
-                const finalDownloadUrl = data.downloadUrl.startsWith('http')
-                    ? data.downloadUrl
-                    : `${BACKEND_URL}${data.downloadUrl}`;
-
-                msgDiv.className = "msg success";
-                msgDiv.innerText = `✅ ${data.title}! O download começou automaticamente (ou toque no botão verde abaixo):`;
-
-                container.innerHTML = `
-                    <div style="margin-top: 10px;">
-                        <a href="${finalDownloadUrl}" download="CortePro_Video.mp4" class="btn-download" style="width: 100%; padding: 14px;">
-                            📥 Baixar Vídeo MP4 (Com Áudio)
-                        </a>
-                    </div>
-                `;
-
-                // Inicia o download automaticamente no telemóvel assim que o ficheiro fica pronto
-                window.location.assign(finalDownloadUrl);
-            } catch (err) {
-                msgDiv.className = "msg error";
-                if (err.message.includes("Failed to fetch")) {
-                    msgDiv.innerText = "O servidor do Render estava em repouso e acabou de acordar. Toque em 'Processar e Baixar' mais uma vez.";
-                } else {
-                    msgDiv.innerText = err.message;
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Processar e Baixar';
-            }
+        if (xhr.status < 200 || xhr.status >= 300 || !data.success) {
+          setMessage(
+            message,
+            data.error || "Não foi possível dividir o vídeo.",
+            "error"
+          );
+          return;
         }
 
-        // --- FUNCIONALIDADE B: DIVISOR AUTO-INTELIGENTE ---
-        let selectedFile = null;
+        setMessage(
+          message,
+          "Concluído! Duração: " +
+          formatTime(data.totalDuration) +
+          ". Partes criadas: " + data.partsCount + ".",
+          "success"
+        );
 
-        function loadLocalVideo(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        data.parts.forEach(part => {
+          const li = document.createElement("li");
 
-            selectedFile = file;
-            const videoElement = document.getElementById('previewVideo');
-            const btnSplit = document.getElementById('btnSplit');
-            
-            videoElement.src = URL.createObjectURL(file);
-            videoElement.style.display = 'block';
-            btnSplit.style.display = 'block';
-            
-            document.getElementById('splitResult').classList.remove('active');
-        }
+          const info = document.createElement("div");
+          info.className = "part-info";
 
-        function splitVideoSmart() {
-            if (!selectedFile) {
-                alert("Selecione um vídeo da galeria primeiro.");
-                return;
-            }
+          const title = document.createElement("strong");
+          title.textContent =
+            "Parte " + part.partNumber +
+            " (" + Number(part.duration).toFixed(1) + " s)";
 
-            const partsCount = Math.max(2, Math.min(20, parseInt(document.getElementById('partsCount').value, 10) || 2));
-            const resultArea = document.getElementById('splitResult');
-            const msgDiv = document.getElementById('splitMsg');
-            const partsList = document.getElementById('partsList');
-            const btn = document.getElementById('btnSplit');
+          const time = document.createElement("span");
+          time.textContent =
+            formatTime(part.start) + " – " +
+            formatTime(part.end);
 
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span> Processando corte inteligente...';
-            resultArea.classList.add('active');
-            msgDiv.className = "msg";
-            msgDiv.innerText = "Enviando vídeo para análise de fala e corte...";
-            partsList.innerHTML = "";
+          info.append(title, time);
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', `${BACKEND_URL}/api/smart-split?parts=${partsCount}`, true);
-            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+          const meta = document.createElement("div");
+          meta.className = "part-meta";
+          meta.textContent = "🎯 " + (part.reason || "Parte do vídeo");
 
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percent = Math.round((e.loaded / e.total) * 100);
-                    if (percent < 100) {
-                        msgDiv.innerText = `Enviando vídeo: ${percent}%...`;
-                    } else {
-                        msgDiv.innerText = `Analisando pausas de fala e gerando ${partsCount} partes em MP4... Aguarde.`;
-                    }
-                }
-            };
+          const link = document.createElement("a");
+          link.className = "btn-download";
+          link.href = makeBackendUrl(part.downloadUrl);
+          link.download = "CortePro_Parte_" +
+            part.partNumber + ".mp4";
+          link.rel = "noopener";
+          link.textContent =
+            "📥 Baixar parte " + part.partNumber;
 
-            xhr.onload = function() {
-                btn.disabled = false;
-                btn.innerHTML = '✂️ Analisar e Dividir Novamente';
+          li.append(info, meta, link);
+          list.appendChild(li);
+        });
+      };
 
-                try {
-                    const data = JSON.parse(xhr.responseText);
-                    if (xhr.status !== 200 || !data.success) {
-                        throw new Error(data.error || 'Erro ao dividir o vídeo.');
-                    }
+      xhr.onerror = () => {
+        setLoading(
+          button,
+          false,
+          "✂️ Analisar e dividir novamente"
+        );
 
-                    msgDiv.className = "msg success";
-                    msgDiv.innerText = `Pronto! Vídeo (${data.totalDuration}s) dividido de forma inteligente em ${data.partsCount} partes:`;
+        setMessage(
+          message,
+          "Falha de conexão com o Render. O upload ou o processamento pode ter sido interrompido.",
+          "error"
+        );
+      };
 
-                    data.parts.forEach(part => {
-                        const downloadHref = part.downloadUrl.startsWith('http')
-                            ? part.downloadUrl
-                            : `${BACKEND_URL}${part.downloadUrl}`;
+      xhr.ontimeout = () => {
+        setLoading(
+          button,
+          false,
+          "✂️ Analisar e dividir novamente"
+        );
 
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <div class="part-info">
-                                <strong>Parte ${part.partNumber} (${part.duration}s)</strong>
-                                <span>${formatTime(part.start)} até ${formatTime(part.end)}</span>
-                            </div>
-                            <div class="part-meta">🎯 ${part.reason}</div>
-                            <a href="${downloadHref}" download="CortePro_Parte_${part.partNumber}.mp4" class="btn-download">📥 Baixar Parte ${part.partNumber} (MP4)</a>
-                        `;
-                        partsList.appendChild(li);
-                    });
-                } catch (err) {
-                    msgDiv.className = "msg error";
-                    msgDiv.innerText = err.message || "Falha ao processar resposta do servidor.";
-                }
-            };
+        setMessage(
+          message,
+          "O processamento excedeu o tempo limite. Verifique os logs do Render.",
+          "error"
+        );
+      };
 
-            xhr.onerror = function() {
-                btn.disabled = false;
-                btn.innerHTML = '✂️ Analisar e Dividir Vídeo';
-                msgDiv.className = "msg error";
-                msgDiv.innerText = "Erro de conexão com o servidor. Verifique se o Render já terminou de atualizar.";
-            };
+      xhr.onabort = () => {
+        setLoading(
+          button,
+          false,
+          "✂️ Analisar e dividir novamente"
+        );
 
-            xhr.send(selectedFile);
-        }
-    </script>
+        setMessage(message, "Operação cancelada.", "error");
+      };
+
+      xhr.send(selectedFile);
+    }
+
+    $("btnSplit").addEventListener("click", splitVideoSmart);
+  </script>
 </body>
 </html>
