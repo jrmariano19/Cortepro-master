@@ -23,9 +23,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: system-ui, -apple-system,
-        BlinkMacSystemFont, "Segoe UI",
-        Roboto, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     body {
@@ -60,36 +58,6 @@
     header p {
       color: var(--muted);
       font-size: 0.9rem;
-    }
-
-    .server-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 10px;
-      padding: 5px 12px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      background: #1e293b;
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #eab308;
-    }
-
-    .status-dot.online {
-      background: #22c55e;
-      box-shadow: 0 0 8px #22c55e88;
-    }
-
-    .status-dot.offline {
-      background: #ef4444;
     }
 
     .card {
@@ -157,42 +125,6 @@
       cursor: wait;
     }
 
-    .quick-parts {
-      display: flex;
-      gap: 7px;
-      margin-top: 8px;
-    }
-
-    .chip-btn {
-      flex: 1;
-      min-width: 0;
-      padding: 9px 3px;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      background: var(--bg);
-      color: var(--muted);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .chip-btn.active {
-      color: white;
-      border-color: var(--primary);
-      background: #312e81;
-    }
-
-    .smart-badge {
-      margin-bottom: 15px;
-      padding: 11px;
-      border: 1px solid #4338ca;
-      border-radius: 8px;
-      background: #1e1b4b;
-      color: #c7d2fe;
-      font-size: 0.84rem;
-      line-height: 1.5;
-    }
-
     .result-area {
       display: none;
       margin-top: 15px;
@@ -212,17 +144,9 @@
       overflow-wrap: anywhere;
     }
 
-    .msg.success {
-      color: var(--success);
-    }
-
-    .msg.error {
-      color: #fca5a5;
-    }
-
-    .msg.info {
-      color: #cbd5e1;
-    }
+    .msg.success { color: var(--success); }
+    .msg.error { color: #fca5a5; }
+    .msg.info { color: #cbd5e1; }
 
     .btn-download {
       display: block;
@@ -241,44 +165,6 @@
       overflow-wrap: anywhere;
     }
 
-    video {
-      display: block;
-      width: 100%;
-      max-height: 300px;
-      margin-top: 12px;
-      border-radius: 8px;
-      background: black;
-    }
-
-    .parts-list {
-      list-style: none;
-      margin-top: 10px;
-    }
-
-    .parts-list li {
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .parts-list li:last-child {
-      border-bottom: 0;
-    }
-
-    .part-info {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 6px;
-      font-size: 0.88rem;
-    }
-
-    .part-meta {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 0.8rem;
-      line-height: 1.4;
-    }
-
     .loading {
       display: inline-block;
       width: 15px;
@@ -292,9 +178,7 @@
     }
 
     @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+      to { transform: rotate(360deg); }
     }
 
     .small-note {
@@ -310,14 +194,7 @@
   <main class="container">
     <header>
       <h1>CortePro Master</h1>
-      <p>
-        Baixe vídeos com áudio e divida
-        em partes inteligentes
-      </p>
-      <div class="server-status" id="serverStatusBadge">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Conectando ao servidor...</span>
-      </div>
+      <p>Baixe vídeos com áudio de forma rápida e direta</p>
     </header>
 
     <section class="card">
@@ -325,10 +202,8 @@
 
       <div class="form-group">
         <label for="videoUrl">
-          Cole o link público do TikTok,
-          Instagram, Kwai, Facebook ou YouTube:
+          Cole o link público do TikTok, Instagram, Kwai, Facebook ou YouTube:
         </label>
-
         <input
           type="text"
           id="videoUrl"
@@ -338,129 +213,23 @@
         >
       </div>
 
-      <button
-        id="btnExtract"
-        class="primary-btn"
-        type="button"
-      >
+      <button id="btnExtract" class="primary-btn" type="button">
         Processar e baixar
       </button>
 
-      <div
-        id="extractResult"
-        class="result-area"
-        aria-live="polite"
-      >
+      <div id="extractResult" class="result-area" aria-live="polite">
         <div id="extractMsg" class="msg info"></div>
         <div id="extractContainer"></div>
       </div>
 
       <p class="small-note">
-        O tempo depende do tamanho do vídeo,
-        da conexão e da disponibilidade da
-        plataforma. Use apenas conteúdo que
-        você tenha autorização para baixar.
+        O tempo depende do tamanho do vídeo e da disponibilidade da plataforma. Use apenas conteúdo autorizado.
       </p>
-    </section>
-
-    <section class="card">
-      <h2>✂️ Divisor auto-inteligente</h2>
-
-      <div class="smart-badge">
-        🧠 <strong>Corte inteligente:</strong>
-        escolha o número de partes.
-        O servidor analisa as pausas no áudio
-        para tentar evitar cortes no meio das
-        frases. As durações podem variar.
-      </div>
-
-      <div class="form-group">
-        <label for="localVideo">
-          1. Selecione um vídeo da galeria:
-        </label>
-
-        <input
-          type="file"
-          id="localVideo"
-          accept="video/*"
-        >
-      </div>
-
-      <div class="form-group">
-        <label for="partsCount">
-          2. Em quantas partes deseja dividir?
-        </label>
-
-        <input
-          type="number"
-          id="partsCount"
-          value="2"
-          min="2"
-          max="20"
-          step="1"
-        >
-
-        <div class="quick-parts">
-          <button
-            type="button"
-            class="chip-btn active"
-            data-parts="2"
-          >2 partes</button>
-
-          <button
-            type="button"
-            class="chip-btn"
-            data-parts="3"
-          >3 partes</button>
-
-          <button
-            type="button"
-            class="chip-btn"
-            data-parts="4"
-          >4 partes</button>
-
-          <button
-            type="button"
-            class="chip-btn"
-            data-parts="5"
-          >5 partes</button>
-        </div>
-      </div>
-
-      <video
-        id="previewVideo"
-        controls
-        playsinline
-        hidden
-      ></video>
-
-      <button
-        id="btnSplit"
-        class="primary-btn"
-        type="button"
-        style="margin-top:14px"
-        hidden
-      >
-        ✂️ Analisar e dividir vídeo
-      </button>
-
-      <div
-        id="splitResult"
-        class="result-area"
-        aria-live="polite"
-      >
-        <div id="splitMsg" class="msg info"></div>
-        <ul id="partsList" class="parts-list"></ul>
-      </div>
     </section>
   </main>
 
   <script>
-    const BACKEND_URL = "https://cortepro-master.onrender.com";
-    const MAX_UPLOAD_BYTES = 180 * 1024 * 1024;
-
     const $ = id => document.getElementById(id);
-    let isServerAwake = false;
 
     function setMessage(element, message, type = "info") {
       element.className = "msg " + type;
@@ -476,128 +245,6 @@
       }
     }
 
-    // Despertador automático do Render
-    async function wakeUpServer(retries = 6) {
-      const dot = $("statusDot");
-      const text = $("statusText");
-
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 12000);
-
-          const res = await fetch(BACKEND_URL + "/", {
-            method: "GET",
-            cache: "no-store",
-            signal: controller.signal
-          });
-
-          clearTimeout(timer);
-
-          if (res.ok) {
-            isServerAwake = true;
-            dot.className = "status-dot online";
-            text.textContent = "Servidor Online";
-            return true;
-          }
-        } catch (_) {
-          dot.className = "status-dot";
-          text.textContent = `Acordando servidor Render (${attempt}/${retries})...`;
-          await new Promise(r => setTimeout(r, 4000));
-        }
-      }
-
-      dot.className = "status-dot offline";
-      text.textContent = "Servidor offline (verifique o Render)";
-      return false;
-    }
-
-    // Inicia o despertador assim que abre o site
-    wakeUpServer();
-
-    function makeBackendUrl(url) {
-      if (!url) {
-        throw new Error("O servidor não forneceu o endereço do arquivo.");
-      }
-
-      const backend = new URL(BACKEND_URL);
-      const absolute = new URL(url, BACKEND_URL);
-
-      if (absolute.origin !== backend.origin) {
-        throw new Error("O servidor retornou um link de download não autorizado.");
-      }
-
-      return absolute.href;
-    }
-
-    async function readJsonResponse(response) {
-      const text = await response.text();
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch (_) {
-        throw new Error(
-          "O servidor retornou uma resposta inválida. Verifique os logs do Render."
-        );
-      }
-
-      if (!response.ok || data.success === false) {
-        throw new Error(
-          data.error ||
-          data.details ||
-          "Não foi possível processar o vídeo."
-        );
-      }
-
-      return data;
-    }
-
-    function validateVideoUrl(url) {
-      let parsed;
-
-      try {
-        parsed = new URL(url);
-      } catch (_) {
-        throw new Error("Informe um endereço de vídeo válido.");
-      }
-
-      const domains = [
-        "youtube.com",
-        "youtu.be",
-        "youtube-nocookie.com",
-        "tiktok.com",
-        "instagram.com",
-        "kwai.com",
-        "facebook.com",
-        "fb.watch",
-        "fb.gg"
-      ];
-
-      const host = parsed.hostname.toLowerCase().replace(/\.$/, "");
-
-      const allowed = domains.some(domain =>
-        host === domain || host.endsWith("." + domain)
-      );
-
-      if (
-        !["http:", "https:"].includes(parsed.protocol) ||
-        parsed.username ||
-        parsed.password ||
-        !allowed
-      ) {
-        throw new Error(
-          "Informe um link público do YouTube, TikTok, Instagram, Kwai ou Facebook."
-        );
-      }
-
-      return parsed.href;
-    }
-
-    // ========================================
-    // BAIXADOR DE VÍDEOS
-    // ========================================
-
     async function extractVideo() {
       const url = $("videoUrl").value.trim();
       const button = $("btnExtract");
@@ -611,83 +258,35 @@
         return;
       }
 
-      let validatedUrl;
-
-      try {
-        validatedUrl = validateVideoUrl(url);
-      } catch (error) {
-        setMessage(message, error.message, "error");
-        result.classList.add("active");
-        return;
-      }
-
       result.classList.add("active");
       container.replaceChildren();
 
-      if (!isServerAwake) {
-        setLoading(button, true, "Acordando servidor no Render...");
-        setMessage(
-          message,
-          "O servidor gratuito do Render estava hibernando e está iniciando (leva cerca de 40 segundos)...",
-          "info"
-        );
-        await wakeUpServer(8);
-      }
-
-      setLoading(button, true, "Extraindo vídeo e verificando áudio...");
-      setMessage(
-        message,
-        "Aguarde. A extração e a conversão podem levar alguns instantes.",
-        "info"
-      );
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12 * 60 * 1000);
+      setLoading(button, true, "Extraindo vídeo...");
+      setMessage(message, "Aguarde um instante...", "info");
 
       try {
-        const response = await fetch(
-          BACKEND_URL + "/api/extract?url=" + encodeURIComponent(validatedUrl),
-          {
-            method: "GET",
-            signal: controller.signal,
-            cache: "no-store"
-          }
-        );
+        // Faz a requisição direto para a Vercel Serverless Function (/api/extract)
+        const response = await fetch(`/api/extract?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
 
-        const data = await readJsonResponse(response);
-        const downloadUrl = makeBackendUrl(data.downloadUrl);
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Não foi possível processar o vídeo.");
+        }
 
-        setMessage(
-          message,
-          "Vídeo processado com sucesso! Use o botão abaixo para baixar.",
-          "success"
-        );
+        setMessage(message, "Vídeo processado com sucesso! Clique abaixo para baixar.", "success");
 
         const link = document.createElement("a");
         link.className = "btn-download";
-        link.href = downloadUrl;
+        link.href = data.downloadUrl;
         link.download = "CortePro_Video.mp4";
         link.textContent = "📥 Baixar vídeo MP4";
+        link.target = "_blank";
         link.rel = "noopener";
 
         container.appendChild(link);
       } catch (error) {
-        let text = error.message || "Falha ao processar o vídeo.";
-
-        if (error.name === "AbortError") {
-          text = "O processamento demorou mais que o limite de espera. Confira os logs do Render.";
-        } else if (
-          error instanceof TypeError ||
-          text.toLowerCase().includes("failed to fetch")
-        ) {
-          isServerAwake = false;
-          text =
-            "Não foi possível conectar ao Render. Verifique no painel do Render se o serviço está 'Live' e sem erros no Deploy.";
-        }
-
-        setMessage(message, text, "error");
+        setMessage(message, error.message || "Erro de conexão.", "error");
       } finally {
-        clearTimeout(timeoutId);
         setLoading(button, false, "Processar e baixar");
       }
     }
@@ -698,276 +297,6 @@
         extractVideo();
       }
     });
-
-    // ========================================
-    // DIVISOR INTELIGENTE
-    // ========================================
-
-    let selectedFile = null;
-    let previewObjectUrl = null;
-
-    function formatTime(seconds) {
-      const total = Math.max(0, Math.floor(Number(seconds) || 0));
-      const hours = Math.floor(total / 3600);
-      const minutes = Math.floor((total % 3600) / 60);
-      const secs = total % 60;
-
-      if (hours > 0) {
-        return [
-          String(hours).padStart(2, "0"),
-          String(minutes).padStart(2, "0"),
-          String(secs).padStart(2, "0")
-        ].join(":");
-      }
-
-      return [
-        String(minutes).padStart(2, "0"),
-        String(secs).padStart(2, "0")
-      ].join(":");
-    }
-
-    function updatePartsButtons() {
-      const current = Number($("partsCount").value);
-      document.querySelectorAll(".chip-btn").forEach(button => {
-        button.classList.toggle(
-          "active",
-          Number(button.dataset.parts) === current
-        );
-      });
-    }
-
-    document.querySelectorAll(".chip-btn").forEach(button => {
-      button.addEventListener("click", () => {
-        $("partsCount").value = button.dataset.parts;
-        updatePartsButtons();
-      });
-    });
-
-    $("partsCount").addEventListener("change", () => {
-      let count = parseInt($("partsCount").value, 10);
-      if (!Number.isFinite(count)) count = 2;
-      count = Math.max(2, Math.min(20, count));
-      $("partsCount").value = count;
-      updatePartsButtons();
-    });
-
-    $("localVideo").addEventListener("change", event => {
-      const file = event.target.files && event.target.files[0];
-
-      if (previewObjectUrl) {
-        URL.revokeObjectURL(previewObjectUrl);
-        previewObjectUrl = null;
-      }
-
-      selectedFile = null;
-      $("btnSplit").hidden = true;
-      $("previewVideo").hidden = true;
-
-      if (!file) return;
-
-      const validType =
-        file.type.startsWith("video/") ||
-        /\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(file.name);
-
-      if (!validType) {
-        alert("Selecione um arquivo de vídeo válido.");
-        event.target.value = "";
-        return;
-      }
-
-      if (file.size > MAX_UPLOAD_BYTES) {
-        alert("O vídeo ultrapassa o limite de 180 MB.");
-        event.target.value = "";
-        return;
-      }
-
-      if (file.size < 1000) {
-        alert("O arquivo selecionado está vazio ou inválido.");
-        event.target.value = "";
-        return;
-      }
-
-      selectedFile = file;
-      const video = $("previewVideo");
-      previewObjectUrl = URL.createObjectURL(file);
-      video.src = previewObjectUrl;
-      video.hidden = false;
-
-      $("btnSplit").hidden = false;
-      $("splitResult").classList.remove("active");
-      $("partsList").replaceChildren();
-    });
-
-    async function splitVideoSmart() {
-      if (!selectedFile) {
-        alert("Selecione um vídeo da galeria primeiro.");
-        return;
-      }
-
-      if (selectedFile.size > MAX_UPLOAD_BYTES) {
-        alert("O vídeo ultrapassa o limite de 180 MB.");
-        return;
-      }
-
-      const partsCount = Math.max(
-        2,
-        Math.min(20, parseInt($("partsCount").value, 10) || 2)
-      );
-
-      const button = $("btnSplit");
-      const result = $("splitResult");
-      const message = $("splitMsg");
-      const list = $("partsList");
-
-      result.classList.add("active");
-      list.replaceChildren();
-
-      if (!isServerAwake) {
-        setLoading(button, true, "Acordando servidor no Render...");
-        setMessage(
-          message,
-          "Acordando o servidor gratuito no Render antes de iniciar o upload...",
-          "info"
-        );
-        await wakeUpServer(8);
-      }
-
-      setLoading(button, true, "Enviando vídeo...");
-      setMessage(
-        message,
-        "Enviando o vídeo ao servidor. Não feche esta página.",
-        "info"
-      );
-
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", BACKEND_URL + "/api/smart-split?parts=" + partsCount, true);
-      xhr.setRequestHeader("Content-Type", "application/octet-stream");
-      xhr.timeout = 20 * 60 * 1000;
-
-      xhr.upload.onprogress = event => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          setMessage(
-            message,
-            percent < 100
-              ? "Enviando vídeo: " + percent + "%."
-              : "Upload concluído. Analisando áudio e criando as partes...",
-            "info"
-          );
-        }
-      };
-
-      xhr.onload = () => {
-        setLoading(button, false, "✂️ Analisar e dividir novamente");
-
-        let data;
-        try {
-          data = JSON.parse(xhr.responseText);
-        } catch (_) {
-          setMessage(
-            message,
-            "O servidor retornou uma resposta inválida. Verifique os logs do Render.",
-            "error"
-          );
-          return;
-        }
-
-        if (xhr.status < 200 || xhr.status >= 300 || !data.success) {
-          setMessage(
-            message,
-            data.error || "Não foi possível dividir o vídeo.",
-            "error"
-          );
-          return;
-        }
-
-        if (!Array.isArray(data.parts)) {
-          setMessage(
-            message,
-            "Resposta do servidor sem a lista de partes.",
-            "error"
-          );
-          return;
-        }
-
-        setMessage(
-          message,
-          "Concluído! Duração: " +
-            formatTime(data.totalDuration) +
-            ". Partes criadas: " +
-            data.partsCount +
-            ".",
-          "success"
-        );
-
-        data.parts.forEach(part => {
-          const li = document.createElement("li");
-          const info = document.createElement("div");
-          info.className = "part-info";
-
-          const title = document.createElement("strong");
-          title.textContent =
-            "Parte " +
-            part.partNumber +
-            " (" +
-            Number(part.duration).toFixed(1) +
-            " s)";
-
-          const time = document.createElement("span");
-          time.textContent = formatTime(part.start) + " – " + formatTime(part.end);
-
-          info.append(title, time);
-
-          const meta = document.createElement("div");
-          meta.className = "part-meta";
-          meta.textContent = "🎯 " + (part.reason || "Parte do vídeo");
-
-          const link = document.createElement("a");
-          link.className = "btn-download";
-
-          try {
-            link.href = makeBackendUrl(part.downloadUrl);
-          } catch (error) {
-            setMessage(message, error.message, "error");
-            return;
-          }
-
-          link.download = "CortePro_Parte_" + part.partNumber + ".mp4";
-          link.rel = "noopener";
-          link.textContent = "📥 Baixar parte " + part.partNumber;
-
-          li.append(info, meta, link);
-          list.appendChild(li);
-        });
-      };
-
-      xhr.onerror = () => {
-        setLoading(button, false, "✂️ Analisar e dividir novamente");
-        setMessage(
-          message,
-          "Falha de conexão com o Render. O upload ou processamento pode ter sido interrompido.",
-          "error"
-        );
-      };
-
-      xhr.ontimeout = () => {
-        setLoading(button, false, "✂️ Analisar e dividir novamente");
-        setMessage(
-          message,
-          "O processamento excedeu o tempo limite. Verifique os logs do Render.",
-          "error"
-        );
-      };
-
-      xhr.onabort = () => {
-        setLoading(button, false, "✂️ Analisar e dividir novamente");
-        setMessage(message, "Operação cancelada.", "error");
-      };
-
-      xhr.send(selectedFile);
-    }
-
-    $("btnSplit").addEventListener("click", splitVideoSmart);
   </script>
 </body>
 </html>
