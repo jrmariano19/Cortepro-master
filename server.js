@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const YTDlpWrapModule = require('yt-dlp-wrap');
-const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
 const ffmpegPath = require('ffmpeg-static');
 const { execFile } = require('child_process');
 const { Transform } = require('stream');
@@ -16,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_UPLOAD_BYTES = 180 * 1024 * 1024;
 const TEMP_DIR = os.tmpdir();
+const VERSION = '5.0';
 
 app.use(cors({
   origin: '*',
@@ -32,7 +31,6 @@ const localBinaryPath = path.join(__dirname, binaryName);
 const tempBinaryPath = path.join(TEMP_DIR, binaryName);
 let activeBinaryPath = localBinaryPath;
 
-let ytDlpWrap = null;
 let isBinaryReady = false;
 let initError = null;
 let binaryReadyPromise = null;
@@ -55,7 +53,6 @@ function cleanupOldTempFiles() {
 
       try {
         const stat = fs.statSync(fullPath);
-
         if (now - stat.mtimeMs > 30 * 60 * 1000) {
           fs.unlinkSync(fullPath);
         }
@@ -67,13 +64,10 @@ function cleanupOldTempFiles() {
 function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
   return new Promise((resolve, reject) => {
     if (redirectsLeft < 0) {
-      return reject(
-        new Error('Redirecionamentos demais ao baixar yt-dlp.')
-      );
+      return reject(new Error('Redirecionamentos demais no download.'));
     }
 
     let parsed;
-
     try {
       parsed = new URL(urlString);
     } catch (_) {
@@ -91,36 +85,25 @@ function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
     }
 
     const request = lib.get(urlString, {
-      headers: { 'User-Agent': 'CortePro-Master/4.2' },
-      timeout: 25000
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36'
+      },
+      timeout: 30000
     }, response => {
       const status = response.statusCode || 0;
 
-      if (status >= 300 && status < 400 &&
-          response.headers.location) {
+      if (status >= 300 && status < 400 && response.headers.location) {
         response.resume();
-
-        const nextUrl = new URL(
-          response.headers.location,
-          urlString
-        ).toString();
-
-        return downloadFileDirect(
-          nextUrl,
-          dest,
-          redirectsLeft - 1
-        ).then(resolve, reject);
+        const nextUrl = new URL(response.headers.location, urlString).toString();
+        return downloadFileDirect(nextUrl, dest, redirectsLeft - 1).then(resolve, reject);
       }
 
       if (status !== 200) {
         response.resume();
-        return reject(
-          new Error(`Falha ao baixar yt-dlp. HTTP ${status}.`)
-        );
+        return reject(new Error(`Falha no download. HTTP ${status}.`));
       }
 
       const file = fs.createWriteStream(dest);
-
       response.pipe(file);
 
       file.on('finish', () => {
@@ -128,33 +111,155 @@ function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
       });
 
       file.on('error', err => {
-        try {
-          fs.unlinkSync(dest);
-        } catch (_) {}
-
+        try { fs.unlinkSync(dest); } catch (_) {}
         reject(err);
       });
     });
 
     request.on('timeout', () => {
-      request.destroy(
-        new Error('Tempo esgotado ao baixar yt-dlp.')
-      );
+      request.destroy(new Error('Tempo esgotado ao baixar arquivo.'));
     });
 
     request.on('error', err => {
-      try {
-        fs.unlinkSync(dest);
-      } catch (_) {}
-
+      try { fs.unlinkSync(dest); } catch (_) {}
       reject(err);
     });
   });
 }
 
+function fetchJson(urlString, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(urlString, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0',
+        'Accept': 'application/json'
+      },
+      timeout: timeoutMs
+    }, res => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (_) {
+          reject(new Error('Resposta JSON inválida.'));
+        }
+      });
+    });
+
+    req.on('timeout', () => req.destroy(new Error('Timeout na API auxiliar.')));
+    req.on('error', reject);
+  });
+}
+
+// Resolve links curtos como facebook.com/share/v/..., share/r/..., fb.watch, vt.tiktok.com
+function resolveShareUrl(rawUrl, hopsLeft = 5) {
+  return new Promise(resolve => {
+    if (hopsLeft <= 0) return resolve(rawUrl);
+
+    let parsed;
+    try {
+      parsed = new URL(rawUrl);
+    } catch (_) {
+      return resolve(rawUrl);
+    }
+
+    // Se o Facebook redirecionou para /login/?next=..., extrai o link real do parâmetro "next"
+    if (
+      parsed.hostname.includes('facebook.com') &&
+      parsed.pathname.includes('/login') &&
+      parsed.searchParams.get('next')
+    ) {
+      return resolve(parsed.searchParams.get('next'));
+    }
+
+    const isFbShare =
+      parsed.hostname.includes('facebook.com') &&
+      /\/share\/[vrp]\//i.test(parsed.pathname);
+    const isShortener =
+      /^(vt\.tiktok\.com|vm\.tiktok\.com|fb\.watch|s\.kw\.ai)$/i.test(parsed.hostname);
+    const isInstaShare =
+      parsed.hostname.includes('instagram.com') &&
+      parsed.pathname.includes('/share/');
+
+    if (!isFbShare && !isShortener && !isInstaShare) {
+      return resolve(rawUrl);
+    }
+
+    const lib = parsed.protocol === 'https:' ? https : http;
+    const ua = isFbShare || parsed.hostname === 'fb.watch'
+      ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+      : 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+    const req = lib.get(rawUrl, {
+      headers: {
+        'User-Agent': ua,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      timeout: 8000
+    }, res => {
+      const status = res.statusCode || 0;
+
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume();
+        let nextUrl = new URL(res.headers.location, rawUrl).toString();
+
+        try {
+          const nextParsed = new URL(nextUrl);
+          if (
+            nextParsed.hostname.includes('facebook.com') &&
+            nextParsed.pathname.includes('/login') &&
+            nextParsed.searchParams.get('next')
+          ) {
+            nextUrl = nextParsed.searchParams.get('next');
+            return resolve(nextUrl);
+          }
+        } catch (_) {}
+
+        return resolveShareUrl(nextUrl, hopsLeft - 1).then(resolve);
+      }
+
+      // Lê os primeiros KB do HTML caso o link real esteja em og:url
+      let htmlChunk = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => {
+        if (htmlChunk.length < 25000) {
+          htmlChunk += chunk;
+        } else {
+          res.destroy();
+        }
+      });
+
+      const finishHtml = () => {
+        const ogMatch =
+          htmlChunk.match(/property=["']og:url["']\s+content=["']([^"']+)["']/i) ||
+          htmlChunk.match(/content=["']([^"']+)["']\s+property=["']og:url["']/i);
+
+        if (ogMatch && ogMatch[1]) {
+          const decoded = ogMatch[1].replace(/&amp;/g, '&');
+          if (decoded.startsWith('http')) {
+            return resolve(decoded);
+          }
+        }
+        resolve(rawUrl);
+      };
+
+      res.on('end', finishHtml);
+      res.on('close', finishHtml);
+      res.on('error', () => resolve(rawUrl));
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(rawUrl);
+    });
+
+    req.on('error', () => resolve(rawUrl));
+  });
+}
+
 async function ensureYtDlpReady() {
-  if (isBinaryReady && ytDlpWrap &&
-      fs.existsSync(activeBinaryPath)) {
+  if (isBinaryReady && fs.existsSync(activeBinaryPath)) {
     return true;
   }
 
@@ -190,17 +295,12 @@ async function ensureYtDlpReady() {
         fs.chmodSync(activeBinaryPath, 0o755);
       }
 
-      ytDlpWrap = new YTDlpWrap(activeBinaryPath);
       isBinaryReady = true;
-
       console.log('yt-dlp pronto em:', activeBinaryPath);
-
       return true;
     } catch (err) {
       isBinaryReady = false;
-      ytDlpWrap = null;
       initError = err.message;
-
       console.error('Erro ao preparar yt-dlp:', err.message);
       return false;
     } finally {
@@ -211,12 +311,10 @@ async function ensureYtDlpReady() {
   return binaryReadyPromise;
 }
 
-function runFfmpeg(args) {
+function runFfmpeg(args, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
-      return reject(
-        new Error('FFmpeg não está disponível no servidor.')
-      );
+      return reject(new Error('FFmpeg não está disponível no servidor.'));
     }
 
     execFile(
@@ -224,15 +322,12 @@ function runFfmpeg(args) {
       args,
       {
         maxBuffer: 20 * 1024 * 1024,
-        timeout: 15 * 60 * 1000
+        timeout: timeoutMs
       },
       (error, stdout, stderr) => {
         if (error) {
-          const detail = (
-            stderr || error.message || 'Erro no FFmpeg'
-          ).trim();
-
-          return reject(new Error(detail.slice(-5000)));
+          const detail = (stderr || error.message || 'Erro no FFmpeg').trim();
+          return reject(new Error(detail.slice(-3000)));
         }
 
         resolve({
@@ -247,9 +342,7 @@ function runFfmpeg(args) {
 function inspectMediaStreams(mediaPath) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
-      return reject(
-        new Error('FFmpeg indisponível para inspeção.')
-      );
+      return reject(new Error('FFmpeg indisponível para inspeção.'));
     }
 
     execFile(
@@ -257,28 +350,19 @@ function inspectMediaStreams(mediaPath) {
       ['-hide_banner', '-i', mediaPath],
       {
         maxBuffer: 10 * 1024 * 1024,
-        timeout: 30000
+        timeout: 20000
       },
       (error, stdout, stderr) => {
         const info = `${stderr || ''}\n${stdout || ''}`;
 
-        const hasVideo =
-          /Stream #\d+:\d+(?:\[[^\]]+\])?(?:\([^)]*\))?:\s*Video:/i
-            .test(info);
-
-        const hasAudio =
-          /Stream #\d+:\d+(?:\[[^\]]+\])?(?:\([^)]*\))?:\s*Audio:/i
-            .test(info);
-
+        const hasVideo = /Stream #\d+:\d+.*Video:/i.test(info);
+        const hasAudio = /Stream #\d+:\d+.*Audio:/i.test(info);
         const isH264 = /Video:\s*h264\b/i.test(info);
         const isAAC = /Audio:\s*aac\b/i.test(info);
         const isYuv420p = /Video:.*\byuv420p\b/i.test(info);
 
         let duration = 0;
-
-        const match = info.match(
-          /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i
-        );
+        const match = info.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
 
         if (match) {
           duration =
@@ -287,11 +371,8 @@ function inspectMediaStreams(mediaPath) {
             Number(match[3]);
         }
 
-        if (!hasVideo && !hasAudio &&
-            error && !info.includes('Input #')) {
-          return reject(
-            new Error('Não foi possível ler o arquivo de mídia.')
-          );
+        if (!hasVideo && !hasAudio && error && !info.includes('Input #')) {
+          return reject(new Error('Não foi possível ler o arquivo de mídia.'));
         }
 
         resolve({
@@ -312,28 +393,19 @@ async function prepareAndroidMp4(inputPath, outputPath) {
   const inputInfo = await inspectMediaStreams(inputPath);
 
   console.log(
-    `Origem: vídeo=${inputInfo.hasVideo}, ` +
-    `áudio=${inputInfo.hasAudio}, H264=${inputInfo.isH264}, ` +
-    `AAC=${inputInfo.isAAC}`
+    `Origem: vídeo=${inputInfo.hasVideo}, áudio=${inputInfo.hasAudio}, H264=${inputInfo.isH264}, AAC=${inputInfo.isAAC}`
   );
 
   if (!inputInfo.hasVideo) {
-    throw new Error(
-      'O arquivo não contém uma faixa de vídeo válida.'
-    );
+    throw new Error('O arquivo não contém uma faixa de vídeo válida.');
   }
 
   if (!inputInfo.hasAudio) {
-    throw new Error(
-      'O vídeo original desta publicação não possui faixa de áudio ou o áudio está bloqueado pela plataforma.'
-    );
+    throw new Error('O vídeo extraído não contém faixa de áudio.');
   }
 
-  if (
-    inputInfo.isH264 &&
-    inputInfo.isAAC &&
-    inputInfo.isYuv420p
-  ) {
+  // Caminho 1 (Instantâneo): Já é H264 + AAC
+  if (inputInfo.isH264 && inputInfo.isAAC) {
     try {
       await runFfmpeg([
         '-y',
@@ -345,44 +417,60 @@ async function prepareAndroidMp4(inputPath, outputPath) {
         '-sn',
         '-dn',
         outputPath
-      ]);
+      ], 25000);
 
-      const remuxInfo = await inspectMediaStreams(outputPath);
-
-      if (
-        remuxInfo.hasVideo &&
-        remuxInfo.hasAudio &&
-        fs.statSync(outputPath).size > 1000
-      ) {
-        try {
-          fs.unlinkSync(inputPath);
-        } catch (_) {}
-
-        console.log('MP4 compatível: conversão rápida sem recodificação.');
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
+        try { fs.unlinkSync(inputPath); } catch (_) {}
+        console.log('MP4 pronto instantaneamente via remux (-c copy).');
         return outputPath;
       }
-
-      throw new Error('O MP4 não passou na validação.');
     } catch (err) {
-      console.warn('Remux rápido falhou:', err.message);
-      try {
-        fs.unlinkSync(outputPath);
-      } catch (_) {}
+      console.warn('Remux rápido falhou, convertendo:', err.message);
+      try { fs.unlinkSync(outputPath); } catch (_) {}
     }
   }
 
+  // Caminho 2 (Rápido): Vídeo já é H264, converte apenas o áudio para AAC
+  if (inputInfo.isH264 && !inputInfo.isAAC) {
+    try {
+      await runFfmpeg([
+        '-y',
+        '-i', inputPath,
+        '-map', '0:v:0',
+        '-map', '0:a:0',
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-ar', '44100',
+        '-ac', '2',
+        '-movflags', '+faststart',
+        '-sn',
+        '-dn',
+        outputPath
+      ], 35000);
+
+      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
+        try { fs.unlinkSync(inputPath); } catch (_) {}
+        console.log('MP4 pronto rapidamente (cópia de vídeo + áudio AAC).');
+        return outputPath;
+      }
+    } catch (_) {
+      try { fs.unlinkSync(outputPath); } catch (_) {}
+    }
+  }
+
+  // Caminho 3: Recodificação leve (máx 720p) para CPU do Render Free
   await runFfmpeg([
     '-y',
     '-i', inputPath,
     '-map', '0:v:0',
     '-map', '0:a:0',
     '-vf',
-    'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
+    "scale='min(720,trunc(iw/2)*2)':trunc(ow/dar/2)*2,format=yuv420p",
     '-c:v', 'libx264',
     '-preset', 'ultrafast',
-    '-crf', '26',
-    '-profile:v', 'main',
-    '-level', '3.1',
+    '-crf', '28',
+    '-threads', '2',
     '-c:a', 'aac',
     '-b:a', '128k',
     '-ar', '44100',
@@ -391,32 +479,14 @@ async function prepareAndroidMp4(inputPath, outputPath) {
     '-sn',
     '-dn',
     outputPath
-  ]);
+  ], 75000);
 
-  if (
-    !fs.existsSync(outputPath) ||
-    fs.statSync(outputPath).size < 1000
-  ) {
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) {
     throw new Error('A conversão não gerou um MP4 válido.');
   }
 
-  const outputInfo = await inspectMediaStreams(outputPath);
-
-  if (!outputInfo.hasVideo || !outputInfo.hasAudio) {
-    try {
-      fs.unlinkSync(outputPath);
-    } catch (_) {}
-
-    throw new Error(
-      'O arquivo final não passou na validação de áudio e vídeo.'
-    );
-  }
-
-  try {
-    fs.unlinkSync(inputPath);
-  } catch (_) {}
-
-  console.log('MP4 convertido e validado com áudio.');
+  try { fs.unlinkSync(inputPath); } catch (_) {}
+  console.log('MP4 recodificado e validado com áudio.');
   return outputPath;
 }
 
@@ -439,26 +509,24 @@ function isValidPublicUrl(urlString) {
       'tiktok.com',
       'instagram.com',
       'kwai.com',
+      'kwai-video.com',
+      'kw.ai',
       'facebook.com',
       'fb.watch',
       'fb.gg'
     ];
 
-    const hostname = parsed.hostname
-      .toLowerCase()
-      .replace(/\.$/, '');
+    const hostname = parsed.hostname.toLowerCase().replace(/\.$/, '');
 
     return allowedDomains.some(domain =>
-      hostname === domain ||
-      hostname.endsWith('.' + domain)
+      hostname === domain || hostname.endsWith('.' + domain)
     );
   } catch (_) {
     return false;
   }
 }
 
-// Limpa parâmetros de rastreio do Instagram/TikTok que atrapalham o extrator
-function normalizeTargetUrl(rawUrl) {
+function cleanTargetUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
     const host = parsed.hostname.toLowerCase();
@@ -466,10 +534,21 @@ function normalizeTargetUrl(rawUrl) {
     if (host.includes('instagram.com')) {
       parsed.search = '';
       parsed.hash = '';
-      // Converte /reels/ para /reel/ se necessário
       parsed.pathname = parsed.pathname.replace(/^\/reels\//i, '/reel/');
       return parsed.toString();
     }
+
+    if (host.includes('facebook.com')) {
+      // Remove parâmetros de rastreio mantendo apenas ?v= quando for watch
+      const vParam = parsed.searchParams.get('v');
+      parsed.search = '';
+      parsed.hash = '';
+      if (vParam) {
+        parsed.searchParams.set('v', vParam);
+      }
+      return parsed.toString();
+    }
+
     return rawUrl;
   } catch (_) {
     return rawUrl;
@@ -486,10 +565,7 @@ function findExtractedFiles(prefix) {
     .map(name => path.join(TEMP_DIR, name))
     .filter(file => {
       try {
-        return (
-          fs.statSync(file).isFile() &&
-          fs.statSync(file).size > 1000
-        );
+        return fs.statSync(file).isFile() && fs.statSync(file).size > 1000;
       } catch (_) {
         return false;
       }
@@ -498,44 +574,146 @@ function findExtractedFiles(prefix) {
 
 function removeFiles(fileList) {
   for (const f of fileList) {
-    try {
-      fs.unlinkSync(f);
-    } catch (_) {}
+    try { fs.unlinkSync(f); } catch (_) {}
   }
 }
 
-async function runYtDlpAttempt(targetUrl, rawTemplate, formatSelector, extraArgs = []) {
-  const args = [
-    targetUrl,
-    '-f', formatSelector,
-    '--merge-output-format', 'mp4',
-    '--no-playlist',
-    '--no-warnings',
-    '--no-part',
-    '--no-check-certificates',
-    '--geo-bypass',
-    '--user-agent',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    '--max-filesize', '180M',
-    '--retries', '3',
-    '--fragment-retries', '3',
-    '--socket-timeout', '25',
-    ...extraArgs,
-    '-o', rawTemplate
-  ];
+function runYtDlpAttempt(targetUrl, rawTemplate, formatSelector, extraArgs = []) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      targetUrl,
+      '--force-ipv4',
+      '-f', formatSelector,
+      '--merge-output-format', 'mp4',
+      '--no-playlist',
+      '--no-warnings',
+      '--no-part',
+      '--no-check-certificates',
+      '--geo-bypass',
+      '--max-filesize', '180M',
+      '--retries', '2',
+      '--fragment-retries', '2',
+      '--socket-timeout', '15',
+      ...extraArgs,
+      '-o', rawTemplate
+    ];
 
-  if (ffmpegPath) {
-    args.push('--ffmpeg-location', ffmpegPath);
+    if (ffmpegPath) {
+      args.push('--ffmpeg-location', ffmpegPath);
+    }
+
+    execFile(
+      activeBinaryPath,
+      args,
+      {
+        maxBuffer: 15 * 1024 * 1024,
+        timeout: 45000
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          return reject(new Error((stderr || err.message || 'Falha no yt-dlp').slice(-1000)));
+        }
+        resolve(stdout);
+      }
+    );
+  });
+}
+
+// Extrator rápido para TikTok
+async function tryFastTikTokExtract(targetUrl, destFilePath) {
+  const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}&hd=0`;
+  const json = await fetchJson(apiUrl, 12000);
+
+  if (!json || json.code !== 0 || !json.data) {
+    throw new Error('API rápida do TikTok não retornou dados.');
   }
 
-  await ytDlpWrap.execPromise(args);
+  const videoPlayUrl = json.data.play || json.data.wmplay;
+  if (!videoPlayUrl) {
+    throw new Error('Link de vídeo do TikTok não encontrado.');
+  }
+
+  await downloadFileDirect(videoPlayUrl, destFilePath);
+  const info = await inspectMediaStreams(destFilePath);
+
+  if (!info.hasVideo || !info.hasAudio) {
+    try { fs.unlinkSync(destFilePath); } catch (_) {}
+    throw new Error('Arquivo do TikTok sem áudio ou vídeo.');
+  }
+
+  return destFilePath;
+}
+
+// Resgate de áudio: se o vídeo baixado veio mudo, baixa a faixa de áudio separada e junta no FFmpeg
+async function rescueAudioAndMerge(targetUrl, muteVideoPath, uniqueId, userAgent) {
+  const audioPrefix = `${uniqueId}_audrescue`;
+  const audioTemplate = path.join(TEMP_DIR, `${audioPrefix}.%(ext)s`);
+  const mergedPath = path.join(TEMP_DIR, `${uniqueId}_merged.mp4`);
+
+  console.log('Iniciando resgate de áudio separado para:', targetUrl);
+
+  try {
+    await runYtDlpAttempt(
+      targetUrl,
+      audioTemplate,
+      'ba/bestaudio/b',
+      ['--user-agent', userAgent]
+    );
+
+    const audioFiles = findExtractedFiles(audioPrefix);
+    if (!audioFiles.length) return null;
+
+    const audioFile = audioFiles[0];
+    const audioInfo = await inspectMediaStreams(audioFile);
+
+    if (!audioInfo.hasAudio) {
+      removeFiles(audioFiles);
+      return null;
+    }
+
+    await runFfmpeg([
+      '-y',
+      '-i', muteVideoPath,
+      '-i', audioFile,
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-shortest',
+      '-movflags', '+faststart',
+      mergedPath
+    ], 35000);
+
+    removeFiles(audioFiles);
+    try { fs.unlinkSync(muteVideoPath); } catch (_) {}
+
+    const mergedInfo = await inspectMediaStreams(mergedPath);
+    if (mergedInfo.hasVideo && mergedInfo.hasAudio) {
+      console.log('Resgate de áudio concluído com sucesso!');
+      return mergedPath;
+    }
+  } catch (err) {
+    console.warn('Resgate de áudio falhou:', err.message);
+  }
+
+  try { fs.unlinkSync(mergedPath); } catch (_) {}
+  return null;
 }
 
 async function downloadAndPrepareVideo(rawUrl) {
   cleanupOldTempFiles();
 
-  const targetUrl = normalizeTargetUrl(rawUrl);
-  const isInstaOrFb = /instagram\.com|facebook\.com|fb\.watch|fb\.gg/i.test(targetUrl);
+  // 1. Resolve redirecionamentos (facebook.com/share/v/..., share/r/..., vt.tiktok.com, etc.)
+  const resolvedUrl = await resolveShareUrl(rawUrl);
+  const targetUrl = cleanTargetUrl(resolvedUrl);
+
+  console.log('URL original:', rawUrl);
+  if (targetUrl !== rawUrl) {
+    console.log('URL resolvida:', targetUrl);
+  }
+
+  const isTikTok = /tiktok\.com/i.test(targetUrl);
 
   const uniqueId =
     `cortepro_${Date.now()}_` +
@@ -545,591 +723,140 @@ async function downloadAndPrepareVideo(rawUrl) {
   const rawTemplate = path.join(TEMP_DIR, `${rawPrefix}.%(ext)s`);
   const finalFilePath = path.join(TEMP_DIR, `${uniqueId}_ready.mp4`);
 
-  // Estratégias em ordem de prioridade:
-  // No Instagram/Facebook, 'bv*+ba' muitas vezes baixa vídeo DASH mudo se a faixa de áudio falhar.
-  // Por isso priorizamos faixas combinadas com áudio garantido ou par explícito vídeo+áudio.
-  const strategies = isInstaOrFb
-    ? [
-        {
-          name: 'Stream com áudio garantido (Insta/FB)',
-          format: 'best[vcodec!=none][acodec!=none]/bestvideo[vcodec!=none]+bestaudio[acodec!=none]/best',
-          extra: []
-        },
-        {
-          name: 'Fallback MP4 combinado (Mobile)',
-          format: 'b[ext=mp4]/b/best',
-          extra: ['--format-sort', 'hasaud,res,ext:mp4:m4a']
-        }
-      ]
-    : [
-        {
-          name: 'Alta qualidade (Vídeo + Áudio)',
-          format: 'bv*[vcodec!=none]+ba[acodec!=none]/best[vcodec!=none][acodec!=none]/best',
-          extra: []
-        },
-        {
-          name: 'Fallback combinado com áudio',
-          format: 'b[acodec!=none]/best',
-          extra: []
-        }
-      ];
-
   let selectedRawFile = null;
+  let lastYtDlpError = '';
 
-  for (let i = 0; i < strategies.length; i++) {
-    const strat = strategies[i];
-    console.log(`Tentativa ${i + 1} (${strat.name}):`, targetUrl);
-
+  // 2. Se for TikTok, tenta primeiro a extração rápida (2 a 4s)
+  if (isTikTok) {
+    const fastTikTokFile = path.join(TEMP_DIR, `${rawPrefix}.mp4`);
     try {
-      await runYtDlpAttempt(targetUrl, rawTemplate, strat.format, strat.extra);
-    } catch (err) {
-      console.warn(`Tentativa ${i + 1} falhou no yt-dlp:`, err.message);
+      console.log('Tentando extração rápida para TikTok:', targetUrl);
+      selectedRawFile = await tryFastTikTokExtract(targetUrl, fastTikTokFile);
+      console.log('Extração rápida do TikTok concluída!');
+    } catch (ttErr) {
+      console.warn('Extração rápida do TikTok falhou, usando yt-dlp:', ttErr.message);
+      try { fs.unlinkSync(fastTikTokFile); } catch (_) {}
     }
+  }
 
-    const matches = findExtractedFiles(rawPrefix);
-    const candidate =
-      matches.find(f => f.toLowerCase().endsWith('.mp4')) || matches[0];
+  const desktopUA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+  const mobileUA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
 
-    if (candidate) {
+  // 3. Estratégias com 'bv+ba' (sem asterisco em bv, obrigando o download do par de áudio)
+  // e formatos progressivos nativos ('hd/sd/b')
+  if (!selectedRawFile) {
+    const strategies = [
+      {
+        name: 'Fusão explícita Vídeo + Áudio (bv+ba / hd / sd)',
+        format: 'bv+ba/hd/sd/b[ext=mp4]/b',
+        ua: desktopUA,
+        extra: ['-S', 'vcodec:h264,acodec:aac,res:720,ext:mp4:m4a']
+      },
+      {
+        name: 'Stream Mobile Combinado (iPhone UA)',
+        format: 'hd/sd/b[ext=mp4]/b/bv+ba',
+        ua: mobileUA,
+        extra: []
+      }
+    ];
+
+    for (let i = 0; i < strategies.length; i++) {
+      const strat = strategies[i];
+      console.log(`Tentativa yt-dlp ${i + 1} (${strat.name}):`, targetUrl);
+
       try {
-        const info = await inspectMediaStreams(candidate);
-        console.log(
-          `Inspeção Tentativa ${i + 1}: video=${info.hasVideo}, audio=${info.hasAudio}`
+        await runYtDlpAttempt(
+          targetUrl,
+          rawTemplate,
+          strat.format,
+          ['--user-agent', strat.ua, ...strat.extra]
         );
+      } catch (err) {
+        lastYtDlpError = err.message;
+        console.warn(`Tentativa ${i + 1} aviso/erro:`, err.message);
+      }
 
-        if (info.hasVideo && info.hasAudio) {
-          selectedRawFile = candidate;
-          break;
-        } else {
-          console.warn(
-            `Arquivo da Tentativa ${i + 1} veio sem áudio. Tentando próximo método...`
+      const matches = findExtractedFiles(rawPrefix);
+      if (!matches.length) continue;
+
+      let videoOnlyFile = null;
+      let audioOnlyFile = null;
+
+      for (const file of matches) {
+        try {
+          const info = await inspectMediaStreams(file);
+          console.log(
+            `Arquivo gerado (${path.basename(file)}): video=${info.hasVideo}, audio=${info.hasAudio}`
           );
-          removeFiles(matches);
+
+          if (info.hasVideo && info.hasAudio) {
+            selectedRawFile = file;
+            break;
+          } else if (info.hasVideo && !info.hasAudio) {
+            videoOnlyFile = file;
+          } else if (!info.hasVideo && info.hasAudio) {
+            audioOnlyFile = file;
+          }
+        } catch (_) {}
+      }
+
+      if (selectedRawFile) {
+        // Remove outros arquivos temporários que não sejam o selecionado
+        removeFiles(matches.filter(f => f !== selectedRawFile));
+        break;
+      }
+
+      // Caso o yt-dlp tenha baixado vídeo e áudio em arquivos separados sem juntar
+      if (videoOnlyFile && audioOnlyFile) {
+        const mergedFile = path.join(TEMP_DIR, `${uniqueId}_pairmerged.mp4`);
+        try {
+          await runFfmpeg([
+            '-y',
+            '-i', videoOnlyFile,
+            '-i', audioOnlyFile,
+            '-map', '0:v:0',
+            '-map', '1:a:0',
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-shortest',
+            '-movflags', '+faststart',
+            mergedFile
+          ], 35000);
+
+          const mergedInfo = await inspectMediaStreams(mergedFile);
+          if (mergedInfo.hasVideo && mergedInfo.hasAudio) {
+            selectedRawFile = mergedFile;
+            removeFiles(matches);
+            break;
+          }
+        } catch (_) {
+          try { fs.unlinkSync(mergedFile); } catch (_) {}
         }
-      } catch (inspectErr) {
+      }
+
+      // Caso tenha baixado apenas o vídeo mudo, aciona o Resgate de Áudio
+      if (videoOnlyFile && !selectedRawFile) {
+        const rescued = await rescueAudioAndMerge(
+          targetUrl,
+          videoOnlyFile,
+          uniqueId,
+          strat.ua
+        );
+        removeFiles(matches);
+        if (rescued) {
+          selectedRawFile = rescued;
+          break;
+        }
+      } else {
         removeFiles(matches);
       }
     }
   }
 
-  // Se ainda assim nenhum arquivo teve áudio, faz uma última tentativa para diagnosticar
   if (!selectedRawFile) {
-    throw new Error(
-      'O Instagram/plataforma entregou apenas a faixa de vídeo sem som ou bloqueou o áudio deste Reel. Tente outro link ou aguarde alguns instantes.'
-    );
-  }
-
-  console.time(`${uniqueId}-preparacao`);
-
-  let preparedPath;
-
-  try {
-    preparedPath = await prepareAndroidMp4(
-      selectedRawFile,
-      finalFilePath
-    );
-  } finally {
-    console.timeEnd(`${uniqueId}-preparacao`);
-  }
-
-  return {
-    fileName: path.basename(preparedPath),
-    filePath: preparedPath
-  };
-}
-
-app.get('/', (_req, res) => {
-  res.json({
-    status: 'CortePro Master Backend operacional',
-    binaryReady: isBinaryReady,
-    ffmpegReady: Boolean(
-      ffmpegPath && fs.existsSync(ffmpegPath)
-    ),
-    endpoint: '/api/extract?url=LINK_DO_VIDEO'
-  });
-});
-
-app.get('/api/ping', (_req, res) => {
-  res.json({
-    ok: true,
-    binaryReady: isBinaryReady,
-    timestamp: Date.now()
-  });
-});
-
-app.get('/api/extract', async (req, res) => {
-  const videoUrl =
-    typeof req.query.url === 'string'
-      ? req.query.url.trim()
-      : '';
-
-  if (!videoUrl) {
-    return res.status(400).json({
-      success: false,
-      error: "Parâmetro 'url' não fornecido."
-    });
-  }
-
-  if (!isValidPublicUrl(videoUrl)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Link inválido ou não permitido.'
-    });
-  }
-
-  const ready = await ensureYtDlpReady();
-
-  if (!ready) {
-    return res.status(503).json({
-      success: false,
-      error: initError
-        ? `Erro ao preparar o extrator: ${initError}`
-        : 'O extrator ainda está iniciando. Aguarde e tente novamente.'
-    });
-  }
-
-  try {
-    console.log('Iniciando extração:', videoUrl);
-
-    const result = await downloadAndPrepareVideo(videoUrl);
-
-    return res.json({
-      success: true,
-      title: 'Vídeo MP4 validado com áudio',
-      downloadUrl: `/api/file/${result.fileName}`
-    });
-  } catch (error) {
-    console.error('Erro ao transferir vídeo:', error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Não foi possível transferir este vídeo.'
-    });
-  }
-});
-
-app.get('/api/file/:fileName', (req, res) => {
-  const fileName = path.basename(req.params.fileName);
-
-  if (
-    !/^cortepro_[a-zA-Z0-9_-]+\.mp4$/i.test(fileName) &&
-    !/^splitjob_[a-zA-Z0-9_-]+\.mp4$/i.test(fileName)
-  ) {
-    return res.status(400).send('Nome de arquivo inválido.');
-  }
-
-  const filePath = path.join(TEMP_DIR, fileName);
-
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send(
-      'O arquivo expirou. Processe e baixe novamente.'
-    );
-  }
-
-  let stat;
-
-  try {
-    stat = fs.statSync(filePath);
-  } catch (_) {
-    return res.status(404).send('Arquivo não encontrado.');
-  }
-
-  const range = req.headers.range;
-  let start = 0;
-  let end = stat.size - 1;
-
-  if (range) {
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
-
-    if (!match || (!match[1] && !match[2])) {
-      res.setHeader('Content-Range', `bytes */${stat.size}`);
-      return res.status(416).end();
-    }
-
-    if (!match[1]) {
-      const suffix = Number(match[2]);
-
-      if (!Number.isSafeInteger(suffix) || suffix <= 0) {
-        res.setHeader('Content-Range', `bytes */${stat.size}`);
-        return res.status(416).end();
-      }
-
-      start = Math.max(0, stat.size - suffix);
-    } else {
-      start = Number(match[1]);
-
-      if (match[2]) {
-        end = Number(match[2]);
-      }
-    }
-
-    if (
-      !Number.isSafeInteger(start) ||
-      !Number.isSafeInteger(end) ||
-      start >= stat.size ||
-      end < start ||
-      end < 0
-    ) {
-      res.setHeader('Content-Range', `bytes */${stat.size}`);
-      return res.status(416).end();
-    }
-
-    end = Math.min(end, stat.size - 1);
-
-    res.status(206);
-    res.setHeader(
-      'Content-Range',
-      `bytes ${start}-${end}/${stat.size}`
-    );
-  }
-
-  res.setHeader('Content-Type', 'video/mp4');
-  res.setHeader('Content-Length', end - start + 1);
-  res.setHeader('Accept-Ranges', 'bytes');
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${fileName}"`
-  );
-
-  const stream = fs.createReadStream(filePath, { start, end });
-
-  stream.on('error', err => {
-    console.error('Erro ao enviar arquivo:', err.message);
-
-    if (!res.headersSent) {
-      res.status(500);
-    }
-
-    res.end();
-  });
-
-  stream.pipe(res);
-});
-
-async function detectSpeechPauses(filePath) {
-  if (!ffmpegPath) return [];
-
-  return new Promise(resolve => {
-    execFile(
-      ffmpegPath,
-      [
-        '-hide_banner',
-        '-nostats',
-        '-vn',
-        '-i', filePath,
-        '-af',
-        'silencedetect=noise=-30dB:d=0.25',
-        '-f', 'null',
-        '-'
-      ],
-      {
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 15 * 60 * 1000
-      },
-      (_err, stdout, stderr) => {
-        const output = `${stderr || ''}\n${stdout || ''}`;
-        const pauses = [];
-        let currentStart = null;
-
-        for (const line of output.split('\n')) {
-          const startMatch = line.match(
-            /silence_start:\s*([\d.]+)/
-          );
-
-          if (startMatch) {
-            currentStart = parseFloat(startMatch[1]);
-          }
-
-          const endMatch = line.match(
-            /silence_end:\s*([\d.]+)\s*\|\s*silence_duration:\s*([\d.]+)/
-          );
-
-          if (endMatch && currentStart !== null) {
-            const end = parseFloat(endMatch[1]);
-            const duration = parseFloat(endMatch[2]);
-
-            pauses.push({
-              start: currentStart,
-              end,
-              duration,
-              mid: (currentStart + end) / 2
-            });
-
-            currentStart = null;
-          }
-        }
-
-        resolve(pauses);
-      }
-    );
-  });
-}
-
-function computeSmartSegments(totalDuration, partsCount, pauses) {
-  const segments = [];
-  let currentStart = 0;
-  const minPartDuration = 1;
-
-  for (let i = 1; i < partsCount; i++) {
-    const remainingParts = partsCount - i + 1;
-
-    const targetCut =
-      currentStart +
-      (totalDuration - currentStart) / remainingParts;
-
-    const searchRadius = Math.max(
-      1,
-      Math.min(20, (totalDuration / partsCount) * 0.35)
-    );
-
-    const minCut = Math.max(
-      currentStart + minPartDuration,
-      targetCut - searchRadius
-    );
-
-    const maxCut = Math.min(
-      totalDuration - (remainingParts - 1) * minPartDuration,
-      targetCut + searchRadius
-    );
-
-    const candidates = pauses.filter(p =>
-      Number.isFinite(p.mid) &&
-      p.mid >= minCut &&
-      p.mid <= maxCut
-    );
-
-    let cut = targetCut;
-    let reason = 'Corte próximo à duração equilibrada';
-
-    if (candidates.length) {
-      const bestPause = candidates.reduce((best, candidate) => {
-        const score = p =>
-          Math.min(p.duration, 1.5) * 1.8 -
-          Math.abs(p.mid - targetCut) / Math.max(searchRadius, 1);
-
-        return score(candidate) > score(best) ? candidate : best;
-      });
-
-      cut = bestPause.mid;
-      reason = 'Pausa natural no áudio detectada';
-    }
-
-    cut = Number(
-      Math.max(minCut, Math.min(maxCut, cut)).toFixed(2)
-    );
-
-    segments.push({
-      partNumber: i,
-      start: Number(currentStart.toFixed(2)),
-      end: cut,
-      duration: Number((cut - currentStart).toFixed(2)),
-      reason
-    });
-
-    currentStart = cut;
-  }
-
-  segments.push({
-    partNumber: partsCount,
-    start: Number(currentStart.toFixed(2)),
-    end: Number(totalDuration.toFixed(2)),
-    duration: Number((totalDuration - currentStart).toFixed(2)),
-    reason: 'Conclusão do vídeo'
-  });
-
-  return segments;
-}
-
-app.post('/api/smart-split', async (req, res) => {
-  cleanupOldTempFiles();
-
-  const partsCount = Math.max(
-    2,
-    Math.min(20, parseInt(req.query.parts, 10) || 2)
-  );
-
-  const jobId =
-    `splitjob_${Date.now()}_` +
-    Math.random().toString(36).slice(2, 8);
-
-  const inputPath = path.join(TEMP_DIR, `${jobId}_input.mp4`);
-
-  try {
-    const contentLength = Number(req.headers['content-length']);
-
-    if (
-      Number.isFinite(contentLength) &&
-      contentLength > MAX_UPLOAD_BYTES
-    ) {
-      return res.status(413).json({
-        success: false,
-        error: 'Vídeo maior que 180 MB. Selecione um arquivo menor.'
-      });
-    }
-
-    let receivedBytes = 0;
-
-    const limitStream = new Transform({
-      transform(chunk, _encoding, callback) {
-        receivedBytes += chunk.length;
-
-        if (receivedBytes > MAX_UPLOAD_BYTES) {
-          const error = new Error('Vídeo maior que 180 MB.');
-          error.statusCode = 413;
-          callback(error);
-        } else {
-          callback(null, chunk);
-        }
-      }
-    });
-
-    await pipeline(
-      req,
-      limitStream,
-      fs.createWriteStream(inputPath)
-    );
-
-    if (
-      !fs.existsSync(inputPath) ||
-      fs.statSync(inputPath).size < 1000
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: 'Arquivo de vídeo inválido ou vazio.'
-      });
-    }
-
-    const mediaInfo = await inspectMediaStreams(inputPath);
-
-    if (!mediaInfo.hasVideo) {
-      return res.status(400).json({
-        success: false,
-        error: 'O arquivo enviado não contém vídeo válido.'
-      });
-    }
-
-    const totalDuration = mediaInfo.duration;
-
-    if (!totalDuration || totalDuration < 4) {
-      return res.status(400).json({
-        success: false,
-        error: 'Vídeo curto demais ou duração não identificada.'
-      });
-    }
-
-    if (totalDuration < partsCount) {
-      return res.status(400).json({
-        success: false,
-        error: 'Vídeo curto demais para a quantidade de partes selecionada.'
-      });
-    }
-
-    const pauses = mediaInfo.hasAudio
-      ? await detectSpeechPauses(inputPath)
-      : [];
-
-    const segments = computeSmartSegments(
-      totalDuration,
-      partsCount,
-      pauses
-    );
-
-    const generatedParts = [];
-
-    for (const segment of segments) {
-      const partFileName = `${jobId}_parte_${segment.partNumber}.mp4`;
-      const partPath = path.join(TEMP_DIR, partFileName);
-
-      const args = [
-        '-y',
-        '-ss', String(segment.start),
-        '-i', inputPath,
-        '-t', String(Math.max(0.1, segment.end - segment.start)),
-        '-map', '0:v:0',
-        '-vf',
-        'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '26',
-        '-profile:v', 'main',
-        '-level', '3.1'
-      ];
-
-      if (mediaInfo.hasAudio) {
-        args.push(
-          '-map', '0:a:0',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-ar', '44100',
-          '-ac', '2'
-        );
-      }
-
-      args.push(
-        '-movflags', '+faststart',
-        '-sn',
-        '-dn',
-        partPath
-      );
-
-      await runFfmpeg(args);
-
-      const partInfo = await inspectMediaStreams(partPath);
-
-      if (
-        !partInfo.hasVideo ||
-        (mediaInfo.hasAudio && !partInfo.hasAudio)
-      ) {
-        try {
-          fs.unlinkSync(partPath);
-        } catch (_) {}
-
-        throw new Error(
-          `A validação da parte ${segment.partNumber} falhou.`
-        );
-      }
-
-      generatedParts.push({
-        partNumber: segment.partNumber,
-        start: segment.start,
-        end: segment.end,
-        duration: segment.duration,
-        reason: segment.reason,
-        downloadUrl: `/api/file/${partFileName}`
-      });
-    }
-
-    try {
-      fs.unlinkSync(inputPath);
-    } catch (_) {}
-
-    return res.json({
-      success: true,
-      totalDuration: Number(totalDuration.toFixed(1)),
-      partsCount: generatedParts.length,
-      parts: generatedParts
-    });
-  } catch (error) {
-    console.error('Erro no divisor:', error.message);
-
-    try {
-      fs.unlinkSync(inputPath);
-    } catch (_) {}
-
-    if (!res.headersSent) {
-      return res.status(error.statusCode || 500).json({
-        success: false,
-        error: error.message || 'Falha ao dividir o vídeo.'
-      });
-    }
-  }
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor CortePro Master ouvindo na porta ${PORT}`);
-});
-
-ensureYtDlpReady().catch(err => {
-  console.error('Falha ao inicializar yt-dlp:', err.message);
-});
+    const cleanErr = lastYtDlpError.includes('login') || lastYtDlpError.includes('private')
+      ? 'Este vídeo é privado ou exige login na plataforma.'
+      : 'Não foi possível extrair o vídeo com áudio desta publicação. Verifique se a publicação é pública.';
