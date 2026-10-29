@@ -17,7 +17,6 @@ const PORT = process.env.PORT || 3000;
 const MAX_UPLOAD_BYTES = 180 * 1024 * 1024;
 const TEMP_DIR = os.tmpdir();
 
-// CORS liberado para qualquer origem (Vercel, GitHub Pages, localhost)
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -29,7 +28,6 @@ app.use(express.json({ limit: '1mb' }));
 const isWin = process.platform === 'win32';
 const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp_linux';
 
-// Salva na pasta do projeto primeiro para não perder quando o Render reiniciar a /tmp
 const localBinaryPath = path.join(__dirname, binaryName);
 const tempBinaryPath = path.join(TEMP_DIR, binaryName);
 let activeBinaryPath = localBinaryPath;
@@ -93,7 +91,7 @@ function downloadFileDirect(urlString, dest, redirectsLeft = 8) {
     }
 
     const request = lib.get(urlString, {
-      headers: { 'User-Agent': 'CortePro-Master/4.1' },
+      headers: { 'User-Agent': 'CortePro-Master/4.2' },
       timeout: 25000
     }, response => {
       const status = response.statusCode || 0;
@@ -168,7 +166,6 @@ async function ensureYtDlpReady() {
     initError = null;
 
     try {
-      // Verifica se já existe no diretório local ou no TEMP_DIR
       if (fs.existsSync(localBinaryPath) && fs.statSync(localBinaryPath).size > 1000000) {
         activeBinaryPath = localBinaryPath;
       } else if (fs.existsSync(tempBinaryPath) && fs.statSync(tempBinaryPath).size > 1000000) {
@@ -328,9 +325,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
 
   if (!inputInfo.hasAudio) {
     throw new Error(
-      'O arquivo de origem não contém áudio. ' +
-      'O download foi interrompido para evitar entregar ' +
-      'um vídeo sem som.'
+      'O vídeo original desta publicação não possui faixa de áudio ou o áudio está bloqueado pela plataforma.'
     );
   }
 
@@ -462,56 +457,29 @@ function isValidPublicUrl(urlString) {
   }
 }
 
-async function downloadAndPrepareVideo(rawUrl) {
-  cleanupOldTempFiles();
-
-  const uniqueId =
-    `cortepro_${Date.now()}_` +
-    Math.random().toString(36).slice(2, 8);
-
-  const rawTemplate = path.join(
-    TEMP_DIR,
-    `${uniqueId}_raw.%(ext)s`
-  );
-
-  const finalFilePath = path.join(
-    TEMP_DIR,
-    `${uniqueId}_ready.mp4`
-  );
-
-  const args = [
-    rawUrl,
-    '-f', 'bv*+ba/best',
-    '--merge-output-format', 'mp4',
-    '--no-playlist',
-    '--no-warnings',
-    '--no-part',
-    '--no-check-certificates',
-    '--geo-bypass',
-    '--user-agent',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    '--max-filesize', '180M',
-    '--retries', '3',
-    '--fragment-retries', '3',
-    '--socket-timeout', '25',
-    '-o', rawTemplate
-  ];
-
-  if (ffmpegPath) {
-    args.push('--ffmpeg-location', ffmpegPath);
-  }
-
-  console.time(`${uniqueId}-extracao`);
-
+// Limpa parâmetros de rastreio do Instagram/TikTok que atrapalham o extrator
+function normalizeTargetUrl(rawUrl) {
   try {
-    await ytDlpWrap.execPromise(args);
-  } finally {
-    console.timeEnd(`${uniqueId}-extracao`);
-  }
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
 
-  const matches = fs.readdirSync(TEMP_DIR)
+    if (host.includes('instagram.com')) {
+      parsed.search = '';
+      parsed.hash = '';
+      // Converte /reels/ para /reel/ se necessário
+      parsed.pathname = parsed.pathname.replace(/^\/reels\//i, '/reel/');
+      return parsed.toString();
+    }
+    return rawUrl;
+  } catch (_) {
+    return rawUrl;
+  }
+}
+
+function findExtractedFiles(prefix) {
+  return fs.readdirSync(TEMP_DIR)
     .filter(name =>
-      name.startsWith(`${uniqueId}_raw`) &&
+      name.startsWith(prefix) &&
       !name.endsWith('.part') &&
       !name.endsWith('.ytdl')
     )
@@ -526,16 +494,128 @@ async function downloadAndPrepareVideo(rawUrl) {
         return false;
       }
     });
+}
 
-  const rawFilePath =
-    matches.find(file =>
-      file.toLowerCase().endsWith('.mp4')
-    ) || matches[0];
+function removeFiles(fileList) {
+  for (const f of fileList) {
+    try {
+      fs.unlinkSync(f);
+    } catch (_) {}
+  }
+}
 
-  if (!rawFilePath) {
+async function runYtDlpAttempt(targetUrl, rawTemplate, formatSelector, extraArgs = []) {
+  const args = [
+    targetUrl,
+    '-f', formatSelector,
+    '--merge-output-format', 'mp4',
+    '--no-playlist',
+    '--no-warnings',
+    '--no-part',
+    '--no-check-certificates',
+    '--geo-bypass',
+    '--user-agent',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    '--max-filesize', '180M',
+    '--retries', '3',
+    '--fragment-retries', '3',
+    '--socket-timeout', '25',
+    ...extraArgs,
+    '-o', rawTemplate
+  ];
+
+  if (ffmpegPath) {
+    args.push('--ffmpeg-location', ffmpegPath);
+  }
+
+  await ytDlpWrap.execPromise(args);
+}
+
+async function downloadAndPrepareVideo(rawUrl) {
+  cleanupOldTempFiles();
+
+  const targetUrl = normalizeTargetUrl(rawUrl);
+  const isInstaOrFb = /instagram\.com|facebook\.com|fb\.watch|fb\.gg/i.test(targetUrl);
+
+  const uniqueId =
+    `cortepro_${Date.now()}_` +
+    Math.random().toString(36).slice(2, 8);
+
+  const rawPrefix = `${uniqueId}_raw`;
+  const rawTemplate = path.join(TEMP_DIR, `${rawPrefix}.%(ext)s`);
+  const finalFilePath = path.join(TEMP_DIR, `${uniqueId}_ready.mp4`);
+
+  // Estratégias em ordem de prioridade:
+  // No Instagram/Facebook, 'bv*+ba' muitas vezes baixa vídeo DASH mudo se a faixa de áudio falhar.
+  // Por isso priorizamos faixas combinadas com áudio garantido ou par explícito vídeo+áudio.
+  const strategies = isInstaOrFb
+    ? [
+        {
+          name: 'Stream com áudio garantido (Insta/FB)',
+          format: 'best[vcodec!=none][acodec!=none]/bestvideo[vcodec!=none]+bestaudio[acodec!=none]/best',
+          extra: []
+        },
+        {
+          name: 'Fallback MP4 combinado (Mobile)',
+          format: 'b[ext=mp4]/b/best',
+          extra: ['--format-sort', 'hasaud,res,ext:mp4:m4a']
+        }
+      ]
+    : [
+        {
+          name: 'Alta qualidade (Vídeo + Áudio)',
+          format: 'bv*[vcodec!=none]+ba[acodec!=none]/best[vcodec!=none][acodec!=none]/best',
+          extra: []
+        },
+        {
+          name: 'Fallback combinado com áudio',
+          format: 'b[acodec!=none]/best',
+          extra: []
+        }
+      ];
+
+  let selectedRawFile = null;
+
+  for (let i = 0; i < strategies.length; i++) {
+    const strat = strategies[i];
+    console.log(`Tentativa ${i + 1} (${strat.name}):`, targetUrl);
+
+    try {
+      await runYtDlpAttempt(targetUrl, rawTemplate, strat.format, strat.extra);
+    } catch (err) {
+      console.warn(`Tentativa ${i + 1} falhou no yt-dlp:`, err.message);
+    }
+
+    const matches = findExtractedFiles(rawPrefix);
+    const candidate =
+      matches.find(f => f.toLowerCase().endsWith('.mp4')) || matches[0];
+
+    if (candidate) {
+      try {
+        const info = await inspectMediaStreams(candidate);
+        console.log(
+          `Inspeção Tentativa ${i + 1}: video=${info.hasVideo}, audio=${info.hasAudio}`
+        );
+
+        if (info.hasVideo && info.hasAudio) {
+          selectedRawFile = candidate;
+          break;
+        } else {
+          console.warn(
+            `Arquivo da Tentativa ${i + 1} veio sem áudio. Tentando próximo método...`
+          );
+          removeFiles(matches);
+        }
+      } catch (inspectErr) {
+        removeFiles(matches);
+      }
+    }
+  }
+
+  // Se ainda assim nenhum arquivo teve áudio, faz uma última tentativa para diagnosticar
+  if (!selectedRawFile) {
     throw new Error(
-      'O extrator não gerou um vídeo. ' +
-      'O link pode ser privado ou indisponível.'
+      'O Instagram/plataforma entregou apenas a faixa de vídeo sem som ou bloqueou o áudio deste Reel. Tente outro link ou aguarde alguns instantes.'
     );
   }
 
@@ -545,7 +625,7 @@ async function downloadAndPrepareVideo(rawUrl) {
 
   try {
     preparedPath = await prepareAndroidMp4(
-      rawFilePath,
+      selectedRawFile,
       finalFilePath
     );
   } finally {
@@ -558,7 +638,6 @@ async function downloadAndPrepareVideo(rawUrl) {
   };
 }
 
-// Rota de Healthcheck / Despertador
 app.get('/', (_req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
