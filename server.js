@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const YTDlpWrapModule = require('yt-dlp-wrap');
 const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
+const ffmpegPath = require('ffmpeg-static');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -12,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Usa a diretoria /tmp no Linux (Render) para garantir permissão total de escrita e execução
+// Usa a diretoria /tmp no Linux (Render) para garantir permissão total
 const isWin = process.platform === 'win32';
 const binaryName = isWin ? 'yt-dlp.exe' : 'yt-dlp_linux';
 const binaryPath = isWin ? path.join(__dirname, binaryName) : path.join('/tmp', binaryName);
@@ -22,22 +23,19 @@ let isBinaryReady = false;
 let initError = null;
 let isDownloading = false;
 
-// Função auxiliar para descarregar ficheiros seguindo redirecionamentos (sem usar a API limitada do GitHub)
+// Descarrega o binário oficial seguindo redirecionamentos
 function downloadFileDirect(url, dest) {
   return new Promise((resolve, reject) => {
     const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/1.0' } }, (response) => {
-      // Segue redirecionamentos 301/302 do GitHub Releases
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         return downloadFileDirect(response.headers.location, dest).then(resolve).catch(reject);
       }
       if (response.statusCode !== 200) {
-        return reject(new Error(`Falha no download do binário. Status HTTP: ${response.statusCode}`));
+        return reject(new Error(`Status HTTP: ${response.statusCode}`));
       }
       const file = fs.createWriteStream(dest);
       response.pipe(file);
-      file.on('finish', () => {
-        file.close(resolve);
-      });
+      file.on('finish', () => file.close(resolve));
       file.on('error', (err) => {
         fs.unlink(dest, () => {});
         reject(err);
@@ -68,7 +66,7 @@ async function ensureYtDlpReady() {
         ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
         : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
 
-      console.log('A transferir binário oficial diretamente de:', downloadUrl);
+      console.log('A transferir binário oficial de:', downloadUrl);
       await downloadFileDirect(downloadUrl, binaryPath);
     }
 
@@ -79,20 +77,18 @@ async function ensureYtDlpReady() {
     ytDlpWrap = new YTDlpWrap(binaryPath);
     isBinaryReady = true;
     isDownloading = false;
-    console.log('yt-dlp pronto e operacional em:', binaryPath);
+    console.log('yt-dlp pronto em:', binaryPath);
     return true;
   } catch (err) {
     initError = err.message;
     isDownloading = false;
-    console.error('Erro ao preparar o yt-dlp:', err.message);
+    console.error('Erro ao preparar yt-dlp:', err.message);
     return false;
   }
 }
 
-// Inicia o download assim que o servidor arranca
 ensureYtDlpReady();
 
-// Validação de segurança de URL
 function isValidPublicUrl(urlString) {
   try {
     const parsed = new URL(urlString);
@@ -115,19 +111,19 @@ function isValidPublicUrl(urlString) {
   }
 }
 
-// Rota raiz com diagnóstico completo
+// Rota raiz com diagnóstico
 app.get('/', (req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
     binaryReady: isBinaryReady,
-    isDownloading: isDownloading,
+    ffmpegReady: Boolean(ffmpegPath),
     initError: initError,
     endpoint: '/api/extract?url=LINK_DO_VIDEO',
     downloadEndpoint: '/api/download?url=LINK_DO_VIDEO'
   });
 });
 
-// Rota 1: Extração de metadados e validação do vídeo
+// Rota 1: Extrai informações do vídeo
 app.get('/api/extract', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -139,20 +135,19 @@ app.get('/api/extract', async (req, res) => {
     return res.status(400).json({ error: 'Link inválido ou não permitido.' });
   }
 
-  // Se ainda não estiver pronto, tenta concluir a preparação na hora
   if (!isBinaryReady) {
     const readyNow = await ensureYtDlpReady();
     if (!readyNow) {
       return res.status(503).json({
         error: initError
-          ? `Erro ao preparar extrator no servidor: ${initError}`
-          : 'O extrator está a ser transferido no servidor. Aguarde 10 segundos e toque novamente.'
+          ? `Erro ao preparar extrator: ${initError}`
+          : 'O extrator está a ser preparado. Aguarde 10 segundos e tente novamente.'
       });
     }
   }
 
   try {
-    console.log(`A extrair vídeo: ${videoUrl}`);
+    console.log(`A analisar vídeo: ${videoUrl}`);
 
     const stdout = await ytDlpWrap.execPromise([
       videoUrl,
@@ -172,11 +167,6 @@ app.get('/api/extract', async (req, res) => {
       );
       if (progressiveFormats.length > 0) {
         directUrl = progressiveFormats[progressiveFormats.length - 1].url;
-      } else {
-        const anyVideo = metadata.formats.filter(f => f.url && f.vcodec !== 'none');
-        if (anyVideo.length > 0) {
-          directUrl = anyVideo[anyVideo.length - 1].url;
-        }
       }
     }
 
@@ -194,13 +184,13 @@ app.get('/api/extract', async (req, res) => {
   } catch (error) {
     console.error('Erro na extração:', error.message);
     res.status(500).json({
-      error: 'Não foi possível extrair este vídeo. Verifique se o link é público (não privado) e tente novamente.',
+      error: 'Não foi possível extrair este vídeo. Verifique se o link é público e tente novamente.',
       details: error.message
     });
   }
 });
 
-// Rota 2: Download direto do ficheiro MP4 para o telemóvel
+// Rota 2: Faz o download real com suporte a FFmpeg e deteção dinâmica do ficheiro gerado
 app.get('/api/download', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -211,53 +201,79 @@ app.get('/api/download', async (req, res) => {
   if (!isBinaryReady) {
     const readyNow = await ensureYtDlpReady();
     if (!readyNow) {
-      return res.status(503).send('Extrator indisponível no momento.');
+      return res.status(503).send('Extrator a iniciar. Tente novamente em alguns segundos.');
     }
   }
 
-  const tempId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.mp4`;
-  const tempFilePath = path.join('/tmp', tempId);
+  const uniquePrefix = `cortepro_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  const outputTemplate = path.join('/tmp', `${uniquePrefix}.%(ext)s`);
+
+  // Função para localizar qualquer ficheiro criado com este prefixo em /tmp
+  const findGeneratedFile = () => {
+    const files = fs.readdirSync('/tmp');
+    const match = files.find(f => f.startsWith(uniquePrefix) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
+    return match ? path.join('/tmp', match) : null;
+  };
+
+  // Função para apagar todos os ficheiros temporários deste pedido
+  const cleanupFiles = () => {
+    try {
+      const files = fs.readdirSync('/tmp');
+      files.forEach(f => {
+        if (f.startsWith(uniquePrefix)) {
+          fs.unlink(path.join('/tmp', f), () => {});
+        }
+      });
+    } catch (e) {}
+  };
 
   try {
-    console.log(`A transferir ficheiro MP4: ${videoUrl}`);
+    console.log(`A processar download para: ${videoUrl}`);
 
-    await ytDlpWrap.execPromise([
+    const args = [
       videoUrl,
-      '-f', 'best[ext=mp4][vcodec!=none][acodec!=none]/best[ext=mp4]/best',
+      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '--merge-output-format', 'mp4',
       '--no-playlist',
       '--no-warnings',
       '--no-check-certificates',
       '--geo-bypass',
-      '--max-filesize', '150M',
-      '-o', tempFilePath
-    ]);
+      '--no-part',
+      '--max-filesize', '180M',
+      '-o', outputTemplate
+    ];
 
-    if (!fs.existsSync(tempFilePath)) {
+    // Se o ffmpeg-static estiver presente, informa o caminho exato ao yt-dlp
+    if (ffmpegPath) {
+      args.push('--ffmpeg-location', ffmpegPath);
+    }
+
+    await ytDlpWrap.execPromise(args);
+
+    const finalFilePath = findGeneratedFile();
+
+    if (!finalFilePath || !fs.existsSync(finalFilePath)) {
+      cleanupFiles();
       return res.status(422).send('Não foi possível gerar o ficheiro de vídeo para download.');
     }
 
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="cortepro_${Date.now()}.mp4"`);
+    const ext = path.extname(finalFilePath) || '.mp4';
+    const mimeType = ext === '.webm' ? 'video/webm' : ext === '.mkv' ? 'video/x-matroska' : 'video/mp4';
 
-    const readStream = fs.createReadStream(tempFilePath);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="cortepro_${Date.now()}${ext}"`);
+
+    const readStream = fs.createReadStream(finalFilePath);
     readStream.pipe(res);
 
-    const cleanup = () => {
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlink(tempFilePath, () => {});
-      }
-    };
-
-    readStream.on('close', cleanup);
-    readStream.on('error', cleanup);
-    res.on('close', cleanup);
+    readStream.on('close', cleanupFiles);
+    readStream.on('error', cleanupFiles);
+    res.on('close', cleanupFiles);
   } catch (error) {
     console.error('Erro no download direto:', error.message);
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlink(tempFilePath, () => {});
-    }
+    cleanupFiles();
     if (!res.headersSent) {
-      res.status(500).send('Falha ao descarregar o vídeo. O conteúdo pode ser privado ou bloqueado pela plataforma.');
+      res.status(500).send(`Falha ao descarregar o vídeo: ${error.message}`);
     }
   }
 });
