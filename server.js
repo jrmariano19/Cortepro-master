@@ -7,6 +7,7 @@ const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const http = require('http');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,7 +30,6 @@ let isBinaryReady = false;
 let initError = null;
 let isDownloading = false;
 
-// Limpa ficheiros temporários com mais de 10 minutos para manter a memória RAM do Render livre
 function cleanupOldTempFiles() {
   try {
     const now = Date.now();
@@ -48,9 +48,35 @@ function cleanupOldTempFiles() {
   } catch (e) {}
 }
 
+// Expande links encurtados de partilha (como facebook.com/share/... ou vm.tiktok.com)
+function expandShortUrl(urlStr) {
+  return new Promise((resolve) => {
+    try {
+      const parsed = new URL(urlStr);
+      const lib = parsed.protocol === 'https:' ? https : http;
+      
+      const req = lib.request(urlStr, { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+        if (res.headers.location) {
+          resolve(res.headers.location);
+        } else {
+          resolve(urlStr);
+        }
+      });
+      req.on('error', () => resolve(urlStr));
+      req.setTimeout(4000, () => {
+        req.destroy();
+        resolve(urlStr);
+      });
+      req.end();
+    } catch (e) {
+      resolve(urlStr);
+    }
+  });
+}
+
 function downloadFileDirect(url, dest) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/2.5' } }, (response) => {
+    const request = https.get(url, { headers: { 'User-Agent': 'CortePro-Master/3.0' } }, (response) => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         return downloadFileDirect(response.headers.location, dest).then(resolve).catch(reject);
       }
@@ -123,13 +149,12 @@ function runFfmpeg(args) {
 
 function inspectMediaStreams(filePath) {
   return new Promise((resolve) => {
-    if (!ffmpegPath) return resolve({ hasVideo: true, hasAudio: true, isH264: true, isAacLc: true, duration: 0 });
+    if (!ffmpegPath) return resolve({ hasVideo: true, hasAudio: true, isH264: true, duration: 0 });
     execFile(ffmpegPath, ['-hide_banner', '-i', filePath], (error, stdout, stderr) => {
       const info = (stderr || '') + (stdout || '');
       const hasVideo = /Stream #\d+:\d+.*Video:/i.test(info);
       const hasAudio = /Stream #\d+:\d+.*Audio:/i.test(info);
       const isH264 = /Video:\s*h264/i.test(info);
-      const isAacLc = /Audio:\s*aac/i.test(info);
 
       let duration = 0;
       const durMatch = info.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
@@ -137,42 +162,21 @@ function inspectMediaStreams(filePath) {
         duration = parseInt(durMatch[1], 10) * 3600 + parseInt(durMatch[2], 10) * 60 + parseFloat(durMatch[3]);
       }
 
-      resolve({ hasVideo, hasAudio, isH264, isAacLc, duration, rawInfo: info });
+      resolve({ hasVideo, hasAudio, isH264, duration, rawInfo: info });
     });
   });
 }
 
-// Normaliza o ficheiro para MP4 (H.264 + AAC) garantindo compatibilidade com Android
 async function prepareAndroidMp4(inputPath, outputPath) {
   if (!ffmpegPath) return inputPath;
 
   const check = await inspectMediaStreams(inputPath);
-  console.log(`Inspeção -> Video: ${check.hasVideo}, Audio: ${check.hasAudio}, H264: ${check.isH264}, AAC: ${check.isAacLc}`);
+  console.log(`Inspeção -> Video: ${check.hasVideo}, Audio: ${check.hasAudio}, H264: ${check.isH264}`);
 
   if (!check.hasVideo) {
     throw new Error('O ficheiro obtido não contém faixa de vídeo.');
   }
 
-  // Se já é H.264, faz a cópia rápida de vídeo e garante áudio AAC padrão + faststart
-  if (check.isH264) {
-    try {
-      const args = ['-y', '-i', inputPath, '-c:v', 'copy'];
-      if (check.hasAudio) {
-        args.push('-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2');
-      }
-      args.push('-movflags', '+faststart', outputPath);
-
-      await runFfmpeg(args);
-      if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
-        fs.unlink(inputPath, () => {});
-        return outputPath;
-      }
-    } catch (e) {
-      console.warn('Aviso na normalização rápida, a recodificar:', e.message);
-    }
-  }
-
-  // Se veio noutro codec (VP9, HEVC, AV1), converte para H.264 + AAC
   try {
     const ffArgs = [
       '-y',
@@ -195,7 +199,7 @@ async function prepareAndroidMp4(inputPath, outputPath) {
       return outputPath;
     }
   } catch (err) {
-    console.error('Erro ao recodificar MP4:', err.message);
+    console.error('Erro ao converter vídeo:', err.message);
   }
 
   return inputPath;
@@ -223,9 +227,11 @@ function isValidPublicUrl(urlString) {
   }
 }
 
-// Função central que transfere e prepara o vídeo MP4 num único passo
-async function downloadAndPrepareVideo(videoUrl) {
+async function downloadAndPrepareVideo(rawUrl) {
   cleanupOldTempFiles();
+
+  const expandedUrl = await expandShortUrl(rawUrl);
+  console.log(`URL expandida: ${expandedUrl}`);
 
   const uniqueId = `cortepro_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const rawTemplate = path.join('/tmp', `${uniqueId}_raw.%(ext)s`);
@@ -242,21 +248,11 @@ async function downloadAndPrepareVideo(videoUrl) {
     return chosen ? path.join('/tmp', chosen) : null;
   };
 
-  // Seletor compatível com Instagram, TikTok, Facebook, Kwai e YouTube garantindo Vídeo + Áudio
-  const formatSelector = [
-    'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.2]',
-    'bv*[vcodec^=avc]+ba[acodec^=mp4a.40.5]',
-    'bv*[vcodec^=avc]+ba[acodec!*=40.42]',
-    'hd',
-    'sd',
-    'bv*+ba[acodec!*=40.42]',
-    'b[ext=mp4]',
-    'bv*+ba',
-    'best'
-  ].join('/');
+  // Seletor universal robusto para qualquer plataforma (Facebook, Instagram, TikTok, Kwai, YouTube)
+  const formatSelector = 'bv*+ba/b/best';
 
   const args = [
-    videoUrl,
+    expandedUrl,
     '-f', formatSelector,
     '--merge-output-format', 'mp4',
     '--no-playlist',
@@ -264,7 +260,7 @@ async function downloadAndPrepareVideo(videoUrl) {
     '--no-check-certificates',
     '--geo-bypass',
     '--no-part',
-    '--max-filesize', '150M',
+    '--max-filesize', '180M',
     '-o', rawTemplate
   ];
 
@@ -276,30 +272,25 @@ async function downloadAndPrepareVideo(videoUrl) {
 
   const rawFilePath = findByPrefix(`${uniqueId}_raw`);
   if (!rawFilePath || !fs.existsSync(rawFilePath)) {
-    throw new Error('Não foi possível transferir o ficheiro de vídeo desta publicação.');
+    throw new Error('Não foi possível transferir o vídeo desta publicação. O link pode ser privado.');
   }
 
   const preparedPath = await prepareAndroidMp4(rawFilePath, finalFilePath);
-  const readyFileName = path.basename(preparedPath);
-
   return {
-    fileName: readyFileName,
+    fileName: path.basename(preparedPath),
     filePath: preparedPath
   };
 }
 
-// Rota raiz
 app.get('/', (req, res) => {
   res.json({
     status: 'CortePro Master Backend operacional',
     binaryReady: isBinaryReady,
     ffmpegReady: Boolean(ffmpegPath && fs.existsSync(ffmpegPath)),
-    initError: initError,
     endpoint: '/api/extract?url=LINK_DO_VIDEO'
   });
 });
 
-// Rota 1: Descarrega, prepara o ficheiro MP4 com áudio e devolve o link pronto para download imediato
 app.get('/api/extract', async (req, res) => {
   const videoUrl = req.query.url;
 
@@ -316,13 +307,13 @@ app.get('/api/extract', async (req, res) => {
       return res.status(503).json({
         error: initError
           ? `Erro ao preparar extrator: ${initError}`
-          : 'O servidor está a iniciar o extrator. Aguarde 10 segundos e toque novamente.'
+          : 'O servidor está a iniciar o extrator. Aguarde 10 segundos e tente novamente.'
       });
     }
   }
 
   try {
-    console.log(`A preparar vídeo completo para: ${videoUrl}`);
+    console.log(`A processar URL universal: ${videoUrl}`);
     const result = await downloadAndPrepareVideo(videoUrl);
 
     res.json({
@@ -331,7 +322,7 @@ app.get('/api/extract', async (req, res) => {
       downloadUrl: `/api/file/${result.fileName}`
     });
   } catch (error) {
-    console.error('Erro ao preparar vídeo:', error.message);
+    console.error('Erro ao transferir vídeo:', error.message);
     res.status(500).json({
       error: 'Não foi possível transferir este vídeo. Verifique se o link é público e tente novamente.',
       details: error.message
@@ -339,7 +330,6 @@ app.get('/api/extract', async (req, res) => {
   }
 });
 
-// Rota 2: Entrega instantaneamente o ficheiro MP4 já preparado para o Android
 app.get('/api/file/:fileName', (req, res) => {
   const fileName = path.basename(req.params.fileName);
   if (!fileName.startsWith('cortepro_') && !fileName.startsWith('splitjob_')) {
@@ -348,7 +338,7 @@ app.get('/api/file/:fileName', (req, res) => {
 
   const filePath = path.join('/tmp', fileName);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).send('O ficheiro expirou no servidor. Por favor, clique em Processar e Baixar novamente.');
+    return res.status(404).send('O ficheiro expirou. Por favor, clique em Processar e Baixar novamente.');
   }
 
   const stat = fs.statSync(filePath);
@@ -361,22 +351,7 @@ app.get('/api/file/:fileName', (req, res) => {
   stream.pipe(res);
 });
 
-// Rota reserva caso seja chamada diretamente
-app.get('/api/download', async (req, res) => {
-  const videoUrl = req.query.url;
-  if (!videoUrl || !isValidPublicUrl(videoUrl)) {
-    return res.status(400).send('URL inválida.');
-  }
-  try {
-    const result = await downloadAndPrepareVideo(videoUrl);
-    return res.redirect(`/api/file/${result.fileName}`);
-  } catch (err) {
-    return res.status(500).send(`Falha ao transferir vídeo: ${err.message}`);
-  }
-});
-
 // --- FUNCIONALIDADE B: DIVISOR AUTO-INTELIGENTE ---
-
 async function detectSpeechPauses(filePath) {
   if (!ffmpegPath) return [];
 
