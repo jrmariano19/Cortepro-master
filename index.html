@@ -1,302 +1,98 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
-  <title>CortePro Master</title>
-
-  <style>
-    :root {
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --bg: #0f172a;
-      --card: #1e293b;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --border: #334155;
-      --success: #22c55e;
-      --error: #ef4444;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    body {
-      min-height: 100vh;
-      padding: 16px;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      justify-content: center;
-    }
-
-    [hidden] {
-      display: none !important;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 620px;
-    }
-
-    header {
-      text-align: center;
-      margin: 12px 0 20px;
-    }
-
-    header h1 {
-      color: #818cf8;
-      font-size: 1.9rem;
-      margin-bottom: 6px;
-    }
-
-    header p {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 5px 18px rgba(0,0,0,.15);
-    }
-
-    .card h2 {
-      font-size: 1.15rem;
-      margin-bottom: 16px;
-    }
-
-    .form-group {
-      margin-bottom: 15px;
-    }
-
-    label {
-      display: block;
-      color: var(--muted);
-      font-size: 0.86rem;
-      margin-bottom: 7px;
-    }
-
-    input[type="text"],
-    input[type="number"],
-    input[type="file"] {
-      width: 100%;
-      min-width: 0;
-      padding: 12px;
-      color: var(--text);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-
-    input:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: 1px;
-    }
-
-    .primary-btn {
-      display: block;
-      width: 100%;
-      border: 0;
-      border-radius: 9px;
-      padding: 14px;
-      background: var(--primary);
-      color: white;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .primary-btn:hover:not(:disabled) {
-      background: var(--primary-hover);
-    }
-
-    .primary-btn:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    .result-area {
-      display: none;
-      margin-top: 15px;
-      padding: 12px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 9px;
-    }
-
-    .result-area.active {
-      display: block;
-    }
-
-    .msg {
-      font-size: 0.9rem;
-      line-height: 1.5;
-      overflow-wrap: anywhere;
-    }
-
-    .msg.success { color: var(--success); }
-    .msg.error { color: #fca5a5; }
-    .msg.info { color: #cbd5e1; }
-
-    .btn-download {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border: 0;
-      border-radius: 8px;
-      background: var(--success);
-      color: #052e16;
-      font-weight: 800;
-      font-size: 0.95rem;
-      text-align: center;
-      text-decoration: none;
-      cursor: pointer;
-      overflow-wrap: anywhere;
-    }
-
-    .loading {
-      display: inline-block;
-      width: 15px;
-      height: 15px;
-      margin-right: 8px;
-      border: 2px solid #ffffff66;
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .small-note {
-      color: var(--muted);
-      font-size: 0.78rem;
-      line-height: 1.45;
-      margin-top: 10px;
-    }
-  </style>
-</head>
-
-<body>
-  <main class="container">
-    <header>
-      <h1>CortePro Master</h1>
-      <p>Baixe vídeos com áudio de forma rápida e direta</p>
-    </header>
-
-    <section class="card">
-      <h2>📥 Baixador de vídeos</h2>
-
-      <div class="form-group">
-        <label for="videoUrl">
-          Cole o link público do TikTok, Instagram, Kwai, Facebook ou YouTube:
-        </label>
-        <input
-          type="text"
-          id="videoUrl"
-          placeholder="https://..."
-          autocomplete="url"
-          inputmode="url"
-        >
-      </div>
-
-      <button id="btnExtract" class="primary-btn" type="button">
-        Processar e baixar
-      </button>
-
-      <div id="extractResult" class="result-area" aria-live="polite">
-        <div id="extractMsg" class="msg info"></div>
-        <div id="extractContainer"></div>
-      </div>
-
-      <p class="small-note">
-        O tempo depende do tamanho do vídeo e da disponibilidade da plataforma. Use apenas conteúdo autorizado.
-      </p>
-    </section>
-  </main>
-
-  <script>
-    const $ = id => document.getElementById(id);
-
-    function setMessage(element, message, type = "info") {
-      element.className = "msg " + type;
-      element.textContent = message;
-    }
-
-    function setLoading(button, loading, text) {
-      button.disabled = loading;
-      if (loading) {
-        button.innerHTML = '<span class="loading"></span>' + text;
-      } else {
-        button.textContent = text;
-      }
-    }
-
-    async function extractVideo() {
-      const url = $("videoUrl").value.trim();
-      const button = $("btnExtract");
-      const result = $("extractResult");
-      const message = $("extractMsg");
-      const container = $("extractContainer");
-
-      if (!url) {
-        setMessage(message, "Cole primeiro o link do vídeo.", "error");
-        result.classList.add("active");
-        return;
-      }
-
-      result.classList.add("active");
-      container.replaceChildren();
-
-      setLoading(button, true, "Extraindo vídeo...");
-      setMessage(message, "Aguarde um instante...", "info");
-
-      try {
-        // Faz a requisição direto para a Vercel Serverless Function (/api/extract)
-        const response = await fetch(`/api/extract?url=${encodeURIComponent(url)}`);
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || "Não foi possível processar o vídeo.");
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CortePro Master</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --error: #ef4444;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 480px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
+        h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 8px; color: var(--text-main); }
+        p.subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="url"] { width: 100%; padding: 14px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-size: 1rem; outline: none; transition: border-color 0.2s; }
+        input[type="url"]:focus { border-color: var(--primary); }
+        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: var(--primary-hover); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
+        .status-box { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 0.9rem; text-align: center; display: none; }
+        .status-box.error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); display: block; }
+        .status-box.success { background: rgba(99, 102, 241, 0.1); border: 1px solid var(--primary); color: #818cf8; display: block; }
+        .footer-note { margin-top: 20px; text-align: center; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CortePro Master</h1>
+        <p class="subtitle">Baixe vídeos com áudio de forma rápida e direta</p>
+        
+        <div class="input-group">
+            <label for="urlInput">Link do vídeo (TikTok, Instagram, Kwai, etc.)</label>
+            <input type="url" id="urlInput" placeholder="https://..." autocomplete="off">
+        </div>
+        
+        <button id="downloadBtn" onclick="processVideo()">Processar e baixar</button>
+        
+        <div id="statusBox" class="status-box"></div>
+        
+        <p class="footer-note">Processamento otimizado na nuvem. Use apenas conteúdo autorizado.</p>
+    </div>
 
-        setMessage(message, "Vídeo processado com sucesso! Clique abaixo para baixar.", "success");
+    <script>
+        async function processVideo() {
+            const urlInput = document.getElementById('urlInput').value.trim();
+            const statusBox = document.getElementById('statusBox');
+            const downloadBtn = document.getElementById('downloadBtn');
 
-        const link = document.createElement("a");
-        link.className = "btn-download";
-        link.href = data.downloadUrl;
-        link.download = "CortePro_Video.mp4";
-        link.textContent = "📥 Baixar vídeo MP4";
-        link.target = "_blank";
-        link.rel = "noopener";
+            statusBox.className = 'status-box';
+            statusBox.style.display = 'none';
 
-        container.appendChild(link);
-      } catch (error) {
-        setMessage(message, error.message || "Erro de conexão.", "error");
-      } finally {
-        setLoading(button, false, "Processar e baixar");
-      }
-    }
+            if (!urlInput) {
+                statusBox.textContent = 'Por favor, insira um link válido.';
+                statusBox.className = 'status-box error';
+                return;
+            }
 
-    $("btnExtract").addEventListener("click", extractVideo);
-    $("videoUrl").addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        extractVideo();
-      }
-    });
-  </script>
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Processando vídeo...';
+            statusBox.textContent = 'A conectar com o servidor e extrair mídia...';
+            statusBox.className = 'status-box success';
+
+            try {
+                const response = await fetch('/api/extract?url=' + encodeURIComponent(urlInput));
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Erro ao processar vídeo.');
+                }
+
+                statusBox.textContent = 'Vídeo pronto! A iniciar transferência...';
+                window.location.href = data.downloadUrl;
+                
+                setTimeout(() => {
+                    downloadBtn.disabled = false;
+                    downloadBtn.textContent = 'Processar e baixar';
+                }, 3000);
+
+            } catch (err) {
+                statusBox.textContent = err.message;
+                statusBox.className = 'status-box error';
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = 'Processar e baixar';
+            }
+        }
+    </script>
 </body>
 </html>
