@@ -50,7 +50,7 @@
         .alert-box.error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); display: block; }
         .alert-box.success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; text-align: center; }
         
-        .result-link { display: inline-block; margin-top: 10px; padding: 10px 20px; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
+        .result-link { display: inline-block; margin-top: 10px; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
 
         .footer-note { font-size: 0.75rem; color: var(--text-muted); text-align: center; line-height: 1.5; padding: 0 10px; }
     </style>
@@ -128,14 +128,20 @@
             }
 
             downloadBtn.disabled = true;
-            downloadBtn.textContent = 'Processando vídeo...';
-            statusBox.textContent = 'A extrair stream de mídia...';
+            downloadBtn.textContent = 'A processar...';
+            statusBox.textContent = 'A estabelecer ligação com o extrator...';
             statusBox.className = 'alert-box success';
 
             try {
-                const api = `https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`;
-                const response = await fetch(api);
-                const data = await response.json();
+                const proxyApi = `https://api.allorigins.win/get?url=` + encodeURIComponent(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`);
+                const response = await fetch(proxyApi);
+                const wrapper = await response.json();
+                
+                if (!wrapper || !wrapper.contents) {
+                    throw new Error('Falha de ligação ao servidor de extração.');
+                }
+
+                const data = JSON.parse(wrapper.contents);
 
                 let videoUrl = null;
                 if (data && data.code === 0 && data.data && data.data.play) {
@@ -143,15 +149,26 @@
                 }
 
                 if (!videoUrl) {
-                    throw new Error('Link requer processamento avançado. Utilize um link direto do TikTok/YouTube/Instagram público.');
+                    throw new Error('Não foi possível obter o link direto. Certifique-se de que o link é público.');
                 }
 
-                statusBox.innerHTML = 'Vídeo processado com sucesso!<br><a class="result-link" href="' + videoUrl + '" target="_blank" download>Baixar Arquivo de Vídeo</a>';
+                statusBox.innerHTML = '<b>Vídeo pronto para download!</b><br><a class="result-link" href="' + videoUrl + '" target="_blank">Baixar Vídeo Agora</a>';
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Processar e baixar';
 
             } catch (err) {
-                statusBox.textContent = err.message || 'Erro ao processar o link.';
+                try {
+                    const directResponse = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`);
+                    const directData = await directResponse.json();
+                    if (directData && directData.code === 0 && directData.data && directData.data.play) {
+                        statusBox.innerHTML = '<b>Vídeo pronto para download!</b><br><a class="result-link" href="' + directData.data.play + '" target="_blank">Baixar Vídeo Agora</a>';
+                        downloadBtn.disabled = false;
+                        downloadBtn.textContent = 'Processar e baixar';
+                        return;
+                    }
+                } catch(e) {}
+
+                statusBox.textContent = 'Erro ao processar. Verifique se o link está correto e é público.';
                 statusBox.className = 'alert-box error';
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Processar e baixar';
