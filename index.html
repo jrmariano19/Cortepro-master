@@ -98,7 +98,7 @@ $('splitBtn').addEventListener('click',async()=>{
  try{
    const ff=await loadFFmpeg();status(box,'Preparando o vídeo para divisão…');
    const ext=(selectedFile.name.split('.').pop()||'mp4').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp4';inputName='source.'+ext;
-   await ff.writeFile(inputName,new Uint8Array(await selectedFile.arrayBuffer()));
+   const fileBytes=new Uint8Array(await selectedFile.arrayBuffer());await ff.writeFile(inputName,fileBytes);fileBytes.fill(0);
    let probeText='';
    ff.on('log',({message})=>{probeText+=message+'\n';});
    await ff.exec(['-i',inputName]);
@@ -110,7 +110,7 @@ $('splitBtn').addEventListener('click',async()=>{
    status(box,'Dividindo em '+total+' parte(s). Aguarde…');
    for(let i=0;i<total;i++){
      const start=i*chunk,remaining=Math.max(0,Math.min(chunk,duration-start));const out='parte_'+String(i+1).padStart(3,'0')+'.mp4';
-     const code=await ff.exec(['-ss',String(start),'-i',inputName,'-t',String(remaining),'-map','0:v:0?','-map','0:a:0?','-c:v','libx264','-preset','ultrafast','-crf','23','-c:a','aac','-b:a','128k','-movflags','+faststart',out]);
+     const code=await ff.exec(['-ss',String(start),'-i',inputName,'-t',String(remaining),'-map','0:v:0?','-map','0:a:0?','-c','copy','-avoid_negative_ts','make_zero','-movflags','+faststart',out]);
      if(code!==0)throw new Error('Falha ao criar a parte '+(i+1)+'. O codec do vídeo pode não ser compatível.');
      const data=await ff.readFile(out);const blob=new Blob([data],{type:'video/mp4'});created.push({name:safeName(selectedFile.name.replace(/\.[^.]+$/,''))+'_parte_'+String(i+1).padStart(2,'0')+'.mp4',blob});
      await ff.deleteFile(out);bar.style.width=Math.round((i+1)/total*100)+'%';
