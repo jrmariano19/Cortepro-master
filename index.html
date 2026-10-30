@@ -81,7 +81,13 @@ async function loadFFmpeg(){
  const ff=new FFmpeg();
  ff.on('progress',({progress})=>{$('splitBar').style.width=Math.max(0,Math.min(100,progress*100))+'%';});
  const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
- await ff.load({coreURL:await toBlobURL(base+'/ffmpeg-core.js','text/javascript'),wasmURL:await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')});
+ const workerSource='https://esm.sh/@ffmpeg/ffmpeg@0.12.10/es2022/worker.js';
+ const [coreURL,wasmURL,classWorkerURL]=await Promise.all([
+   toBlobURL(base+'/ffmpeg-core.js','text/javascript'),
+   toBlobURL(base+'/ffmpeg-core.wasm','application/wasm'),
+   toBlobURL(workerSource,'text/javascript')
+ ]);
+ await ff.load({coreURL,wasmURL,classWorkerURL});
  ffmpegInstance=ff;return ff;
 }
 $('splitBtn').addEventListener('click',async()=>{
