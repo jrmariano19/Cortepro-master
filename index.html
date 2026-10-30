@@ -70,7 +70,7 @@
 
         <div class="card" id="downloadSection">
             <h2 class="card-title">Baixador de vídeos</h2>
-            <p class="card-desc">Cole um link público ou informe o endereço direto de um arquivo de vídeo.</p>
+            <p class="card-desc">Cole o link de qualquer rede social para processar e baixar o vídeo completo.</p>
             
             <label for="urlInput">Link do vídeo</label>
             <input type="url" id="urlInput" placeholder="https://..." autocomplete="off">
@@ -87,8 +87,7 @@
         </div>
 
         <p class="footer-note">
-            Use somente vídeos que você tenha autorização para baixar ou editar.<br>
-            O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
+            Processamento universal de mídia em alta velocidade.
         </p>
     </div>
 
@@ -129,46 +128,52 @@
 
             downloadBtn.disabled = true;
             downloadBtn.textContent = 'A processar...';
-            statusBox.textContent = 'A estabelecer ligação com o extrator...';
+            statusBox.textContent = 'A extrair mídia de alta qualidade...';
             statusBox.className = 'alert-box success';
 
             try {
-                const proxyApi = `https://api.allorigins.win/get?url=` + encodeURIComponent(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`);
-                const response = await fetch(proxyApi);
-                const wrapper = await response.json();
-                
-                if (!wrapper || !wrapper.contents) {
-                    throw new Error('Falha de ligação ao servidor de extração.');
+                const cobaltApi = "https://co.wuk.sh/api/json";
+                const response = await fetch(cobaltApi, {
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        url: urlInput,
+                        vQuality: "720",
+                        filenamePattern: "classic"
+                    })
+                });
+
+                const data = await response.json();
+                let videoUrl = null;
+
+                if (data && (data.status === "stream" || data.status === "redirect" || data.status === "picker")) {
+                    videoUrl = data.url || (data.picker && data.picker[0] && data.picker[0].url);
                 }
 
-                const data = JSON.parse(wrapper.contents);
-
-                let videoUrl = null;
-                if (data && data.code === 0 && data.data && data.data.play) {
-                    videoUrl = data.data.play;
+                if (!videoUrl && (urlInput.includes("tiktok.com") || urlInput.includes("douyin.com"))) {
+                    const proxyResponse = await fetch(`https://api.allorigins.win/get?url=` + encodeURIComponent(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`));
+                    const wrapper = await proxyResponse.json();
+                    if (wrapper && wrapper.contents) {
+                        const tikData = JSON.parse(wrapper.contents);
+                        if (tikData && tikData.code === 0 && tikData.data && tikData.data.play) {
+                            videoUrl = tikData.data.play;
+                        }
+                    }
                 }
 
                 if (!videoUrl) {
-                    throw new Error('Não foi possível obter o link direto. Certifique-se de que o link é público.');
+                    throw new Error('Não foi possível extrair o link. Certifique-se de que o link é de acesso público.');
                 }
 
-                statusBox.innerHTML = '<b>Vídeo pronto para download!</b><br><a class="result-link" href="' + videoUrl + '" target="_blank">Baixar Vídeo Agora</a>';
+                statusBox.innerHTML = '<b>Vídeo processado com sucesso!</b><br><a class="result-link" href="' + videoUrl + '" target="_blank" download>Baixar Vídeo Agora</a>';
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Processar e baixar';
 
             } catch (err) {
-                try {
-                    const directResponse = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`);
-                    const directData = await directResponse.json();
-                    if (directData && directData.code === 0 && directData.data && directData.data.play) {
-                        statusBox.innerHTML = '<b>Vídeo pronto para download!</b><br><a class="result-link" href="' + directData.data.play + '" target="_blank">Baixar Vídeo Agora</a>';
-                        downloadBtn.disabled = false;
-                        downloadBtn.textContent = 'Processar e baixar';
-                        return;
-                    }
-                } catch(e) {}
-
-                statusBox.textContent = 'Erro ao processar. Verifique se o link está correto e é público.';
+                statusBox.textContent = err.message || 'Erro ao processar o vídeo. Tente novamente.';
                 statusBox.className = 'alert-box error';
                 downloadBtn.disabled = false;
                 downloadBtn.textContent = 'Processar e baixar';
