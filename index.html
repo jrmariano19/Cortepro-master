@@ -1,99 +1,119 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --error: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .container { width: 100%; max-width: 480px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-        h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 8px; color: var(--text-main); }
-        p.subtitle { text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
-        .input-group { margin-bottom: 16px; }
-        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        input[type="url"] { width: 100%; padding: 14px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-size: 1rem; outline: none; transition: border-color 0.2s; }
-        input[type="url"]:focus { border-color: var(--primary); }
-        button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: var(--primary-hover); }
-        button:disabled { opacity: 0.7; cursor: not-allowed; }
-        .status-box { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 0.9rem; text-align: center; display: none; }
-        .status-box.error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); display: block; }
-        .status-box.success { background: rgba(99, 102, 241, 0.1); border: 1px solid var(--primary); color: #818cf8; display: block; }
-        .footer-note { margin-top: 20px; text-align: center; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>CortePro Master</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#151f30;--panel2:#0f1929;--line:#29384d;--text:#f4f7fb;--muted:#a5b2c5;--brand:#6d72f6;--brand2:#5258df;--ok:#38c98b;--err:#ff7777}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#111c30);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;padding:24px 14px 48px}.wrap{width:min(100%,620px);margin:auto}.brand{text-align:center;margin:8px 0 22px}.logo{width:54px;height:54px;border-radius:17px;background:linear-gradient(135deg,#777bff,#464bd0);display:grid;place-items:center;margin:0 auto 12px;font-size:25px;font-weight:900;box-shadow:0 10px 30px #565be344}.brand h1{font-size:26px;margin:0}.brand p{color:var(--muted);margin:6px 0 0;font-size:14px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#0a1321;padding:6px;border:1px solid var(--line);border-radius:14px;margin-bottom:14px}.tab{border:0;background:transparent;color:var(--muted);padding:12px 8px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer}.tab.active{background:var(--brand);color:white}.card{background:rgba(21,31,48,.96);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 16px 45px #0003}.panel{display:none}.panel.active{display:block}.heading{font-size:19px;font-weight:750;margin:0 0 6px}.desc{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 20px}label{display:block;color:#c2ccda;font-size:12px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px}.field{margin:0 0 16px}input[type=url],input[type=number],select{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:11px;padding:14px;font-size:16px;outline:none}input:focus,select:focus{border-color:var(--brand)}button.primary{width:100%;border:0;border-radius:11px;padding:14px 16px;background:var(--brand);color:white;font-size:15px;font-weight:750;cursor:pointer}button.primary:hover{background:var(--brand2)}button:disabled{opacity:.55;cursor:wait}.status{display:none;margin-top:14px;padding:12px;border-radius:10px;font-size:13px;line-height:1.45;white-space:pre-wrap}.status.show{display:block}.status.info{background:#353d841f;border:1px solid #686ee8;color:#c9ccff}.status.good{background:#1b805022;border:1px solid #2caa75;color:#a9f2d0}.status.bad{background:#a52c2c22;border:1px solid #c85d5d;color:#ffc1c1}.drop{border:1.5px dashed #52627a;border-radius:14px;background:#0f1929;padding:22px 14px;text-align:center;margin-bottom:16px}.drop strong{display:block;margin-bottom:6px}.drop span{font-size:12px;color:var(--muted)}.drop input{display:none}.filebtn{display:inline-block;margin-top:12px;background:#26364e;border:1px solid #3b4b63;border-radius:9px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer}.filemeta{font-size:13px;color:#c7d2e1;margin:10px 0 16px;overflow-wrap:anywhere}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}.progress{height:8px;background:#0b1422;border-radius:9px;overflow:hidden;margin-top:12px;display:none}.progress.show{display:block}.bar{height:100%;width:0;background:linear-gradient(90deg,#777bff,#38c98b);transition:width .2s}.results{margin-top:14px;display:grid;gap:8px}.result{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0e1929;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13px}.result a{color:#c8caff;font-weight:700;text-decoration:none;white-space:nowrap}.foot{text-align:center;color:#8190a6;font-size:11px;line-height:1.5;margin:18px 8px}.hidden{display:none!important}@media(max-width:420px){body{padding:16px 10px 36px}.card{padding:16px}.grid2{gap:8px}}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>CortePro Master</h1>
-        <p class="subtitle">Baixe vídeos com áudio de forma rápida e direta</p>
-        
-        <div class="input-group">
-            <label for="urlInput">Link do vídeo (TikTok, Instagram, Kwai, etc.)</label>
-            <input type="url" id="urlInput" placeholder="https://..." autocomplete="off">
-        </div>
-        
-        <button id="downloadBtn" onclick="processVideo()">Processar e baixar</button>
-        
-        <div id="statusBox" class="status-box"></div>
-        
-        <p class="footer-note">Processamento otimizado na nuvem. Use apenas conteúdo autorizado.</p>
-    </div>
-
-    <script>
-        async function processVideo() {
-            const urlInput = document.getElementById('urlInput').value.trim();
-            const statusBox = document.getElementById('statusBox');
-            const downloadBtn = document.getElementById('downloadBtn');
-
-            statusBox.className = 'status-box';
-            statusBox.style.display = 'none';
-
-            if (!urlInput) {
-                statusBox.textContent = 'Por favor, insira um link válido.';
-                statusBox.className = 'status-box error';
-                return;
-            }
-
-            downloadBtn.disabled = true;
-            downloadBtn.textContent = 'Processando vídeo...';
-            statusBox.textContent = 'A conectar com o servidor e extrair mídia...';
-            statusBox.className = 'status-box success';
-
-            try {
-                // Utiliza API pública direta de extração para máxima velocidade sem erros de backend
-                const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(urlInput)}`);
-                const data = await response.json();
-
-                if (!data || data.code !== 0 || !data.data || !data.data.play) {
-                    throw new Error('Não foi possível extrair o vídeo. Verifique o link.');
-                }
-
-                statusBox.textContent = 'Vídeo pronto! A iniciar transferência...';
-                window.location.href = data.data.play;
-                
-                setTimeout(() => {
-                    downloadBtn.disabled = false;
-                    downloadBtn.textContent = 'Processar e baixar';
-                }, 3000);
-
-            } catch (err) {
-                statusBox.textContent = err.message || 'Erro ao processar vídeo.';
-                statusBox.className = 'status-box error';
-                downloadBtn.disabled = false;
-                downloadBtn.textContent = 'Processar e baixar';
-            }
-        }
-    </script>
+<main class="wrap">
+<header class="brand"><div class="logo">CP</div><h1>CortePro Master</h1><p>Baixe vídeos e divida arquivos em partes</p></header>
+<nav class="tabs" aria-label="Ferramentas"><button class="tab active" data-tab="download">⬇ Baixar vídeo</button><button class="tab" data-tab="split">✂ Divisor</button></nav>
+<section class="card panel active" id="download">
+<h2 class="heading">Baixador de vídeos</h2><p class="desc">Cole um link público ou informe o endereço direto de um arquivo de vídeo.</p>
+<div class="field"><label for="videoUrl">Link do vídeo</label><input id="videoUrl" type="url" placeholder="https://..." autocomplete="url" inputmode="url"></div>
+<button class="primary" id="downloadBtn">Processar e baixar</button>
+<div id="downloadStatus" class="status" role="status" aria-live="polite"></div>
+<p class="hint">A extração de redes sociais depende da disponibilidade do serviço compatível e das regras de cada plataforma. Não acessa contas privadas, conteúdo protegido ou vídeos que exigem login.</p>
+</section>
+<section class="card panel" id="split">
+<h2 class="heading">Divisor de vídeos</h2><p class="desc">Escolha um vídeo salvo no aparelho e divida em partes menores. O processamento acontece no navegador.</p>
+<label class="drop" for="videoFile"><strong>Selecione ou arraste seu vídeo aqui</strong><span>Formatos compatíveis dependem dos codecs do arquivo. O vídeo original não é enviado para um servidor.</span><br><span class="filebtn">Escolher vídeo</span><input id="videoFile" type="file" accept="video/*,.mkv,.avi,.mov,.webm,.m4v,.3gp"></label>
+<div id="fileMeta" class="filemeta">Nenhum vídeo selecionado.</div>
+<div class="grid2">
+<div class="field"><label for="chunkMinutes">Duração de cada parte</label><select id="chunkMinutes"><option value="30">30 segundos</option><option value="60" selected>1 minuto</option><option value="120">2 minutos</option><option value="180">3 minutos</option><option value="300">5 minutos</option><option value="600">10 minutos</option></select></div>
+<div class="field"><label for="outputFormat">Formato de saída</label><select id="outputFormat"><option value="mp4" selected>MP4 (compatível)</option></select></div>
+</div>
+<button class="primary" id="splitBtn" disabled>Dividir vídeo</button>
+<div id="splitStatus" class="status" role="status" aria-live="polite"></div>
+<div id="splitProgress" class="progress"><div id="splitBar" class="bar"></div></div>
+<div id="splitResults" class="results"></div>
+<p class="hint">Vídeos longos ou em alta resolução podem exigir bastante memória e tempo de processamento no celular. Mantenha esta página aberta até terminar.</p>
+</section>
+<footer class="foot">Use somente vídeos que você tenha autorização para baixar ou editar. O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===btn.dataset.tab));}));
+function status(el,msg,type='info'){el.textContent=msg;el.className='status show '+type;}
+function safeName(s){return (s||'video').replace(/[^\w.-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,70)||'video';}
+function downloadBlob(blob,name){const a=document.createElement('a');const u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
+$('downloadBtn').addEventListener('click',async()=>{
+ const raw=$('videoUrl').value.trim();const btn=$('downloadBtn');const box=$('downloadStatus');
+ if(!raw){status(box,'Cole o link do vídeo para continuar.','bad');return;}
+ let parsed;try{parsed=new URL(raw);if(!['http:','https:'].includes(parsed.protocol))throw Error();}catch{status(box,'Informe um endereço HTTP ou HTTPS válido.','bad');return;}
+ btn.disabled=true;btn.textContent='Processando…';status(box,'Verificando o link e tentando obter o arquivo…');
+ try{
+   if(/\.(mp4|m4v|mov|webm|mkv|avi|3gp)(\?.*)?$/i.test(parsed.pathname+parsed.search)){
+     const a=document.createElement('a');a.href=parsed.href;a.target='_blank';a.rel='noopener';a.download='video';document.body.appendChild(a);a.click();a.remove();
+     status(box,'O link parece ser de um arquivo de vídeo. A transferência foi aberta; se o navegador apenas reproduzir o vídeo, use o menu do navegador para baixar.','good');
+   }else{
+     const response=await fetch('/api/extract?url='+encodeURIComponent(parsed.href),{headers:{'Accept':'application/json'}});
+     const data=await response.json().catch(()=>({}));
+     if(!response.ok||!data.success||!data.downloadUrl)throw new Error(data.error||'Este link não pôde ser extraído pelo serviço configurado. Para redes sociais, a compatibilidade depende da plataforma e de um extrator ativo no servidor.');
+     const a=document.createElement('a');a.href=data.downloadUrl;a.target='_blank';a.rel='noopener';a.download='cortepro-video.mp4';document.body.appendChild(a);a.click();a.remove();
+     status(box,'Link de download obtido. Se a plataforma abrir o vídeo em vez de salvar, use a opção de download do navegador.','good');
+   }
+ }catch(e){status(box,e.message||'Falha ao processar o link.','bad');}
+ finally{btn.disabled=false;btn.textContent='Processar e baixar';}
+});
+let selectedFile=null;
+$('videoFile').addEventListener('change',e=>{
+ selectedFile=e.target.files&&e.target.files[0]||null;$('splitResults').replaceChildren();
+ if(!selectedFile){$('fileMeta').textContent='Nenhum vídeo selecionado.';$('splitBtn').disabled=true;return;}
+ $('fileMeta').textContent=selectedFile.name+' • '+(selectedFile.size/1024/1024).toFixed(1)+' MB';$('splitBtn').disabled=false;
+});
+const drop=$('split').querySelector('.drop');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.style.borderColor='#777bff';});
+drop.addEventListener('dragleave',()=>drop.style.borderColor='');
+drop.addEventListener('drop',e=>{e.preventDefault();drop.style.borderColor='';const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);$('videoFile').files=dt.files;$('videoFile').dispatchEvent(new Event('change'));}});
+let ffmpegInstance=null;
+async function loadFFmpeg(){
+ if(ffmpegInstance)return ffmpegInstance;
+ status($('splitStatus'),'Carregando o mecanismo de vídeo pela primeira vez. Isso pode levar alguns instantes…');
+ const {FFmpeg}=await import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10');
+ const {toBlobURL}=await import('https://esm.sh/@ffmpeg/util@0.12.1');
+ const ff=new FFmpeg();
+ ff.on('progress',({progress})=>{$('splitBar').style.width=Math.max(0,Math.min(100,progress*100))+'%';});
+ const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+ await ff.load({coreURL:await toBlobURL(base+'/ffmpeg-core.js','text/javascript'),wasmURL:await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')});
+ ffmpegInstance=ff;return ff;
+}
+$('splitBtn').addEventListener('click',async()=>{
+ if(!selectedFile)return;
+ const btn=$('splitBtn'),box=$('splitStatus'),results=$('splitResults'),progress=$('splitProgress'),bar=$('splitBar');
+ btn.disabled=true;results.replaceChildren();progress.classList.add('show');bar.style.width='0%';
+ let inputName='input_video',created=[];
+ try{
+   const ff=await loadFFmpeg();status(box,'Preparando o vídeo para divisão…');
+   const ext=(selectedFile.name.split('.').pop()||'mp4').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp4';inputName='source.'+ext;
+   await ff.writeFile(inputName,new Uint8Array(await selectedFile.arrayBuffer()));
+   let probeText='';
+   ff.on('log',({message})=>{probeText+=message+'\n';});
+   await ff.exec(['-i',inputName]);
+   const match=probeText.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+   let duration=0;if(match)duration=Number(match[1])*3600+Number(match[2])*60+Number(match[3]);
+   if(!duration||!Number.isFinite(duration))throw new Error('Não foi possível identificar a duração. O arquivo pode usar um codec não compatível.');
+   const chunk=Number($('chunkMinutes').value);const total=Math.ceil(duration/chunk);
+   if(total>300)throw new Error('O vídeo geraria mais de 300 partes. Escolha intervalos maiores.');
+   status(box,'Dividindo em '+total+' parte(s). Aguarde…');
+   for(let i=0;i<total;i++){
+     const start=i*chunk,remaining=Math.max(0,Math.min(chunk,duration-start));const out='parte_'+String(i+1).padStart(3,'0')+'.mp4';
+     const code=await ff.exec(['-ss',String(start),'-i',inputName,'-t',String(remaining),'-map','0:v:0?','-map','0:a:0?','-c:v','libx264','-preset','ultrafast','-crf','23','-c:a','aac','-b:a','128k','-movflags','+faststart',out]);
+     if(code!==0)throw new Error('Falha ao criar a parte '+(i+1)+'. O codec do vídeo pode não ser compatível.');
+     const data=await ff.readFile(out);const blob=new Blob([data],{type:'video/mp4'});created.push({name:safeName(selectedFile.name.replace(/\.[^.]+$/,''))+'_parte_'+String(i+1).padStart(2,'0')+'.mp4',blob});
+     await ff.deleteFile(out);bar.style.width=Math.round((i+1)/total*100)+'%';
+   }
+   created.forEach((item,i)=>{const row=document.createElement('div');row.className='result';const label=document.createElement('span');label.textContent='Parte '+(i+1)+' • '+(item.blob.size/1024/1024).toFixed(1)+' MB';const link=document.createElement('a');link.href=URL.createObjectURL(item.blob);link.download=item.name;link.textContent='Baixar';row.append(label,link);results.append(row);});
+   status(box,'Concluído! '+created.length+' parte(s) criada(s). Baixe cada arquivo nos links abaixo.','good');
+ }catch(e){status(box,'Não foi possível dividir este vídeo: '+(e.message||'erro desconhecido')+'. Tente um arquivo menor ou outro formato.','bad');}
+ finally{btn.disabled=false;btn.textContent='Dividir vídeo';}
+});
+</script>
 </body>
 </html>
