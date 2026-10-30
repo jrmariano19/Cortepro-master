@@ -26,8 +26,7 @@
   .alert-box { margin-top: 20px; padding: 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; display: none; word-break: break-word; }
   .alert-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; display: block; }
   .alert-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; display: block; text-align: center; }
-  .result-link { display: inline-block; width: 100%; margin-top: 12px; padding: 14px; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 1rem; text-align: center; }
-  .fallback-btn { display: inline-block; width: 100%; margin-top: 8px; padding: 12px; background: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 0.9rem; text-align: center; }
+  .result-link { display: inline-block; width: 100%; margin-top: 12px; padding: 14px; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 1rem; text-align: center; border: none; cursor: pointer; }
   .footer-note { font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.5; padding: 0 10px; }
 </style>
 </head>
@@ -77,18 +76,37 @@
       document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
     }
 
-    async function fetchWithTimeout(resource, options) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(resource, { ...options, signal: controller.signal });
-      clearTimeout(id);
-      return response;
+    async function forceFileDownload(url, statusBox) {
+      try {
+        statusBox.innerHTML = '<b>A transferir ficheiro MP4 para o seu telemóvel...</b>';
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Falha no stream');
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = 'CortePro_' + Date.now() + '.mp4';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          window.URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(a);
+        }, 1500);
+        statusBox.innerHTML = '<b>Download concluído! Verifique a sua pasta de Transferências/Galeria.</b><br>' +
+          '<a class="result-link" href="' + url + '" target="_blank" download="video.mp4">⬇ Baixar Novamente</a>';
+      } catch (e) {
+        // Se o servidor do vídeo bloquear fetch em blob, abre o link direto de transferência
+        window.location.assign(url);
+        statusBox.innerHTML = '<b>Vídeo extraído!</b><br>' +
+          '<a class="result-link" href="' + url + '" target="_blank" download="video.mp4">⬇ Guardar Vídeo MP4</a>';
+      }
     }
 
     async function extractVideo(url) {
-      // 1. Tenta o motor interno da Vercel (/api/extract) se estiver disponível
+      // 1. Chama o nosso motor Serverless na Vercel (/api/extract) que extrai Facebook (FDown), TikTok e Instagram direto
       try {
-        const res = await fetchWithTimeout('/api/extract?url=' + encodeURIComponent(url), { method: 'GET' });
+        const res = await fetch('/api/extract?url=' + encodeURIComponent(url));
         const contentType = res.headers.get('content-type') || '';
         if (res.ok && contentType.includes('application/json')) {
           const data = await res.json();
@@ -96,10 +114,10 @@
         }
       } catch (e) {}
 
-      // 2. Extrator direto para TikTok / Douyin
+      // 2. Fallback direto no navegador para TikTok
       if (url.includes('tiktok.com') || url.includes('douyin.com')) {
         try {
-          const res = await fetchWithTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(url), { method: 'GET' });
+          const res = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(url));
           const data = await res.json();
           if (data && data.data && (data.data.play || data.data.wmplay)) {
             return data.data.play || data.data.wmplay;
@@ -107,30 +125,24 @@
         } catch (e) {}
       }
 
-      // 3. Extratores universais multi-redes (Facebook, Instagram, YouTube, Kwai, X)
-      const endpoints = [
-        'https://cobalt-api.kwiatekmiki.com',
-        'https://cobalt.api.timelessnesses.me',
-        'https://api.cobalt.blackcat.sweeux.org',
-        'https://corsproxy.io/?' + encodeURIComponent('https://cobalt-api.kwiatekmiki.com')
-      ];
-
-      for (let i = 0; i < endpoints.length; i++) {
+      // 3. Fallback via Proxy CORS para Facebook direto do FDown
+      if (url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.com')) {
         try {
-          const res = await fetchWithTimeout(endpoints[i], {
+          const params = new URLSearchParams();
+          params.append('URLz', url);
+          const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://fdown.net/download.php'), {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: url, videoQuality: '720', filenameStyle: 'classic' })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
           });
-          if (res.ok) {
-            const data = await res.json();
-            const link = data.url || (data.picker && data.picker[0] && data.picker[0].url);
-            if (link) return link;
-          }
+          const html = await res.text();
+          const hdMatch = html.match(/id="hdlink"[^>]*href="([^"]+)"/i);
+          const sdMatch = html.match(/id="sdlink"[^>]*href="([^"]+)"/i);
+          const rawUrl = (hdMatch && hdMatch[1]) || (sdMatch && sdMatch[1]);
+          if (rawUrl) return rawUrl.replace(/&amp;/g, '&');
         } catch (e) {}
       }
 
-      if (/\.(mp4|webm|mov)(\?.*)?$/i.test(url)) return url;
       return null;
     }
 
@@ -148,27 +160,20 @@
       downloadBtn.disabled = true;
       downloadBtn.textContent = 'Processando...';
       statusBox.className = 'alert-box success';
-      statusBox.textContent = 'A extrair vídeo... aguarde alguns segundos.';
+      statusBox.textContent = 'A extrair ficheiro MP4 direto... aguarde.';
 
       try {
         const videoUrl = await extractVideo(urlInput);
 
         if (videoUrl) {
-          statusBox.className = 'alert-box success';
-          statusBox.innerHTML = '<b>Vídeo extraído com sucesso!</b><br>' +
-            '<a class="result-link" href="' + videoUrl + '" target="_blank" rel="noopener noreferrer" download="video.mp4">⬇ Baixar Vídeo Agora</a>';
-          window.open(videoUrl, '_blank');
+          await forceFileDownload(videoUrl, statusBox);
         } else {
-          // Caso a rede social exija validação de navegador (ex: Reels privados/protegidos do Facebook/Instagram), oferece extrator externo direto com 1 clique
-          statusBox.className = 'alert-box success';
-          statusBox.innerHTML = '<b>Link preparado! Escolha o servidor de download direto:</b><br>' +
-            '<a class="result-link" href="https://snapinsta.app/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 1 (Instagram / Facebook)</a>' +
-            '<a class="fallback-btn" href="https://fdown.net/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 2 (Facebook HD)</a>' +
-            '<a class="fallback-btn" href="https://ssstik.io/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 3 (TikTok / Redes)</a>';
+          statusBox.className = 'alert-box error';
+          statusBox.textContent = 'Não foi possível extrair o ficheiro MP4 direto deste link. Verifique se o vídeo é público.';
         }
       } catch (err) {
         statusBox.className = 'alert-box error';
-        statusBox.textContent = 'Erro ao processar link. Verifique o endereço.';
+        statusBox.textContent = 'Erro ao processar link.';
       } finally {
         downloadBtn.disabled = false;
         downloadBtn.textContent = 'Processar e baixar';
