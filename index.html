@@ -1,82 +1,55 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  const targetUrl = req.query.url || (req.body && req.body.url);
-  if (!targetUrl) {
-    return res.status(400).json({ success: false, error: 'Insira um link válido.' });
-  }
-
-  // 1. Extrator dedicado para TikTok e Douyin (Alta velocidade e sem marca d'água)
-  if (targetUrl.includes('tiktok.com') || targetUrl.includes('douyin.com')) {
-    try {
-      const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-      });
-      const tikData = await tikRes.json();
-      if (tikData && tikData.code === 0 && tikData.data && (tikData.data.play || tikData.data.wmplay)) {
-        return res.status(200).json({
-          success: true,
-          downloadUrl: tikData.data.play || tikData.data.wmplay
-        });
-      }
-    } catch (e) {}
-  }
-
-  // 2. Cascata de instâncias universais (Instagram, Facebook, YouTube, Kwai, X, TikTok)
-  const instances = [
-    { url: 'https://cobalt-api.kwiatekmiki.com', v10: true },
-    { url: 'https://cobalt.api.timelessnesses.me', v10: true },
-    { url: 'https://api.cobalt.blackcat.sweeux.org', v10: true },
-    { url: 'https://co.wuk.sh/api/json', v10: false }
-  ];
-
-  for (const inst of instances) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 7000);
-
-      const payload = inst.v10
-        ? { url: targetUrl, videoQuality: '720', filenameStyle: 'classic' }
-        : { url: targetUrl, vQuality: '720', filenamePattern: 'classic' };
-
-      const response = await fetch(inst.url, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeout);
-
-      if (response.ok) {
-        const data = await response.json();
-        const videoUrl = data.url || (data.picker && data.picker[0] && data.picker[0].url);
-        if (videoUrl) {
-          return res.status(200).json({ success: true, downloadUrl: videoUrl });
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CortePro Master</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #121826;
+            --card-border: #1e293b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --tab-bg: #1a2234;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --error-bg: rgba(239, 68, 68, 0.1);
+            --error-border: rgba(239, 68, 68, 0.3);
+            --error-text: #fca5a5;
         }
-      }
-    } catch (e) {
-      // Passa automaticamente para o próximo servidor caso este falhe
-    }
-  }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px; }
+        
+        .main-container { width: 100%; max-width: 480px; margin-top: 10px; }
+        
+        .header-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
+        .logo-box { width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); margin-bottom: 12px; }
+        h1 { font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; letter-spacing: -0.5px; }
+        p.subtitle { color: var(--text-muted); font-size: 0.9rem; text-align: center; }
 
-  // 3. Se for um link direto de arquivo (.mp4, .webm)
-  if (/\.(mp4|webm|mov)(\?.*)?$/i.test(targetUrl)) {
-    return res.status(200).json({ success: true, downloadUrl: targetUrl });
-  }
+        .tabs-container { display: flex; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 6px; margin-bottom: 20px; gap: 6px; }
+        .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; border-radius: 10px; color: var(--text-muted); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
 
-  return res.status(500).json({
-    success: false,
-    error: 'O servidor da rede social bloqueou a extração automática deste link. Tente outro link.'
-  });
-}
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        
+        h2.card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+        p.card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+        
+        input[type="url"] { width: 100%; padding: 14px 16px; background: #080c14; border: 1px solid var(--card-border); border-radius: 12px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s; margin-bottom: 20px; }
+        input[type="url"]:focus { border-color: var(--primary); }
+
+        .action-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
+        .action-btn:hover { background: var(--primary-hover); }
+        .action-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .alert-box { margin-top: 20px; padding: 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; display: none; }
+        .alert-box.error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); display: block; }
+        .alert-box.success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; text-align: center; }
+        
+        .result-link { display: inline-block; margin-top: 12px; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+
+        .footer-note { font-size: 0.75
