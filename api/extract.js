@@ -1,62 +1,92 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Método não permitido.' });
 
-  const target = req.query?.url;
-  if (!target || typeof target !== 'string') {
-    return res.status(400).json({ success: false, error: 'Informe um link válido.' });
-  }
-  let parsed;
-  try {
-    parsed = new URL(target);
-    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
-  } catch {
-    return res.status(400).json({ success: false, error: 'O endereço informado não é válido.' });
+  const targetUrl = req.query.url || (req.body && req.body.url);
+  if (!targetUrl) {
+    return res.status(400).json({ success: false, error: 'Link ausente.' });
   }
 
-  try {
-    // Integração opcional com uma instância Cobalt configurada pelo proprietário.
-    // Configure COBALT_API_URL e, se exigido pela instância, COBALT_API_KEY na Vercel.
-    const cobaltBase = process.env.COBALT_API_URL;
-    if (cobaltBase) {
-      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-      if (process.env.COBALT_API_KEY) headers.Authorization = 'Api-Key ' + process.env.COBALT_API_KEY;
-      const cobalt = await fetch(cobaltBase.replace(/\/+$/, '') + '/', {
+  const ua = 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36';
+
+  // 1. Extrator Direto para Facebook (Extrai o MP4 direto do FDown em background!)
+  if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
+    try {
+      const params = new URLSearchParams();
+      params.append('URLz', targetUrl);
+      const fbRes = await fetch('https://fdown.net/download.php', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ url: parsed.href, downloadMode: 'auto', filenameStyle: 'basic' })
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': ua,
+          'Origin': 'https://fdown.net',
+          'Referer': 'https://fdown.net/'
+        },
+        body: params.toString()
       });
-      const result = await cobalt.json().catch(() => ({}));
-      if (cobalt.ok && result.status === 'tunnel' && result.url) {
-        return res.status(200).json({ success: true, downloadUrl: result.url, source: 'cobalt' });
+      const html = await fbRes.text();
+      const hdMatch = html.match(/id="hdlink"[^>]*href="([^"]+)"/i);
+      const sdMatch = html.match(/id="sdlink"[^>]*href="([^"]+)"/i);
+      const rawUrl = (hdMatch && hdMatch[1]) || (sdMatch && sdMatch[1]);
+      if (rawUrl) {
+        const cleanUrl = rawUrl.replace(/&amp;/g, '&');
+        return res.status(200).json({ success: true, downloadUrl: cleanUrl });
       }
-      if (cobalt.ok && result.status === 'redirect' && result.url) {
-        return res.status(200).json({ success: true, downloadUrl: result.url, source: 'cobalt' });
-      }
-      const reason = result.error?.code || result.text || 'O serviço de extração não aceitou este link.';
-      return res.status(502).json({ success: false, error: String(reason) });
-    }
-
-    // Fallback legado: TikWM é voltado ao TikTok, não a todas as redes sociais.
-    if (!/(^|\.)tiktok\.com$/i.test(parsed.hostname) && !/(^|\.)vm\.tiktok\.com$/i.test(parsed.hostname) && !/(^|\.)vt\.tiktok\.com$/i.test(parsed.hostname)) {
-      return res.status(501).json({
-        success: false,
-        error: 'Este link precisa de um extrator de plataforma configurado. Para ampliar o suporte a Instagram, Facebook e outras redes, configure uma instância Cobalt em COBALT_API_URL na Vercel.'
-      });
-    }
-    const response = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(parsed.href), {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-    });
-    if (!response.ok) throw new Error('O serviço TikWM está indisponível no momento.');
-    const data = await response.json();
-    if (data?.code !== 0 || !data?.data?.play) {
-      return res.status(502).json({ success: false, error: 'O TikTok não disponibilizou este vídeo. Verifique se o link é público.' });
-    }
-    return res.status(200).json({ success: true, downloadUrl: data.data.play, source: 'tikwm' });
-  } catch (error) {
-    return res.status(502).json({ success: false, error: error.message || 'Falha ao extrair o vídeo.' });
+    } catch (e) {}
   }
+
+  // 2. Extrator Direto para TikTok / Douyin
+  if (targetUrl.includes('tiktok.com') || targetUrl.includes('douyin.com')) {
+    try {
+      const tikRes = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(targetUrl), {
+        headers: { 'User-Agent': ua }
+      });
+      const tikData = await tikRes.json();
+      if (tikData && tikData.data && (tikData.data.play || tikData.data.wmplay)) {
+        return res.status(200).json({
+          success: true,
+          downloadUrl: tikData.data.play || tikData.data.wmplay
+        });
+      }
+    } catch (e) {}
+  }
+
+  // 3. Cascata de Motores Universais (Instagram, YouTube, Kwai, X, Facebook)
+  const instances = [
+    'https://cobalt-api.kwiatekmiki.com',
+    'https://cobalt.api.timelessnesses.me',
+    'https://api.cobalt.blackcat.sweeux.org'
+  ];
+
+  for (const api of instances) {
+    try {
+      const r = await fetch(api, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'User-Agent': ua
+        },
+        body: JSON.stringify({
+          url: targetUrl,
+          videoQuality: '720',
+          filenameStyle: 'classic',
+          downloadMode: 'auto'
+        })
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const link = d.url || (d.picker && d.picker[0] && d.picker[0].url);
+        if (link) return res.status(200).json({ success: true, downloadUrl: link });
+      }
+    } catch (e) {}
+  }
+
+  return res.status(422).json({
+    success: false,
+    error: 'Extração direta indisponível para este link.'
+  });
 }
