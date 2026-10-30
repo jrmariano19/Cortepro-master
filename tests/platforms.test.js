@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { detectPlatform } from "../lib/platform-detector.js";
+const cases=[["https://www.tiktok.com/@x/video/1","TikTok"],["https://kwai.com/video/1","Kwai"],["https://www.instagram.com/reel/1/","Instagram"],["https://www.facebook.com/watch/?v=1","Facebook"],["https://fb.watch/abc/","Facebook"],["https://www.youtube.com/watch?v=1","YouTube"],["https://youtu.be/1","YouTube"]];
+for(const [url,platform] of cases)test("detecta "+platform,()=>{const result=detectPlatform(url);assert.equal(result.valid,true);assert.equal(result.platform,platform)});
+test("rejeita URL malformada",()=>assert.equal(detectPlatform("não é url").valid,false));
+test("rejeita HTTP",()=>assert.equal(detectPlatform("http://tiktok.com/video/1").valid,false));
+test("rejeita domínio parecido",()=>assert.equal(detectPlatform("https://instagram.com.attacker.test/reel/1").valid,false));
+test("rejeita credenciais",()=>assert.equal(detectPlatform("https://user:pass@youtube.com/watch?v=1").valid,false));
+test("rejeita porta não padrão",()=>assert.equal(detectPlatform("https://youtube.com:8443/watch?v=1").valid,false));
+test("rejeita domínio desconhecido",()=>assert.equal(detectPlatform("https://example.com/video").valid,false));

@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/detect"
+  to = "/.netlify/functions/detect"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/capabilities"
+  to = "/.netlify/functions/capabilities"
+  status = 200
+  force = true
