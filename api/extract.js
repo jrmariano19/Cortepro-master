@@ -10,35 +10,35 @@ module.exports = async (req, res) => {
     return res.status(400).json({ success: false, error: 'Link ausente.' });
   }
 
-  const uaMobile = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
-  const uaDesktop = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-  // PASSO 0: Desencurtar links do tipo facebook.com/share/r/... ou vm.tiktok.com
+  // Desencurtador geral
   try {
-    const headRes = await fetch(targetUrl, {
-      method: 'GET',
-      redirect: 'follow',
-      headers: { 'User-Agent': uaDesktop }
-    });
+    const headRes = await fetch(targetUrl, { method: 'GET', redirect: 'follow', headers: { 'User-Agent': ua } });
     if (headRes.url && !headRes.url.includes('/login')) {
       targetUrl = headRes.url;
     }
   } catch (e) {}
 
-  // PASSO 1: Extração Nativa do Facebook (Lê o MP4 direto da página do Facebook e do FDown)
+  // 1. TIKTOK / DOUYIN
+  if (targetUrl.includes('tiktok.com') || targetUrl.includes('douyin.com') || targetUrl.includes('v.douyin.com')) {
+    try {
+      const r = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(targetUrl), { headers: { 'User-Agent': ua } });
+      const d = await r.json();
+      if (d && d.data && (d.data.play || d.data.wmplay)) {
+        return res.status(200).json({ success: true, downloadUrl: d.data.play || d.data.wmplay });
+      }
+    } catch (e) {}
+  }
+
+  // 2. FACEBOOK
   if (targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch') || targetUrl.includes('fb.com')) {
-    // 1A: Via FDown com URL desencurtada
     try {
       const params = new URLSearchParams();
       params.append('URLz', targetUrl);
       const fbRes = await fetch('https://fdown.net/download.php', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': uaMobile,
-          'Origin': 'https://fdown.net',
-          'Referer': 'https://fdown.net/'
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': ua, 'Origin': 'https://fdown.net', 'Referer': 'https://fdown.net/' },
         body: params.toString()
       });
       const html = await fbRes.text();
@@ -49,56 +49,42 @@ module.exports = async (req, res) => {
         return res.status(200).json({ success: true, downloadUrl: rawUrl.replace(/&amp;/g, '&') });
       }
     } catch (e) {}
+  }
 
-    // 1B: Raspagem direta do código-fonte do Facebook (browser_native_hd_url / playable_url)
+  // 3. INSTAGRAM (Reels / Posts)
+  if (targetUrl.includes('instagram.com')) {
     try {
-      const pageRes = await fetch(targetUrl, {
-        headers: {
-          'User-Agent': uaDesktop,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8'
-        }
+      const igRes = await fetch('https://snapinsta.app/action.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': ua, 'Origin': 'https://snapinsta.app', 'Referer': 'https://snapinsta.app/' },
+        body: new URLSearchParams({ url: targetUrl, action: 'post' }).toString()
       });
-      const pageHtml = await pageRes.text();
-      const patterns = [
-        /"browser_native_hd_url":"([^"]+)"/,
-        /"browser_native_sd_url":"([^"]+)"/,
-        /"playable_url_quality_hd":"([^"]+)"/,
-        /"playable_url":"([^"]+)"/,
-        /"hd_src":"([^"]+)"/,
-        /"sd_src":"([^"]+)"/
-      ];
-      for (const regex of patterns) {
-        const match = pageHtml.match(regex);
-        if (match && match[1]) {
-          const clean = JSON.parse('"' + match[1] + '"').replace(/\\\//g, '/');
-          if (clean.startsWith('http')) {
-            return res.status(200).json({ success: true, downloadUrl: clean });
-          }
-        }
+      const html = await igRes.text();
+      const match = html.match(/href="([^"]+)"[^>]*class="btn[^"]*download/i) || html.match(/href="(https:\/\/[^"]+\.mp4[^"]*)"/i);
+      if (match && match[1]) {
+        return res.status(200).json({ success: true, downloadUrl: match[1].replace(/&amp;/g, '&') });
       }
     } catch (e) {}
   }
 
-  // PASSO 2: Extrator Direto para TikTok / Douyin
-  if (targetUrl.includes('tiktok.com') || targetUrl.includes('douyin.com')) {
+  // 4. KWAI
+  if (targetUrl.includes('kwai.com') || targetUrl.includes('k.kwai.com')) {
     try {
-      const tikRes = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(targetUrl), {
-        headers: { 'User-Agent': uaMobile }
+      const kwaiRes = await fetch('https://getvideo.mobi/api/v2/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': ua },
+        body: JSON.stringify({ url: targetUrl })
       });
-      const tikData = await tikRes.json();
-      if (tikData && tikData.data && (tikData.data.play || tikData.data.wmplay)) {
-        return res.status(200).json({
-          success: true,
-          downloadUrl: tikData.data.play || tikData.data.wmplay
-        });
+      const kd = await kwaiRes.json();
+      if (kd && kd.url) {
+        return res.status(200).json({ success: true, downloadUrl: kd.url });
       }
     } catch (e) {}
   }
 
-  // PASSO 3: Motores Universais (Instagram, YouTube, Kwai, X, Facebook)
+  // 5. YOUTUBE / SHORTS / INSTAGRAM / OUTROS (Motores Cobalt atualizados)
   const instances = [
-    'https://cobalt-api.kwiatekmiki.com',
+    'https://co.wuk.sh/api/json',
     'https://cobalt.api.timelessnesses.me',
     'https://api.cobalt.blackcat.sweeux.org'
   ];
@@ -107,16 +93,8 @@ module.exports = async (req, res) => {
     try {
       const r = await fetch(api, {
         method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': uaMobile
-        },
-        body: JSON.stringify({
-          url: targetUrl,
-          videoQuality: '720',
-          filenameStyle: 'classic'
-        })
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'User-Agent': ua },
+        body: JSON.stringify({ url: targetUrl, videoQuality: '720', filenameStyle: 'classic' })
       });
       if (r.ok) {
         const d = await r.json();
@@ -126,9 +104,5 @@ module.exports = async (req, res) => {
     } catch (e) {}
   }
 
-  return res.status(422).json({
-    success: false,
-    resolvedUrl: targetUrl,
-    error: 'Extração automática bloqueada pela rede.'
-  });
+  return res.status(422).json({ success: false, error: 'Não foi possível extrair o vídeo desta rede social.' });
 };
