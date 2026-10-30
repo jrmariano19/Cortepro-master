@@ -53,6 +53,11 @@
       <button class="action-btn" id="downloadBtn" onclick="processVideo()">Processar e baixar</button>
       
       <div id="statusBox" class="alert-box"></div>
+
+      <!-- Formulário invisível para envio direto POST ao extrator Facebook HD sem precisar de colar novamente -->
+      <form id="fdownForm" action="https://fdown.net/download.php" method="POST" target="_blank" style="display:none;">
+        <input type="hidden" name="URLz" id="fdownInput">
+      </form>
     </div>
 
     <div class="card" id="splitterSection" style="display: none;">
@@ -76,45 +81,51 @@
       document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
     }
 
+    function submitDirectFdown(url) {
+      document.getElementById('fdownInput').value = url;
+      document.getElementById('fdownForm').submit();
+    }
+
     async function forceFileDownload(url, statusBox) {
+      statusBox.className = 'alert-box success';
+      statusBox.innerHTML = '<b>Vídeo MP4 extraído com sucesso!</b><br>' +
+        '<a class="result-link" href="' + url + '" target="_blank" rel="noopener noreferrer" download="CortePro_Video.mp4">⬇ Baixar Vídeo MP4 Agora</a>';
+      
       try {
-        statusBox.innerHTML = '<b>A transferir ficheiro MP4 para o seu telemóvel...</b>';
         const response = await fetch(url);
-        if (!response.ok) throw new Error('Falha no stream');
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = blobUrl;
-        a.download = 'CortePro_' + Date.now() + '.mp4';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          window.URL.revokeObjectURL(blobUrl);
-          document.body.removeChild(a);
-        }, 1500);
-        statusBox.innerHTML = '<b>Download concluído! Verifique a sua pasta de Transferências/Galeria.</b><br>' +
-          '<a class="result-link" href="' + url + '" target="_blank" download="video.mp4">⬇ Baixar Novamente</a>';
-      } catch (e) {
-        // Se o servidor do vídeo bloquear fetch em blob, abre o link direto de transferência
-        window.location.assign(url);
-        statusBox.innerHTML = '<b>Vídeo extraído!</b><br>' +
-          '<a class="result-link" href="' + url + '" target="_blank" download="video.mp4">⬇ Guardar Vídeo MP4</a>';
-      }
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = blobUrl;
+          a.download = 'CortePro_' + Date.now() + '.mp4';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+          }, 2000);
+          return;
+        }
+      } catch (e) {}
+
+      // Inicia abertura direta da stream MP4
+      window.location.href = url;
     }
 
     async function extractVideo(url) {
-      // 1. Chama o nosso motor Serverless na Vercel (/api/extract) que extrai Facebook (FDown), TikTok e Instagram direto
+      // 1. Chama o motor Serverless na Vercel (/api/extract)
       try {
         const res = await fetch('/api/extract?url=' + encodeURIComponent(url));
         const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
+        if (contentType.includes('application/json')) {
           const data = await res.json();
           if (data && data.downloadUrl) return data.downloadUrl;
         }
       } catch (e) {}
 
-      // 2. Fallback direto no navegador para TikTok
+      // 2. Extrator direto no navegador para TikTok
       if (url.includes('tiktok.com') || url.includes('douyin.com')) {
         try {
           const res = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(url));
@@ -125,7 +136,7 @@
         } catch (e) {}
       }
 
-      // 3. Fallback via Proxy CORS para Facebook direto do FDown
+      // 3. Proxy AllOrigins / CorsProxy para FDown
       if (url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.com')) {
         try {
           const params = new URLSearchParams();
@@ -160,16 +171,22 @@
       downloadBtn.disabled = true;
       downloadBtn.textContent = 'Processando...';
       statusBox.className = 'alert-box success';
-      statusBox.textContent = 'A extrair ficheiro MP4 direto... aguarde.';
+      statusBox.textContent = 'A desencurtar link e extrair ficheiro MP4... aguarde.';
 
       try {
         const videoUrl = await extractVideo(urlInput);
 
         if (videoUrl) {
           await forceFileDownload(videoUrl, statusBox);
+        } else if (urlInput.includes('facebook.com') || urlInput.includes('fb.watch') || urlInput.includes('fb.com')) {
+          // Se o IP da nuvem for bloqueado pelo Facebook, envia o POST direto do telemóvel automaticamente!
+          statusBox.className = 'alert-box success';
+          statusBox.innerHTML = '<b>Link desencurtado! A abrir transferência direta...</b><br>' +
+            '<button class="result-link" onclick="submitDirectFdown(\'' + urlInput.replace(/'/g, "\\'") + '\')">⬇ Baixar MP4 Direto (Servidor Facebook)</button>';
+          submitDirectFdown(urlInput);
         } else {
           statusBox.className = 'alert-box error';
-          statusBox.textContent = 'Não foi possível extrair o ficheiro MP4 direto deste link. Verifique se o vídeo é público.';
+          statusBox.textContent = 'Não foi possível extrair o ficheiro MP4 direto deste link. Tente outro link público.';
         }
       } catch (err) {
         statusBox.className = 'alert-box error';
