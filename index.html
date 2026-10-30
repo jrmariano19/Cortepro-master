@@ -1,55 +1,179 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CortePro Master</title>
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: #121826;
-            --card-border: #1e293b;
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --tab-bg: #1a2234;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --error-bg: rgba(239, 68, 68, 0.1);
-            --error-border: rgba(239, 68, 68, 0.3);
-            --error-text: #fca5a5;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CortePro Master</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background-color: #0b0f19; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  .main-container { width: 100%; max-width: 480px; margin-top: 10px; }
+  .header-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
+  .logo-box { width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: #ffffff; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); margin-bottom: 12px; }
+  h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  p.subtitle { color: #94a3b8; font-size: 0.9rem; text-align: center; }
+  .tabs-container { display: flex; background: #121826; border: 1px solid #1e293b; border-radius: 14px; padding: 6px; margin-bottom: 20px; gap: 6px; }
+  .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; border-radius: 10px; color: #94a3b8; font-weight: 600; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .tab-btn.active { background: #6366f1; color: #ffffff; }
+  .card { background: #121826; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+  h2.card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: #f8fafc; }
+  p.card-desc { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+  label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
+  input[type="url"] { width: 100%; padding: 14px 16px; background: #080c14; border: 1px solid #1e293b; border-radius: 12px; color: #f8fafc; font-size: 0.95rem; outline: none; margin-bottom: 20px; }
+  input[type="url"]:focus { border-color: #6366f1; }
+  .action-btn { width: 100%; padding: 14px; background: #6366f1; color: #ffffff; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .action-btn:disabled { opacity: 0.6; }
+  .alert-box { margin-top: 20px; padding: 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; display: none; word-break: break-word; }
+  .alert-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; display: block; }
+  .alert-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; display: block; text-align: center; }
+  .result-link { display: inline-block; width: 100%; margin-top: 12px; padding: 14px; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 1rem; text-align: center; }
+  .fallback-btn { display: inline-block; width: 100%; margin-top: 8px; padding: 12px; background: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 0.9rem; text-align: center; }
+  .footer-note { font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.5; padding: 0 10px; }
+</style>
+</head>
+<body>
+  <div class="main-container">
+    <div class="header-logo">
+      <div class="logo-box">CP</div>
+      <h1>CortePro Master</h1>
+      <p class="subtitle">Baixe vídeos e divida arquivos em partes</p>
+    </div>
+
+    <div class="tabs-container">
+      <button class="tab-btn active" id="tabDownload" onclick="switchTab('download')">↓ Baixar vídeo</button>
+      <button class="tab-btn" id="tabSplitter" onclick="switchTab('splitter')">✂ Divisor</button>
+    </div>
+
+    <div class="card" id="downloadSection">
+      <h2 class="card-title">Baixador de vídeos</h2>
+      <p class="card-desc">Cole um link público ou informe o endereço direto de um arquivo de vídeo.</p>
+      
+      <label for="urlInput">LINK DO VÍDEO</label>
+      <input type="url" id="urlInput" placeholder="https://..." autocomplete="off">
+      
+      <button class="action-btn" id="downloadBtn" onclick="processVideo()">Processar e baixar</button>
+      
+      <div id="statusBox" class="alert-box"></div>
+    </div>
+
+    <div class="card" id="splitterSection" style="display: none;">
+      <h2 class="card-title">Divisor de Vídeos</h2>
+      <p class="card-desc">Selecione um vídeo do seu telemóvel para dividir em partes.</p>
+      <input type="file" id="videoFileInput" accept="video/*" style="width:100%; margin-bottom:15px; color:#94a3b8;">
+      <div class="alert-box success" style="display: block;">Selecione um ficheiro de vídeo acima para cortar.</div>
+    </div>
+
+    <p class="footer-note">
+      Use somente vídeos que você tenha autorização para baixar ou editar.<br>
+      O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
+    </p>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('tabDownload').className = tab === 'download' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('tabSplitter').className = tab === 'splitter' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('downloadSection').style.display = tab === 'download' ? 'block' : 'none';
+      document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
+    }
+
+    async function fetchWithTimeout(resource, options) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(resource, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    }
+
+    async function extractVideo(url) {
+      // 1. Tenta o motor interno da Vercel (/api/extract) se estiver disponível
+      try {
+        const res = await fetchWithTimeout('/api/extract?url=' + encodeURIComponent(url), { method: 'GET' });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && data.downloadUrl) return data.downloadUrl;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px; }
-        
-        .main-container { width: 100%; max-width: 480px; margin-top: 10px; }
-        
-        .header-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
-        .logo-box { width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); margin-bottom: 12px; }
-        h1 { font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px; letter-spacing: -0.5px; }
-        p.subtitle { color: var(--text-muted); font-size: 0.9rem; text-align: center; }
+      } catch (e) {}
 
-        .tabs-container { display: flex; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 6px; margin-bottom: 20px; gap: 6px; }
-        .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; border-radius: 10px; color: var(--text-muted); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+      // 2. Extrator direto para TikTok / Douyin
+      if (url.includes('tiktok.com') || url.includes('douyin.com')) {
+        try {
+          const res = await fetchWithTimeout('https://www.tikwm.com/api/?url=' + encodeURIComponent(url), { method: 'GET' });
+          const data = await res.json();
+          if (data && data.data && (data.data.play || data.data.wmplay)) {
+            return data.data.play || data.data.wmplay;
+          }
+        } catch (e) {}
+      }
 
-        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); margin-bottom: 20px; }
-        
-        h2.card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
-        p.card-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4; }
+      // 3. Extratores universais multi-redes (Facebook, Instagram, YouTube, Kwai, X)
+      const endpoints = [
+        'https://cobalt-api.kwiatekmiki.com',
+        'https://cobalt.api.timelessnesses.me',
+        'https://api.cobalt.blackcat.sweeux.org',
+        'https://corsproxy.io/?' + encodeURIComponent('https://cobalt-api.kwiatekmiki.com')
+      ];
 
-        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
-        
-        input[type="url"] { width: 100%; padding: 14px 16px; background: #080c14; border: 1px solid var(--card-border); border-radius: 12px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s; margin-bottom: 20px; }
-        input[type="url"]:focus { border-color: var(--primary); }
+      for (let i = 0; i < endpoints.length; i++) {
+        try {
+          const res = await fetchWithTimeout(endpoints[i], {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url, videoQuality: '720', filenameStyle: 'classic' })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const link = data.url || (data.picker && data.picker[0] && data.picker[0].url);
+            if (link) return link;
+          }
+        } catch (e) {}
+      }
 
-        .action-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
-        .action-btn:hover { background: var(--primary-hover); }
-        .action-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+      if (/\.(mp4|webm|mov)(\?.*)?$/i.test(url)) return url;
+      return null;
+    }
 
-        .alert-box { margin-top: 20px; padding: 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; display: none; }
-        .alert-box.error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); display: block; }
-        .alert-box.success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; text-align: center; }
-        
-        .result-link { display: inline-block; margin-top: 12px; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+    async function processVideo() {
+      const urlInput = document.getElementById('urlInput').value.trim();
+      const statusBox = document.getElementById('statusBox');
+      const downloadBtn = document.getElementById('downloadBtn');
 
-        .footer-note { font-size: 0.75
+      if (!urlInput) {
+        statusBox.className = 'alert-box error';
+        statusBox.textContent = 'Por favor, cole um link de vídeo válido.';
+        return;
+      }
+
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = 'Processando...';
+      statusBox.className = 'alert-box success';
+      statusBox.textContent = 'A extrair vídeo... aguarde alguns segundos.';
+
+      try {
+        const videoUrl = await extractVideo(urlInput);
+
+        if (videoUrl) {
+          statusBox.className = 'alert-box success';
+          statusBox.innerHTML = '<b>Vídeo extraído com sucesso!</b><br>' +
+            '<a class="result-link" href="' + videoUrl + '" target="_blank" rel="noopener noreferrer" download="video.mp4">⬇ Baixar Vídeo Agora</a>';
+          window.open(videoUrl, '_blank');
+        } else {
+          // Caso a rede social exija validação de navegador (ex: Reels privados/protegidos do Facebook/Instagram), oferece extrator externo direto com 1 clique
+          statusBox.className = 'alert-box success';
+          statusBox.innerHTML = '<b>Link preparado! Escolha o servidor de download direto:</b><br>' +
+            '<a class="result-link" href="https://snapinsta.app/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 1 (Instagram / Facebook)</a>' +
+            '<a class="fallback-btn" href="https://fdown.net/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 2 (Facebook HD)</a>' +
+            '<a class="fallback-btn" href="https://ssstik.io/" onclick="navigator.clipboard.writeText(\'' + urlInput.replace(/'/g, "\\'") + '\')" target="_blank" rel="noopener noreferrer">⬇ Servidor 3 (TikTok / Redes)</a>';
+        }
+      } catch (err) {
+        statusBox.className = 'alert-box error';
+        statusBox.textContent = 'Erro ao processar link. Verifique o endereço.';
+      } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = 'Processar e baixar';
+      }
+    }
+  </script>
+</body>
+</html>
