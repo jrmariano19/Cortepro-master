@@ -52,12 +52,8 @@
       
       <button class="action-btn" id="downloadBtn" onclick="processVideo()">Processar e baixar</button>
       
-      <div id="statusBox" class="alert-box"></div>
+      <div id="statusBox" class="alert-box" role="status" aria-live="polite"></div>
 
-      <!-- Formulário invisível para envio direto POST ao extrator Facebook HD sem precisar de colar novamente -->
-      <form id="fdownForm" action="https://fdown.net/download.php" method="POST" target="_blank" style="display:none;">
-        <input type="hidden" name="URLz" id="fdownInput">
-      </form>
     </div>
 
     <div class="card" id="splitterSection" style="display: none;">
@@ -67,6 +63,7 @@
       <div class="alert-box success" style="display: block;">Selecione um ficheiro de vídeo acima para cortar.</div>
     </div>
 
+    <p class="footer-note">Versão 8.0.3</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -81,80 +78,59 @@
       document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
     }
 
-    function submitDirectFdown(url) {
-      document.getElementById('fdownInput').value = url;
-      document.getElementById('fdownForm').submit();
+    function safeDownloadUrl(value) {
+      const parsed = new URL(value);
+      if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+        throw new Error('O servidor retornou um endereço de vídeo inválido.');
+      }
+      return parsed.href;
     }
 
-    async function forceFileDownload(url, statusBox) {
+    async function forceFileDownload(result, statusBox) {
+      const url = safeDownloadUrl(result.downloadUrl);
       statusBox.className = 'alert-box success';
-      statusBox.innerHTML = '<b>Vídeo MP4 extraído com sucesso!</b><br>' +
-        '<a class="result-link" href="' + url + '" target="_blank" rel="noopener noreferrer" download="CortePro_Video.mp4">⬇ Baixar Vídeo MP4 Agora</a>';
-      
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = blobUrl;
-          a.download = 'CortePro_' + Date.now() + '.mp4';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            window.URL.revokeObjectURL(blobUrl);
-            document.body.removeChild(a);
-          }, 2000);
-          return;
-        }
-      } catch (e) {}
-
-      // Inicia abertura direta da stream MP4
-      window.location.href = url;
+      statusBox.textContent = 'Vídeo encontrado. Toque no botão abaixo para baixar ou abrir o arquivo.';
+      const link = document.createElement('a');
+      link.className = 'result-link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = result.filename || 'CortePro_Video.mp4';
+      link.textContent = '⬇ Baixar vídeo';
+      statusBox.appendChild(link);
     }
 
     async function extractVideo(url) {
-      // 1. Chama o motor Serverless na Vercel (/api/extract)
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 65000);
       try {
-        const res = await fetch('/api/extract?url=' + encodeURIComponent(url));
+        const res = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+          signal: controller.signal
+        });
         const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const data = await res.json();
-          if (data && data.downloadUrl) return data.downloadUrl;
+        if (!contentType.includes('application/json')) {
+          throw new Error('O serviço de download está indisponível. Tente novamente em instantes.');
         }
-      } catch (e) {}
-
-      // 2. Extrator direto no navegador para TikTok
-      if (url.includes('tiktok.com') || url.includes('douyin.com')) {
-        try {
-          const res = await fetch('https://www.tikwm.com/api/?url=' + encodeURIComponent(url));
-          const data = await res.json();
-          if (data && data.data && (data.data.play || data.data.wmplay)) {
-            return data.data.play || data.data.wmplay;
-          }
-        } catch (e) {}
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.downloadUrl) {
+          throw new Error(data.error || 'Não foi possível obter este vídeo.');
+        }
+        safeDownloadUrl(data.downloadUrl);
+        return data;
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          throw new Error('A rede social demorou a responder. Tente novamente.');
+        }
+        if (err instanceof TypeError) {
+          throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão.');
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
       }
-
-      // 3. Proxy AllOrigins / CorsProxy para FDown
-      if (url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.com')) {
-        try {
-          const params = new URLSearchParams();
-          params.append('URLz', url);
-          const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://fdown.net/download.php'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString()
-          });
-          const html = await res.text();
-          const hdMatch = html.match(/id="hdlink"[^>]*href="([^"]+)"/i);
-          const sdMatch = html.match(/id="sdlink"[^>]*href="([^"]+)"/i);
-          const rawUrl = (hdMatch && hdMatch[1]) || (sdMatch && sdMatch[1]);
-          if (rawUrl) return rawUrl.replace(/&amp;/g, '&');
-        } catch (e) {}
-      }
-
-      return null;
     }
 
     async function processVideo() {
@@ -162,35 +138,30 @@
       const statusBox = document.getElementById('statusBox');
       const downloadBtn = document.getElementById('downloadBtn');
 
+      if (downloadBtn.disabled) return;
       if (!urlInput) {
         statusBox.className = 'alert-box error';
         statusBox.textContent = 'Por favor, cole um link de vídeo válido.';
         return;
       }
 
+      try { safeDownloadUrl(urlInput); } catch (err) {
+        statusBox.className = 'alert-box error';
+        statusBox.textContent = 'Cole um endereço HTTP ou HTTPS válido.';
+        return;
+      }
+
       downloadBtn.disabled = true;
       downloadBtn.textContent = 'Processando...';
       statusBox.className = 'alert-box success';
-      statusBox.textContent = 'A desencurtar link e extrair ficheiro MP4... aguarde.';
+      statusBox.textContent = 'Buscando o vídeo e o áudio... aguarde.';
 
       try {
-        const videoUrl = await extractVideo(urlInput);
-
-        if (videoUrl) {
-          await forceFileDownload(videoUrl, statusBox);
-        } else if (urlInput.includes('facebook.com') || urlInput.includes('fb.watch') || urlInput.includes('fb.com')) {
-          // Se o IP da nuvem for bloqueado pelo Facebook, envia o POST direto do telemóvel automaticamente!
-          statusBox.className = 'alert-box success';
-          statusBox.innerHTML = '<b>Link desencurtado! A abrir transferência direta...</b><br>' +
-            '<button class="result-link" onclick="submitDirectFdown(\'' + urlInput.replace(/'/g, "\\'") + '\')">⬇ Baixar MP4 Direto (Servidor Facebook)</button>';
-          submitDirectFdown(urlInput);
-        } else {
-          statusBox.className = 'alert-box error';
-          statusBox.textContent = 'Não foi possível extrair o ficheiro MP4 direto deste link. Tente outro link público.';
-        }
+        const result = await extractVideo(urlInput);
+        await forceFileDownload(result, statusBox);
       } catch (err) {
         statusBox.className = 'alert-box error';
-        statusBox.textContent = 'Erro ao processar link.';
+        statusBox.textContent = err.message || 'Erro ao processar link.';
       } finally {
         downloadBtn.disabled = false;
         downloadBtn.textContent = 'Processar e baixar';
