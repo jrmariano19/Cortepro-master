@@ -5,6 +5,7 @@ import logging
 import re
 import socket
 from http.server import BaseHTTPRequestHandler
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
@@ -12,12 +13,87 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.0.3"
+VERSION = "8.0.4"
+USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
                 "kwai.com", "kuaishou.com")
 MEDIA_EXTENSIONS = (".mp4", ".webm", ".mov", ".m4v")
 FORMAT = "best[ext=mp4][protocol=https]/best[ext=mp4][protocol=http]/best[protocol=https]/best[protocol=http]"
+
+
+def platform_is(url, domains):
+    host = (urlsplit(url).hostname or '').lower()
+    return any(host == domain or host.endswith('.' + domain) for domain in domains)
+
+
+def usable_media(url):
+    """Probe the actual file, rather than treating an extracted URL as success."""
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
+            return False
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)
+        if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
+            return False
+        request = Request(url, headers={'User-Agent': USER_AGENT, 'Range': 'bytes=0-63'})
+        with urlopen(request, timeout=6) as response:
+            prefix = response.read(64)
+            return response.status in (200, 206) and (prefix[4:8] == b'ftyp' or prefix.startswith(b'\x1a\x45\xdf\xa3'))
+    except Exception:
+        return False
+
+
+class StructuredVideos(HTMLParser):
+    """Read Kwai's public VideoObject metadata without executing page scripts."""
+    def __init__(self):
+        super().__init__()
+        self.active = False
+        self.parts = []
+        self.videos = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'script' and dict(attrs).get('type') == 'application/ld+json':
+            self.active, self.parts = True, []
+
+    def handle_data(self, data):
+        if self.active:
+            self.parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag != 'script' or not self.active:
+            return
+        self.active = False
+        try:
+            self.collect(json.loads(''.join(self.parts)))
+        except (ValueError, TypeError):
+            pass
+
+    def collect(self, value):
+        if isinstance(value, list):
+            for item in value:
+                self.collect(item)
+        elif isinstance(value, dict):
+            if value.get('@type') == 'VideoObject' and isinstance(value.get('contentUrl'), str):
+                self.videos.append(value)
+            if '@graph' in value:
+                self.collect(value['@graph'])
+
+
+def kwai_video(url):
+    try:
+        with urlopen(Request(url, headers={'User-Agent': USER_AGENT}), timeout=12) as response:
+            if not platform_is(response.url, ('kwai.com', 'kuaishou.com')):
+                return None
+            page = response.read(2 * 1024 * 1024).decode('utf-8', 'replace')
+        parser = StructuredVideos()
+        parser.feed(page)
+        for video in parser.videos:
+            if usable_media(video['contentUrl']):
+                return {'success': True, 'downloadUrl': video['contentUrl'], 'filename': 'CortePro_Kwai.mp4', 'version': VERSION}
+    except Exception:
+        logging.warning('kwai_public_metadata_failed')
+    return None
 
 
 class ExtractionError(Exception):
@@ -81,16 +157,22 @@ def legacy_provider(url):
     try:
         if is_tiktok:
             from urllib.parse import urlencode
-            request = Request('https://www.tikwm.com/api/?' + urlencode({'url': url}))
+            request = Request('https://www.tikwm.com/api/?' + urlencode({'url': url, 'hd': '1'}),
+                              headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'})
         else:
             request = Request('https://getvideo.mobi/api/v2/convert',
                               data=json.dumps({'url': url}).encode(),
                               headers={'Content-Type': 'application/json'})
-        with urlopen(request, timeout=8) as response:
+        with urlopen(request, timeout=12) as response:
             data = json.loads(response.read(1024 * 1024))
-        media = ((data.get('data') or {}).get('play') or (data.get('data') or {}).get('wmplay')) if is_tiktok else data.get('url')
-        if isinstance(media, str) and urlsplit(media).scheme in ('http', 'https'):
-            return {'success': True, 'downloadUrl': media, 'filename': 'CortePro_Video.mp4', 'version': VERSION}
+        if is_tiktok:
+            payload = data.get('data') or {}
+            candidates = [payload.get(key) for key in ('play', 'hdplay', 'wmplay')] if data.get('code') == 0 else []
+        else:
+            candidates = [data.get('url')]
+        for media in candidates:
+            if isinstance(media, str) and usable_media(media):
+                return {'success': True, 'downloadUrl': media, 'filename': 'CortePro_Video.mp4', 'version': VERSION}
     except Exception:
         logging.warning('legacy_provider_failed platform=%s', 'tiktok' if is_tiktok else 'kwai')
     return None
@@ -100,6 +182,10 @@ def extract_video(value):
     url, direct = validate_url(value)
     if direct:
         return {"success": True, "downloadUrl": url, "filename": "CortePro_Video" + urlsplit(url).path[urlsplit(url).path.rfind("."):].lower(), "version": VERSION}
+    if platform_is(url, ('kwai.com', 'kuaishou.com')):
+        native = kwai_video(url)
+        if native:
+            return native
     fallback = legacy_provider(url)
     if fallback:
         return fallback
@@ -126,6 +212,8 @@ def extract_video(value):
     original_silent = bool(formats) and all(fmt.get("acodec") == "none" for fmt in formats)
     if info.get("has_drm") or info.get("vcodec") == "none" or (info.get("acodec") == "none" and not original_silent):
         raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Não há um arquivo completo com áudio e vídeo disponível neste link.")
+    if platform_is(url, ('tiktok.com', 'douyin.com', 'kwai.com', 'kuaishou.com')) and not usable_media(info['url']):
+        raise ExtractionError('MEDIA_UNAVAILABLE', 'O endereço do vídeo foi recusado pela rede social. Tente novamente em instantes.', 502)
     extension = info.get("ext", "mp4")
     if extension not in ("mp4", "webm", "mov", "m4v"):
         raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Este vídeo não está disponível em um formato de arquivo compatível.")
