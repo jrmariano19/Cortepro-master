@@ -1,10 +1,20 @@
 import unittest
 from unittest.mock import patch
-from api.extract import extract_video, validate_url, ExtractionError, classify_error
+from api.extract import extract_video, validate_url, ExtractionError, classify_error, FORMAT
+from yt_dlp import YoutubeDL
 
 PUBLIC_DNS = [(2, 1, 6, '', ('93.184.216.34', 443))]
 
 class ExtractionTests(unittest.TestCase):
+    def test_format_selection_accepts_missing_codec_metadata_but_not_silent_track(self):
+        formats = [
+            {'format_id': 'instagram', 'ext': 'mp4', 'protocol': 'https', 'url': 'https://cdn.example.com/a.mp4'},
+            {'format_id': 'silent', 'ext': 'mp4', 'protocol': 'https', 'url': 'https://cdn.example.com/b.mp4', 'acodec': 'none', 'vcodec': 'h264'},
+        ]
+        with YoutubeDL({'quiet': True, 'no_warnings': True}) as engine:
+            selected = list(engine.build_format_selector(FORMAT)({'formats': formats, 'has_merged_format': True, 'incomplete_formats': False}))
+        self.assertEqual([item['format_id'] for item in selected], ['instagram'])
+
     @patch('api.extract.socket.getaddrinfo', return_value=PUBLIC_DNS)
     def test_direct_mp4_does_not_call_social_extractor(self, dns):
         with patch('api.extract.YoutubeDL') as engine:

@@ -17,6 +17,7 @@ SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
                 "kwai.com", "kuaishou.com")
 MEDIA_EXTENSIONS = (".mp4", ".webm", ".mov", ".m4v")
+FORMAT = "best[ext=mp4][protocol=https]/best[ext=mp4][protocol=http]/best[protocol=https]/best[protocol=http]"
 
 
 class ExtractionError(Exception):
@@ -108,7 +109,7 @@ def extract_video(value):
         "socket_timeout": 8, "retries": 0, "extractor_retries": 0,
         # Only complete HTTP files with audio and video; no silent adaptive tracks
         # or manifests that would require ffmpeg to assemble on the phone.
-        "format": "best[ext=mp4][vcodec!=none][acodec!=none][protocol=https]/best[ext=mp4][vcodec!=none][acodec!=none][protocol=http]/best[vcodec!=none][acodec!=none][protocol=https]/best[vcodec!=none][acodec!=none][protocol=http]",
+        "format": FORMAT,
     }
     try:
         with YoutubeDL(options) as extractor:
