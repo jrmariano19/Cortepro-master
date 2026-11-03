@@ -55,5 +55,15 @@ class ExtractionTests(unittest.TestCase):
         self.assertEqual(classify_error('HTTP Error 429').status, 429)
         self.assertEqual(classify_error('Connection timed out').status, 502)
 
+    @patch('api.extract.socket.getaddrinfo', return_value=PUBLIC_DNS)
+    def test_original_video_without_audio_is_supported(self, dns):
+        with patch('api.extract.YoutubeDL') as engine:
+            engine.return_value.__enter__.return_value.extract_info.return_value = {
+                'url': 'https://cdn.example.com/a.mp4', 'ext': 'mp4', 'vcodec': 'h264', 'acodec': 'none',
+                'formats': [{'vcodec': 'h264', 'acodec': 'none'}]}
+            result = extract_video('https://www.instagram.com/reel/abc/')
+        self.assertTrue(result['success'])
+        self.assertTrue(result['originalSilent'])
+
 if __name__ == '__main__':
     unittest.main()

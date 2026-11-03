@@ -90,6 +90,7 @@
       const url = safeDownloadUrl(result.downloadUrl);
       statusBox.className = 'alert-box success';
       statusBox.textContent = 'Vídeo encontrado. Toque no botão abaixo para baixar ou abrir o arquivo.';
+      if (result.originalSilent) statusBox.textContent += ' O vídeo original não possui faixa de áudio.';
       const link = document.createElement('a');
       link.className = 'result-link';
       link.href = url;

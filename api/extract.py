@@ -122,13 +122,15 @@ def extract_video(value):
         info = next((entry for entry in info["entries"] if entry), None)
     if not info or not info.get("url") or urlsplit(info["url"]).scheme not in ("http", "https"):
         raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Este link não retornou um arquivo de vídeo com áudio para baixar.")
-    if info.get("has_drm") or info.get("vcodec") == "none" or info.get("acodec") == "none":
+    formats = info.get("formats") or []
+    original_silent = bool(formats) and all(fmt.get("acodec") == "none" for fmt in formats)
+    if info.get("has_drm") or info.get("vcodec") == "none" or (info.get("acodec") == "none" and not original_silent):
         raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Não há um arquivo completo com áudio e vídeo disponível neste link.")
     extension = info.get("ext", "mp4")
     if extension not in ("mp4", "webm", "mov", "m4v"):
         raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Este vídeo não está disponível em um formato de arquivo compatível.")
     name = re.sub(r"[^\w .-]", "_", info.get("title") or "Video")[:100]
-    return {"success": True, "downloadUrl": info["url"], "filename": f"CortePro_{name}.{extension}", "version": VERSION}
+    return {"success": True, "downloadUrl": info["url"], "filename": f"CortePro_{name}.{extension}", "originalSilent": original_silent, "version": VERSION}
 
 
 class handler(BaseHTTPRequestHandler):
