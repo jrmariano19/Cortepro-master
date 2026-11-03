@@ -59,6 +59,8 @@ def validate_url(value):
 
 def classify_error(message):
     text = str(message).lower()
+    if "requested format is not available" in text:
+        return ExtractionError("NO_COMPLETE_FORMAT", "A rede social não disponibilizou um arquivo único com áudio e vídeo para este link.")
     if any(token in text for token in ("429", "rate-limit", "too many requests")):
         return ExtractionError("RATE_LIMITED", "A rede social limitou as solicitações. Tente novamente em alguns minutos.", 429)
     if any(token in text for token in ("login", "log in", "sign in", "private", "cookies", "not a bot")):
@@ -112,6 +114,8 @@ def extract_video(value):
         with YoutubeDL(options) as extractor:
             info = extractor.extract_info(url, download=False)
     except DownloadError as exc:
+        detail = re.sub(r"https?://\S+", "[url]", str(exc))[:500]
+        logging.warning("extractor_error detail=%s", detail)
         raise classify_error(exc) from None
     if info and info.get("entries") is not None:
         info = next((entry for entry in info["entries"] if entry), None)
