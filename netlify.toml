@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/api/extract"
+  to = "https://cortepro-master.vercel.app/api/extract"
+  status = 200
+  force = true
