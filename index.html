@@ -35,12 +35,12 @@
     <div class="header-logo">
       <div class="logo-box">CP</div>
       <h1>CortePro Master</h1>
-      <p class="subtitle">Baixe vídeos e divida arquivos em partes</p>
+      <p class="subtitle">Baixe vídeos e remova a música de fundo</p>
     </div>
 
     <div class="tabs-container">
       <button class="tab-btn active" id="tabDownload" onclick="switchTab('download')">↓ Baixar vídeo</button>
-      <button class="tab-btn" id="tabSplitter" onclick="switchTab('splitter')">✂ Divisor</button>
+      <button class="tab-btn" id="tabMusic" onclick="switchTab('music')">♫ Remover música</button>
     </div>
 
     <div class="card" id="downloadSection">
@@ -56,14 +56,23 @@
 
     </div>
 
-    <div class="card" id="splitterSection" style="display: none;">
-      <h2 class="card-title">Divisor de Vídeos</h2>
-      <p class="card-desc">Selecione um vídeo do seu telemóvel para dividir em partes.</p>
-      <input type="file" id="videoFileInput" accept="video/*" style="width:100%; margin-bottom:15px; color:#94a3b8;">
-      <div class="alert-box success" style="display: block;">Selecione um ficheiro de vídeo acima para cortar.</div>
+    <div class="card" id="musicSection" style="display: none;">
+      <h2 class="card-title">Remover música de fundo</h2>
+      <p class="card-desc">Selecione um vídeo para reduzir a música de fundo e preservar as falas. O resultado será um novo vídeo com o áudio tratado.</p>
+      <label for="musicFile">Vídeo do aparelho</label>
+      <input type="file" id="musicFile" accept="video/*,.mp4,.mov,.mkv,.webm,.m4v" style="width:100%; margin-bottom:16px; color:#94a3b8;">
+      <p class="card-desc">Até 200 MB e 10 minutos. A qualidade depende do áudio original: podem restar música, canto ou alterações na voz. O processamento pode levar vários minutos.</p>
+      <button class="action-btn" id="musicBtn" type="button" disabled>Verificando disponibilidade...</button>
+      <div id="musicStatus" class="alert-box" role="status" aria-live="polite"></div>
+      <div id="musicResult" hidden style="margin-top:20px;">
+        <label for="musicPreview">Confira o resultado</label>
+        <video id="musicPreview" controls playsinline preload="metadata" style="width:100%; border-radius:12px;"></video>
+        <button class="result-link" id="musicSave" type="button">↓ Baixar vídeo tratado</button>
+        <p class="card-desc" style="margin-top:12px; margin-bottom:0;">O arquivo fica disponível por até uma hora. Confira as falas antes de usá-lo.</p>
+      </div>
     </div>
 
-    <p class="footer-note">Versão 8.0.4</p>
+    <p class="footer-note">Versão 8.1.0</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -73,9 +82,9 @@
   <script>
     function switchTab(tab) {
       document.getElementById('tabDownload').className = tab === 'download' ? 'tab-btn active' : 'tab-btn';
-      document.getElementById('tabSplitter').className = tab === 'splitter' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('tabMusic').className = tab === 'music' ? 'tab-btn active' : 'tab-btn';
       document.getElementById('downloadSection').style.display = tab === 'download' ? 'block' : 'none';
-      document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
+      document.getElementById('musicSection').style.display = tab === 'music' ? 'block' : 'none';
     }
 
     function safeDownloadUrl(value) {
@@ -169,5 +178,6 @@
       }
     }
   </script>
+  <script src="/music.js" defer></script>
 </body>
 </html>
