@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const script = fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 function harness(fetch) {
   const elements = {};
-  for(const id of ['urlInput','downloadBtn','statusBox','tabDownload','tabSplitter','downloadSection','splitterSection']) {
+  for(const id of ['urlInput','downloadBtn','statusBox','tabDownload','tabMusic','downloadSection','musicSection']) {
     elements[id] = { value:'https://www.instagram.com/reel/example/', style:{}, appendChild(node){this.child = node;} };
   }
   const ctx = vm.createContext({ URL, AbortController, setTimeout, clearTimeout, fetch,
@@ -23,8 +23,8 @@ function harness(fetch) {
   await vm.runInContext('processVideo()',success.ctx);
   assert.equal(success.elements.statusBox.child.href,'https://cdn.example.com/test.mp4');
   assert.equal(success.elements.statusBox.child.download,'video.mp4');
-  vm.runInContext("switchTab('splitter')",success.ctx);
-  assert.equal(success.elements.splitterSection.style.display,'block');
+  vm.runInContext("switchTab('music')",success.ctx);
+  assert.equal(success.elements.musicSection.style.display,'block');
   assert.throws(()=>vm.runInContext("safeDownloadUrl('javascript:alert(1)')",success.ctx));
   console.log('Frontend regression checks: passed (errors, retained input, download link, tabs, unsafe URL)');
 })().catch(e=>{console.error(e);process.exit(1)});
