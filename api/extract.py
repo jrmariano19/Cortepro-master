@@ -6,18 +6,22 @@ import re
 import socket
 from http.server import BaseHTTPRequestHandler
 from html.parser import HTMLParser
-from urllib.parse import parse_qs, urlsplit
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, urlsplit, urljoin
+from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
+from urllib.error import HTTPError
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.0.4"
+VERSION = "8.0.5"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
                 "kwai.com", "kuaishou.com")
+SHOPEE_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36'
+SHOPEE_HOSTS = ("shopee.com.br", "shp.ee")
+SHOPEE_MEDIA_HOSTS = ("susercontent.com", "shopeemobile.com")
 MEDIA_EXTENSIONS = (".mp4", ".webm", ".mov", ".m4v")
 FORMAT = "best[ext=mp4][protocol=https]/best[ext=mp4][protocol=http]/best[protocol=https]/best[protocol=http]"
 
@@ -121,10 +125,10 @@ def validate_url(value):
     except ValueError:
         raise ExtractionError("INVALID_URL", "Use um endereço HTTP ou HTTPS válido.", 400)
     host = parsed.hostname.lower().rstrip(".")
-    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS)
+    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS + SHOPEE_HOSTS)
     direct = parsed.path.lower().endswith(MEDIA_EXTENSIONS)
     if not social and not direct:
-        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai ou de um arquivo de vídeo.", 400)
+        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai, Shopee ou de um arquivo de vídeo.", 400)
     try:
         addresses = socket.getaddrinfo(host, parsed.port or 443, type=socket.SOCK_STREAM)
         if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
@@ -178,10 +182,112 @@ def legacy_provider(url):
     return None
 
 
+class ShopeeNoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        # Validate each hop before making the next network request.
+        return None
+
+
+def shopee_public_url(url, domains):
+    try:
+        parsed = urlsplit(url)
+        if (parsed.scheme not in ('http', 'https') or not parsed.hostname
+                or parsed.username or parsed.password or parsed.port not in (None, 80, 443)
+                or not platform_is(url, domains)):
+            raise ValueError()
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80), type=socket.SOCK_STREAM)
+        if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
+            raise ValueError()
+    except (ValueError, socket.gaierror):
+        raise ExtractionError('SHOPEE_INVALID_REDIRECT', 'A Shopee retornou um endereço inválido ou indisponível.') from None
+    return url
+
+
+def shopee_request(url, domains, limit, media=False):
+    opener = build_opener(ShopeeNoRedirect())
+    for _ in range(5):
+        shopee_public_url(url, domains)
+        headers = {'User-Agent': SHOPEE_USER_AGENT}
+        if media:
+            headers['Range'] = 'bytes=0-63'
+        try:
+            with opener.open(Request(url, headers=headers), timeout=6) as response:
+                if response.status not in (200, 206):
+                    raise ExtractionError('SHOPEE_UNAVAILABLE', 'O vídeo da Shopee não está disponível agora.')
+                body = response.read(limit + 1)
+                if not media and len(body) > limit:
+                    raise ExtractionError('SHOPEE_INVALID_PAGE', 'A página da Shopee excedeu o limite de leitura.')
+                return body[:limit], url
+        except HTTPError as error:
+            location = error.headers.get('Location') if error.headers else None
+            code = error.code
+            error.close()
+            if code in (301, 302, 303, 307, 308) and location:
+                url = urljoin(url, location)
+                continue
+            if code in (401, 403):
+                raise ExtractionError('SHOPEE_ACCESS_RESTRICTED', 'A Shopee bloqueou o acesso ou exigiu login para este vídeo.', 403) from None
+            if code == 429:
+                raise ExtractionError('SHOPEE_RATE_LIMITED', 'A Shopee limitou as solicitações. Tente novamente mais tarde.', 429) from None
+            raise ExtractionError('SHOPEE_UNAVAILABLE', 'O vídeo da Shopee não está disponível agora.', 502) from None
+    raise ExtractionError('SHOPEE_REDIRECT_LIMIT', 'O link da Shopee redirecionou muitas vezes. Copie novamente o link do vídeo.')
+
+
+class ShopeeVideoPage(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.active = False
+        self.parts = []
+        self.video = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'script' and dict(attrs).get('id') == '__NEXT_DATA__':
+            self.active, self.parts = True, []
+
+    def handle_data(self, data):
+        if self.active:
+            self.parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag != 'script' or not self.active:
+            return
+        self.active = False
+        try:
+            payload = json.loads(''.join(self.parts))
+            # Select the shared video only, never recommendations or thumbnails.
+            video = payload['props']['pageProps']['mediaInfo']['video']
+            if isinstance(video, dict):
+                self.video = video
+        except (ValueError, KeyError, TypeError):
+            pass
+
+
+def shopee_video(url):
+    try:
+        page, final_url = shopee_request(url, SHOPEE_HOSTS, 2 * 1024 * 1024)
+        parser = ShopeeVideoPage()
+        parser.feed(page.decode('utf-8', 'replace'))
+        video = parser.video or {}
+        media = video.get('watermarkVideoUrl')
+        if not isinstance(media, str) or not media:
+            raise ExtractionError('SHOPEE_NO_PUBLIC_VIDEO', 'Não encontramos um vídeo público neste link. Na Shopee, abra o vídeo e use Compartilhar → Copiar link.')
+        prefix, media_url = shopee_request(media, SHOPEE_MEDIA_HOSTS, 64, media=True)
+        if prefix[4:8] != b'ftyp':
+            raise ExtractionError('SHOPEE_MEDIA_UNAVAILABLE', 'A Shopee não disponibilizou um arquivo MP4 válido. Tente novamente mais tarde.', 502)
+        return {'success': True, 'downloadUrl': media_url, 'filename': 'CortePro_Shopee.mp4', 'version': VERSION}
+    except ExtractionError:
+        raise
+    except Exception:
+        logging.warning('shopee_public_metadata_failed')
+        raise ExtractionError('SHOPEE_UNAVAILABLE', 'Não foi possível conectar à Shopee. Tente novamente em instantes.', 502) from None
+
+
 def extract_video(value):
     url, direct = validate_url(value)
     if direct:
         return {"success": True, "downloadUrl": url, "filename": "CortePro_Video" + urlsplit(url).path[urlsplit(url).path.rfind("."):].lower(), "version": VERSION}
+    if platform_is(url, SHOPEE_HOSTS):
+        return shopee_video(url)
     if platform_is(url, ('kwai.com', 'kuaishou.com')):
         native = kwai_video(url)
         if native:
