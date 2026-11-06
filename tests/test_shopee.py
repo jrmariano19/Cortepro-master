@@ -63,6 +63,7 @@ class ShopeeTests(unittest.TestCase):
         with self.assertRaises(ExtractionError):
             shopee_request('https://br.shp.ee/x', SHOPEE_HOSTS, 100)
         self.assertEqual(opener.open.call_count, 1)
+        self.assertNotIn('Android', opener.open.call_args.args[0].get_header('User-agent'))
 
     @patch('api.extract.socket.getaddrinfo', return_value=PUBLIC_DNS)
     @patch('api.extract.build_opener')

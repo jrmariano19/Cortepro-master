@@ -19,6 +19,7 @@ USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
                 "kwai.com", "kuaishou.com")
+SHOPEE_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36'
 SHOPEE_HOSTS = ("shopee.com.br", "shp.ee")
 SHOPEE_MEDIA_HOSTS = ("susercontent.com", "shopeemobile.com")
 MEDIA_EXTENSIONS = (".mp4", ".webm", ".mov", ".m4v")
@@ -206,7 +207,7 @@ def shopee_request(url, domains, limit, media=False):
     opener = build_opener(ShopeeNoRedirect())
     for _ in range(5):
         shopee_public_url(url, domains)
-        headers = {'User-Agent': USER_AGENT}
+        headers = {'User-Agent': SHOPEE_USER_AGENT}
         if media:
             headers['Range'] = 'bytes=0-63'
         try:
