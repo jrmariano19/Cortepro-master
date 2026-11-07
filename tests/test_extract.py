@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from api.extract import extract_video, validate_url, ExtractionError, classify_error, FORMAT
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError
 from api.extract import legacy_provider, usable_media, StructuredVideos, kwai_video
 import json
 from urllib.error import HTTPError
@@ -52,6 +53,22 @@ class ExtractionTests(unittest.TestCase):
                 'url': 'https://cdn.example.com/a.mp4', 'ext': 'mp4', 'acodec': 'none'}
             with self.assertRaises(ExtractionError):
                 extract_video('https://www.youtube.com/watch?v=abc')
+
+    @patch('api.extract.socket.getaddrinfo', return_value=PUBLIC_DNS)
+    @patch('api.extract.YoutubeDL')
+    def test_youtube_reports_regional_restriction_and_bot_check(self, engine, dns):
+        extractor = engine.return_value.__enter__.return_value
+        for url in ['https://youtu.be/6APYj3EEd-c?si=example', 'https://www.youtube.com/watch?v=6APYj3EEd-c']:
+            for detail, expected_code in [
+                ('The uploader has not made this video available in your country', 'YOUTUBE_REGION_RESTRICTED'),
+                ('Sign in to confirm you’re not a bot.', 'YOUTUBE_BOT_CHECK'),
+            ]:
+                with self.subTest(url=url, code=expected_code):
+                    extractor.extract_info.side_effect = DownloadError(detail)
+                    with self.assertRaises(ExtractionError) as error:
+                        extract_video(url)
+                    self.assertEqual(error.exception.code, expected_code)
+                    self.assertEqual(error.exception.status, 403)
 
     def test_platform_block_has_actionable_error(self):
         self.assertEqual(classify_error('Please log in to continue').code, 'ACCESS_RESTRICTED')

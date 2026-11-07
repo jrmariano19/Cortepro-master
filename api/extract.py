@@ -14,7 +14,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.0.5"
+VERSION = "8.0.6"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
@@ -138,8 +138,12 @@ def validate_url(value):
     return value.strip(), direct
 
 
-def classify_error(message):
+def classify_error(message, *, youtube=False):
     text = str(message).lower()
+    if youtube and "not made this video available in your country" in text:
+        return ExtractionError("YOUTUBE_REGION_RESTRICTED", "O YouTube restringiu este vídeo na região do servidor do CortePro.", 403)
+    if youtube and "not a bot" in text:
+        return ExtractionError("YOUTUBE_BOT_CHECK", "O YouTube exigiu uma verificação de acesso do servidor do CortePro.", 403)
     if "requested format is not available" in text:
         return ExtractionError("NO_COMPLETE_FORMAT", "A rede social não disponibilizou um arquivo único com áudio e vídeo para este link.")
     if any(token in text for token in ("429", "rate-limit", "too many requests")):
@@ -309,7 +313,7 @@ def extract_video(value):
     except DownloadError as exc:
         detail = re.sub(r"https?://\S+", "[url]", str(exc))[:500]
         logging.warning("extractor_error detail=%s", detail)
-        raise classify_error(exc) from None
+        raise classify_error(exc, youtube=platform_is(url, ("youtube.com", "youtu.be"))) from None
     if info and info.get("entries") is not None:
         info = next((entry for entry in info["entries"] if entry), None)
     if not info or not info.get("url") or urlsplit(info["url"]).scheme not in ("http", "https"):
