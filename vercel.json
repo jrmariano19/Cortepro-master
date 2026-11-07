@@ -1,4 +1,5 @@
 {
+  "regions": ["gru1"],
   "functions": {
     "api/extract.py": { "maxDuration": 60 }
   }
