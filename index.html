@@ -87,7 +87,9 @@
           <button type="button" class="filter-btn" id="suggestFilms" aria-pressed="false" onclick="showSuggestions('films')">Filmes</button>
           <button type="button" class="filter-btn" id="suggestSeries" aria-pressed="false" onclick="showSuggestions('series')">Séries</button>
           <button type="button" class="filter-btn" id="suggestDramas" aria-pressed="false" onclick="showSuggestions('dramas')">Doramas</button>
+          <button type="button" class="filter-btn" id="suggestShorts" aria-pressed="false" onclick="showSuggestions('shorts')">Dramas curtos</button>
         </div>
+        <p class="suggestion-note">A busca inclui uma seleção de títulos da NetShort verificada em 08/11/2026, além da Wikipédia. Não cobre todos os catálogos.</p>
         <div id="suggestionCards" class="suggestion-grid"></div>
         <p class="suggestion-note">Seleção do CortePro • não é um ranking em tempo real.</p>
       </section>
@@ -115,7 +117,7 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.1 • Localizador</p>
+    <p class="footer-note">Versão 8.1.2 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -125,6 +127,7 @@
   <script>
     function showSuggestions(category = 'all') {
       const titles = [
+        ['O Grande Arquimago que Ninguém Levava a Sério', 'shorts', 'Drama curto • NetShort'],
         ['Pousando no Amor', 'dramas', 'Dorama • romance'],
         ['Interestelar', 'films', 'Filme • ficção científica'],
         ['Anne with an E', 'series', 'Série • drama'],
@@ -140,7 +143,7 @@
       ];
       const container = document.getElementById('suggestionCards');
       container.replaceChildren();
-      for (const [key, id] of Object.entries({all:'suggestAll', films:'suggestFilms', series:'suggestSeries', dramas:'suggestDramas'})) {
+      for (const [key, id] of Object.entries({all:'suggestAll', films:'suggestFilms', series:'suggestSeries', dramas:'suggestDramas', shorts:'suggestShorts'})) {
         document.getElementById(id).setAttribute('aria-pressed', String(key === category));
       }
       for (const [title, type, description] of titles.filter(item => category === 'all' || item[1] === category).slice(0, 6)) {
@@ -175,7 +178,30 @@
       parent.appendChild(link);
     }
 
+    // Snapshot of public title links from https://netshort.com/pt, checked 2026-11-08.
+    const shortCatalog = [{"title": "O Bobinho Cativo do Dragão", "url": "https://netshort.com/pt/episode/o-bobinho-cativo-do-dragão-2112388670190669825"}, {"title": "Minha Chefe Viciada em Sexo", "url": "https://netshort.com/pt/episode/minha-chefe-viciada-em-sexo-2115643844650741761"}, {"title": "Correndo de Volta para o Seu Coração", "url": "https://netshort.com/pt/episode/correndo-de-volta-para-o-seu-coração-2098290708864090114"}, {"title": "A Babá Máxima dos Chefões da Máfia", "url": "https://netshort.com/pt/episode/a-babá-máxima-dos-chefões-da-máfia-2108386528745832450"}, {"title": "O Íncubo que Incendiou o Gelo", "url": "https://netshort.com/pt/episode/o-íncubo-que-incendiou-o-gelo-2114957320283516930"}, {"title": "A Foto de Família Revelou a Verdade", "url": "https://netshort.com/pt/episode/a-foto-de-família-revelou-a-verdade-2114669608427057153"}, {"title": "(Dublagem) O Bobinho Cativo do Dragão", "url": "https://netshort.com/pt/episode/dublagem-o-bobinho-cativo-do-dragão-2113121879653011457"}, {"title": "(Dublagem) Quando A Dona De Casa Vira Perigo", "url": "https://netshort.com/pt/episode/dublagem-quando-a-dona-de-casa-vira-perigo-2092157340964872193"}, {"title": "(Dublagem) Você Mexeu com o Mago Errado", "url": "https://netshort.com/pt/episode/dublagem-você-mexeu-com-o-mago-errado-2109842029606748161"}, {"title": "(Dublagem) Eu Fiz Meu Marido Magnata, Mas Ele Me Traiu", "url": "https://netshort.com/pt/episode/dublagem-eu-fiz-meu-marido-magnata-mas-ele-me-traiu-2082761980794716162"}, {"title": "(Dublagem) Atirador Solitário: Um Tiro de Vingança", "url": "https://netshort.com/pt/episode/dublagem-atirador-solitário-um-tiro-de-vingança-2074744811758178306"}, {"title": "(Dublagem) Grande Erro: Torturando o Bilionário Oculto", "url": "https://netshort.com/pt/episode/dublagem-grande-erro-torturando-o-bilionário-oculto-2115333133630058497"}, {"title": "(Dublagem) A Volta do Quarterback MVP", "url": "https://netshort.com/pt/episode/dublagem-a-volta-do-quarterback-mvp-2096809785067876354"}, {"title": "(Dublagem) Para Viver, Tenho que Conquistar a Noiva Sangrenta", "url": "https://netshort.com/pt/episode/dublagem-para-viver-tenho-que-conquistar-a-noiva-sangrenta-2108081290872066049"}, {"title": "(Dublagem) Duplamente Marcada: A Vingança de Luna", "url": "https://netshort.com/pt/episode/dublagem-duplamente-marcada-a-vingança-de-luna-2100079577356013569"}, {"title": "O Alfa Sem Lobo Vai Embora", "url": "https://netshort.com/pt/episode/o-alfa-sem-lobo-vai-embora-2118536963396366338"}, {"title": "Meu Inseto de Rank F é uma Rainha de Rank S", "url": "https://netshort.com/pt/episode/meu-inseto-de-rank-f-é-uma-rainha-de-rank-s-2117444629241139202"}, {"title": "Voltou com o Bebê para Casar com o Chefão da Máfia", "url": "https://netshort.com/pt/episode/voltou-com-o-bebê-para-casar-com-o-chefão-da-máfia-2117560163471331330"}, {"title": "Casa do Pecado: Tarde Demais para se Arrepender", "url": "https://netshort.com/pt/episode/casa-do-pecado-tarde-demais-para-se-arrepender-2117551892719079426"}, {"title": "Meu Alfa Me Trocou por Gêmeos", "url": "https://netshort.com/pt/episode/meu-alfa-me-trocou-por-gêmeos-2117795309248200706"}, {"title": "Tenho Sete Anos e Sou a Verdadeira Chefe da Máfia!", "url": "https://netshort.com/pt/episode/tenho-sete-anos-e-sou-a-verdadeira-chefe-da-máfia-2117554797643710466"}, {"title": "A Rainha Dragão Só Quer Dormir", "url": "https://netshort.com/pt/episode/a-rainha-dragão-só-quer-dormir-2117821947046400001"}, {"title": "A Secretária Grávida Fugitiva É Herdeira Bilionária", "url": "https://netshort.com/pt/episode/a-secretária-grávida-fugitiva-é-herdeira-bilionária-2117559515770138625"}, {"title": "Meu Irmão Bobo É um Milionário", "url": "https://netshort.com/pt/episode/meu-irmão-bobo-é-um-milionário-2117554263129997313"}, {"title": "A Pequena Cobra Preta na Toca do Dragão", "url": "https://netshort.com/pt/episode/a-pequena-cobra-preta-na-toca-do-dragão-2117792618090467330"}, {"title": "Meu Marido Pobre É um Bilionário", "url": "https://netshort.com/pt/episode/meu-marido-pobre-é-um-bilionário-2117549162512396289"}, {"title": "A Órfã Criou o Filho Secreto do Bilionário", "url": "https://netshort.com/pt/episode/a-órfã-criou-o-filho-secreto-do-bilionário-2117555318089728002"}, {"title": "(Dublagem) Não Deixem a Cachorra da Herdeira Cega Morrer", "url": "https://netshort.com/pt/episode/dublagem-não-deixem-a-cachorra-da-herdeira-cega-morrer-2108084411019010049"}, {"title": "(Dublagem) O Mecânico Intocável", "url": "https://netshort.com/pt/episode/dublagem-o-mecânico-intocável-2089189764515561473"}, {"title": "(Dublagem) Quanto Mais Mulheres Eu Conquisto, Mais Forte Eu Fico", "url": "https://netshort.com/pt/episode/dublagem-quanto-mais-mulheres-eu-conquisto-mais-forte-eu-fico-2102956057406840834"}, {"title": "(Dublagem) O Namorado da Minha Irmã Me Prendeu", "url": "https://netshort.com/pt/episode/dublagem-o-namorado-da-minha-irmã-me-prendeu-2100078859991609345"}, {"title": "(Dublagem) A Babá Máxima dos Chefões da Máfia", "url": "https://netshort.com/pt/episode/dublagem-a-babá-máxima-dos-chefões-da-máfia-2109465947057573889"}, {"title": "(Dublagem) Traída, Casada por Contrato com um Coronel", "url": "https://netshort.com/pt/episode/dublagem-traída-casada-por-contrato-com-um-coronel-2113485113665282049"}, {"title": "Até Nos Encontrarmos Novomente", "url": "https://netshort.com/pt/episode/até-nos-encontrarmos-novomente-1894650198741184514"}, {"title": "(Dublagem) Cuidado: Não Sou Apenas o Rei dos Mechas", "url": "https://netshort.com/pt/episode/dublagem-cuidado-não-sou-apenas-o-rei-dos-mechas-2092891419641614338"}, {"title": "(Dublagem) Suas Lágrimas Não Significam Nada Agora", "url": "https://netshort.com/pt/episode/dublagem-suas-lágrimas-não-significam-nada-agora-2114908798158893057"}, {"title": "(Dublagem)Chore Agora,Saiba Quem Eu Sou", "url": "https://netshort.com/pt/episode/dublagemchore-agorasaiba-quem-eu-sou-1959471108826542082"}, {"title": "(Dublagem) O Grande Arquimago que Ninguém Levava a Sério", "url": "https://netshort.com/pt/episode/dublagem-o-grande-arquimago-que-ninguém-levava-a-sério-2110223176241958913"}, {"title": "(Dublagem) Do Marido Falido ao Império dos Carros", "url": "https://netshort.com/pt/episode/dublagem-do-marido-falido-ao-império-dos-carros-2112738647094583297"}, {"title": "(Dublagem) Antes do Pouso, Antes do Amanhecer", "url": "https://netshort.com/pt/episode/dublagem-antes-do-pouso-antes-do-amanhecer-2114930503027818497"}, {"title": "(Dublagem) O Sucessor: Preso com a CEO Bela", "url": "https://netshort.com/pt/episode/dublagem-o-sucessor-preso-com-a-ceo-bela-2087827866863550466"}, {"title": "(Dublagem) De Volta a 1995: A Grande Virada Dela", "url": "https://netshort.com/pt/episode/dublagem-de-volta-a-1995-a-grande-virada-dela-2097888806716203010"}, {"title": "(Dublagem) Sua Esposa Bilionária Foi Embora", "url": "https://netshort.com/pt/episode/dublagem-sua-esposa-bilionária-foi-embora-2114985966876524545"}, {"title": "(Dublagem) Jogo de Terror: Minha Namorada Fantasma é Rank S", "url": "https://netshort.com/pt/episode/dublagem-jogo-de-terror-minha-namorada-fantasma-é-rank-s-2116013785632264193"}, {"title": "(Dublagem) De 90 Quilos a Rei do Boxe!", "url": "https://netshort.com/pt/episode/dublagem-de-90-quilos-a-rei-do-boxe-2108083872151605249"}, {"title": "(Dublagem) De Filhote Condenada a Queridinha da Matilha", "url": "https://netshort.com/pt/episode/dublagem-de-filhote-condenada-a-queridinha-da-matilha-2108080453030477825"}, {"title": "(Dublagem) O Chefão da Máfia Não Vai Mais se Esconder", "url": "https://netshort.com/pt/episode/dublagem-o-chefão-da-máfia-não-vai-mais-se-esconder-2112035918524440578"}, {"title": "(Dublagem) Drift! Tio Mecânico", "url": "https://netshort.com/pt/episode/dublagem-drift-tio-mecânico-1963074913751318530"}, {"title": "(Dublagem)O Legado Perdido do Chef Divino", "url": "https://netshort.com/pt/episode/dublagemo-legado-perdido-do-chef-divino-1908521671260454913"}, {"title": "(Dublagem)CEO Quer Meu Pequeno Rascal", "url": "https://netshort.com/pt/episode/dublagemceo-quer-meu-pequeno-rascal-1927974622484955137"}, {"title": "(Dublagem)30 Anos Congelada, 3 Irmãos se Arrependem", "url": "https://netshort.com/pt/episode/dublagem30-anos-congelada-3-irmãos-se-arrependem-1938146268123627521"}, {"title": "(Dublagem) Noivo Trocado: Casei com um Chefão da Máfia", "url": "https://netshort.com/pt/episode/dublagem-noivo-trocado-casei-com-um-chefão-da-máfia-1950802321471541250"}, {"title": "(Dublagem)Punhos de Vingança: Ela & Ele", "url": "https://netshort.com/pt/episode/dublagempunhos-de-vingança-ela-ele-1955213795799437313"}, {"title": "Elas por Elas: Divórcio ou Morte", "url": "https://netshort.com/pt/episode/elas-por-elas-divórcio-ou-morte-1956539394791120898"}, {"title": "O Grande Arquimago que Ninguém Levava a Sério", "url": "https://netshort.com/pt/episode/o-grande-arquimago-que-ninguém-levava-a-sério-2108502039966322689"}];
+    function normalizedTitle(value) {
+      return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function findShortTitles(query) {
+      const words = normalizedTitle(query).split(' ').filter(word => word.length > 2);
+      if (!words.length) return [];
+      return shortCatalog.filter(item => words.every(word => normalizedTitle(item.title).includes(word))).slice(0, 8);
+    }
+    function renderShortTitles(query, container) {
+      const matches = findShortTitles(query);
+      for (const item of matches) {
+        const card = document.createElement('article'); card.className = 'title-result';
+        const heading = document.createElement('h3'); heading.textContent = item.title; card.appendChild(heading);
+        const description = document.createElement('p'); description.textContent = 'Drama curto • NetShort. Link da página oficial; disponibilidade e acesso aos episódios dependem da plataforma.'; card.appendChild(description);
+        const actions = document.createElement('div'); actions.className = 'locator-links';
+        locatorLink('Abrir na NetShort ↗', item.url, actions);
+        card.appendChild(actions); container.appendChild(card);
+      }
+      return matches.length;
+    }
     function sourceLinks(title, parent) {
+      locatorLink('Buscar dramas curtos ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' (site:netshort.com OR site:reelshort.com OR site:dramabox.com)'), parent);
       locatorLink('Onde assistir ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' onde assistir'), parent);
       locatorLink('Vídeos no YouTube ↗', 'https://www.youtube.com/results?search_query=' + encodeURIComponent(title), parent);
       locatorLink('Busca na web ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' filme série dorama'), parent);
@@ -195,7 +221,8 @@
       if (query.length < 2) { status.textContent = 'Digite pelo menos duas letras do título.'; return; }
       sourceLinks(query, links);
       button.disabled = true; button.textContent = 'Buscando...';
-      status.textContent = 'Consultando títulos na Wikipédia...';
+      const shortCount = renderShortTitles(query, results);
+      status.textContent = shortCount ? 'Encontrado na seleção NetShort. Consultando também a Wikipédia...' : 'Consultando a seleção NetShort e a Wikipédia...';
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
       try {
@@ -205,7 +232,7 @@
         const data = await response.json();
         if (data.error) throw new Error('search unavailable');
         const pages = Object.values(data.query?.pages || {}).sort((a,b) => a.index - b.index);
-        status.textContent = pages.length ? 'Possíveis correspondências da Wikipédia. Confirme o título pela descrição; os links de busca abrem em outra aba.' : 'Nenhuma correspondência no catálogo. Tente o nome original ou use a busca na web acima.';
+        status.textContent = shortCount ? 'Encontramos títulos na seleção NetShort. Os links oficiais estão abaixo.' : pages.length ? 'Possíveis correspondências da Wikipédia. Confirme o título pela descrição; os links de busca abrem em outra aba.' : 'Nenhuma correspondência na seleção NetShort ou na Wikipédia. Isso não significa que a obra não existe. Use Buscar dramas curtos ou tente parte do título.';
         for (const page of pages) {
           const card = document.createElement('article'); card.className = 'title-result';
           if (page.thumbnail?.source?.startsWith('https://')) {
@@ -218,8 +245,8 @@
           sourceLinks(page.title, actions); card.appendChild(actions); results.appendChild(card);
         }
       } catch (error) {
-        status.className = 'alert-box error';
-        status.textContent = 'Não foi possível consultar o catálogo agora. Use a busca na web acima ou tente novamente.';
+        status.className = shortCount ? 'alert-box success' : 'alert-box error';
+        status.textContent = shortCount ? 'Títulos encontrados na seleção NetShort. A Wikipédia não respondeu, mas os links oficiais estão disponíveis abaixo.' : 'A Wikipédia não respondeu e não houve correspondência na seleção NetShort. Use Buscar dramas curtos ou tente novamente.';
       } finally {
         clearTimeout(timer); button.disabled = false; button.textContent = 'Buscar títulos';
       }
