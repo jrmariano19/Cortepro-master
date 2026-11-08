@@ -117,7 +117,7 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.2 • Localizador</p>
+    <p class="footer-note">Versão 8.1.3 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -188,14 +188,24 @@
       if (!words.length) return [];
       return shortCatalog.filter(item => words.every(word => normalizedTitle(item.title).includes(word))).slice(0, 8);
     }
+    function seriesDetails(item) {
+      const id = item.url.match(/-(\d+)$/)?.[1];
+      // Episode totals confirmed on the official pages, 2026-11-08.
+      const totals = {'2108502039966322689':51, '2110223176241958913':51};
+      if (!totals[id]) return null;
+      return {count:totals[id], url:item.url.replace('/pt/episode/', '/pt/full-episodes/')};
+    }
     function renderShortTitles(query, container) {
       const matches = findShortTitles(query);
       for (const item of matches) {
         const card = document.createElement('article'); card.className = 'title-result';
         const heading = document.createElement('h3'); heading.textContent = item.title; card.appendChild(heading);
-        const description = document.createElement('p'); description.textContent = 'Drama curto • NetShort. Link da página oficial; disponibilidade e acesso aos episódios dependem da plataforma.'; card.appendChild(description);
+        const series = seriesDetails(item);
+        const description = document.createElement('p'); description.textContent = series ? 'Drama curto • NetShort • ' + series.count + ' episódios na lista oficial. A duração do player corresponde a um episódio, não à série inteira.' : 'Drama curto • NetShort. O link abre um episódio individual. Consulte a lista de episódios na plataforma para continuar a história.'; card.appendChild(description);
         const actions = document.createElement('div'); actions.className = 'locator-links';
-        locatorLink('Abrir na NetShort ↗', item.url, actions);
+        if (series) locatorLink('Ver lista dos ' + series.count + ' episódios ↗', series.url, actions);
+        locatorLink('Abrir episódio individual ↗', item.url, actions);
+        const note = document.createElement('p'); note.textContent = 'Os episódios são separados. O CortePro ainda não baixa nem reúne a série inteira automaticamente. O acesso a cada episódio depende da NetShort.'; card.appendChild(note);
         card.appendChild(actions); container.appendChild(card);
       }
       return matches.length;

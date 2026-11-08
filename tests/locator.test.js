@@ -50,7 +50,12 @@ function harness(fetch) {
  assert(h.elements.titleResults.children.length >= 1);
  assert.equal(h.elements.searchStatus.className,'alert-box success');
  assert(h.elements.titleResults.children.some(card=>card.children[0].textContent==='O Grande Arquimago que Ninguém Levava a Sério'));
- assert(h.elements.titleResults.children[0].children[2].children[0].href.startsWith('https://netshort.com/pt/episode/'));
+ const shortCard = h.elements.titleResults.children[0];
+ const shortActions = shortCard.children.find(node => node.className === 'locator-links');
+ assert(shortActions.children.some(link => link.href.includes('/pt/full-episodes/')));
+ assert(shortActions.children.some(link => link.href.includes('/pt/episode/')));
+ assert(shortActions.children.some(link => link.textContent === 'Ver lista dos 51 episódios ↗'));
+ assert.equal(h.run("seriesDetails({url:'https://netshort.com/pt/episode/unknown-123'})"),null);
  h.run("showSuggestions('shorts')");
  assert.equal(h.elements.suggestionCards.children[0].children[0].textContent,'O Grande Arquimago que Ninguém Levava a Sério');
  assert.equal(h.run("findShortTitles('arquimago').length > 0"),true);
