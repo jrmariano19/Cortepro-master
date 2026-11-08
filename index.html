@@ -38,6 +38,16 @@
   details { margin-top:20px; } summary { cursor:pointer; padding:14px 0; min-height:48px; font-weight:600; }
   hr { border:0; border-top:1px solid #334155; margin:24px 0; } h3 { font-size:1rem; margin-bottom:10px; }
   #handoffStatus { margin-top:12px; color:#fca5a5; } :focus-visible { outline:2px solid #a5b4fc; outline-offset:3px; }
+  .suggestions { margin:20px 0 24px; }
+  .suggestion-filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .filter-btn { min-height:44px; padding:10px 12px; border:1px solid #475569; border-radius:22px; background:#080c14; color:#cbd5e1; cursor:pointer; }
+  .filter-btn[aria-pressed="true"] { background:#6366f1; border-color:#6366f1; color:white; }
+  .suggestion-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .suggestion-card { display:flex; flex-direction:column; gap:8px; text-align:left; min-height:124px; padding:14px; border:1px solid #334155; border-radius:12px; background:linear-gradient(145deg,#222345,#111827); color:#f8fafc; cursor:pointer; overflow-wrap:anywhere; }
+  .suggestion-card strong { font-size:15px; line-height:1.35; }
+  .suggestion-card span { font-size:12px; color:#cbd5e1; line-height:1.4; }
+  .suggestion-card .suggestion-action { color:#c7d2fe; margin-top:auto; }
+  .suggestion-note { margin-top:10px; font-size:12px; color:#94a3b8; }
 </style>
 </head>
 <body>
@@ -69,9 +79,21 @@
     <div class="card" id="locatorSection" style="display: none;">
       <h2 class="card-title">Localizador de títulos</h2>
       <p class="card-desc">Encontre filmes, séries, doramas e dramas. Confirme a obra e procure onde assistir ou seus vídeos públicos.</p>
+      <section aria-label="Sugestões de títulos" class="suggestions">
+        <h3>Não sabe o que procurar?</h3>
+        <p class="card-desc">Explore esta seleção de títulos. Toque em um deles para buscar detalhes e links.</p>
+        <div class="suggestion-filters" role="group" aria-label="Tipo de sugestão">
+          <button type="button" class="filter-btn" id="suggestAll" aria-pressed="true" onclick="showSuggestions('all')">Todos</button>
+          <button type="button" class="filter-btn" id="suggestFilms" aria-pressed="false" onclick="showSuggestions('films')">Filmes</button>
+          <button type="button" class="filter-btn" id="suggestSeries" aria-pressed="false" onclick="showSuggestions('series')">Séries</button>
+          <button type="button" class="filter-btn" id="suggestDramas" aria-pressed="false" onclick="showSuggestions('dramas')">Doramas</button>
+        </div>
+        <div id="suggestionCards" class="suggestion-grid"></div>
+        <p class="suggestion-note">Seleção do CortePro • não é um ranking em tempo real.</p>
+      </section>
       <form onsubmit="event.preventDefault(); searchTitles()">
         <label for="titleInput">Nome ou parte do título</label>
-        <input id="titleInput" type="search" maxlength="160" placeholder="Ex.: Pousando no Amor" required>
+        <input id="titleInput" type="search" maxlength="160" placeholder="Digite um nome ou explore abaixo">
         <button class="action-btn" id="searchBtn" type="submit">Buscar títulos</button>
       </form>
       <div id="searchStatus" class="alert-box" role="status" aria-live="polite"></div>
@@ -93,7 +115,7 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.0 • Localizador</p>
+    <p class="footer-note">Versão 8.1.1 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -101,7 +123,42 @@
   </div>
 
   <script>
+    function showSuggestions(category = 'all') {
+      const titles = [
+        ['Pousando no Amor', 'dramas', 'Dorama • romance'],
+        ['Interestelar', 'films', 'Filme • ficção científica'],
+        ['Anne with an E', 'series', 'Série • drama'],
+        ['Uma Advogada Extraordinária', 'dramas', 'Dorama • drama jurídico'],
+        ['A Origem', 'films', 'Filme • suspense e ficção'],
+        ['Sherlock', 'series', 'Série • investigação'],
+        ['Goblin', 'dramas', 'Dorama • fantasia e romance'],
+        ['O Show de Truman', 'films', 'Filme • comédia dramática'],
+        ['Dark', 'series', 'Série • mistério e ficção'],
+        ['Hometown Cha-Cha-Cha', 'dramas', 'Dorama • romance'],
+        ['A Viagem de Chihiro', 'films', 'Filme • animação e fantasia'],
+        ['This Is Us', 'series', 'Série • drama familiar']
+      ];
+      const container = document.getElementById('suggestionCards');
+      container.replaceChildren();
+      for (const [key, id] of Object.entries({all:'suggestAll', films:'suggestFilms', series:'suggestSeries', dramas:'suggestDramas'})) {
+        document.getElementById(id).setAttribute('aria-pressed', String(key === category));
+      }
+      for (const [title, type, description] of titles.filter(item => category === 'all' || item[1] === category).slice(0, 6)) {
+        const card = document.createElement('button'); card.type = 'button'; card.className = 'suggestion-card';
+        const name = document.createElement('strong'); name.textContent = title; card.appendChild(name);
+        const detail = document.createElement('span'); detail.textContent = description; card.appendChild(detail);
+        const action = document.createElement('span'); action.className = 'suggestion-action'; action.textContent = 'Buscar este título →'; card.appendChild(action);
+        card.onclick = () => {
+          document.getElementById('titleInput').value = title;
+          searchTitles();
+          document.getElementById('searchStatus').scrollIntoView({behavior:'smooth', block:'center'});
+        };
+        container.appendChild(card);
+      }
+    }
+
     function switchTab(tab) {
+      if (tab === 'locator' && !document.getElementById('suggestionCards').children.length) showSuggestions();
       document.getElementById('tabDownload').className = tab === 'download' ? 'tab-btn active' : 'tab-btn';
       document.getElementById('tabLocator').className = tab === 'locator' ? 'tab-btn active' : 'tab-btn';
       document.getElementById('downloadSection').style.display = tab === 'download' ? 'block' : 'none';
@@ -134,6 +191,7 @@
       if (button.disabled) return;
       results.replaceChildren(); links.replaceChildren();
       status.className = 'alert-box success';
+      if (!query) { showSuggestions(); status.textContent = 'Escolha uma das sugestões acima ou digite o nome de uma obra.'; return; }
       if (query.length < 2) { status.textContent = 'Digite pelo menos duas letras do título.'; return; }
       sourceLinks(query, links);
       button.disabled = true; button.textContent = 'Buscando...';

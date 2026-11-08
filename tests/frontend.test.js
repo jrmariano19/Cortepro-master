@@ -4,11 +4,12 @@ const vm = require('node:vm');
 const script = fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 function harness(fetch) {
   const elements = {};
+  const stub = () => ({children:[],style:{},appendChild(n){this.children.push(n)},replaceChildren(){this.children=[]},setAttribute(){}});
   for(const id of ['urlInput','downloadBtn','statusBox','tabDownload','tabLocator','downloadSection','locatorSection']) {
     elements[id] = { value:'https://www.instagram.com/reel/example/', style:{}, appendChild(node){this.child = node;} };
   }
   const ctx = vm.createContext({ URL, AbortController, setTimeout, clearTimeout, fetch,
-    document:{getElementById(id){return elements[id]},createElement(){return {}}}});
+    document:{getElementById(id){return elements[id] ||= stub()},createElement(){return stub()}}});
   vm.runInContext(script,ctx);
   return {ctx,elements};
 }

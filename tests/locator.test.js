@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const script = fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
-const node = () => ({value:'',style:{},children:[],textContent:'',appendChild(n){this.children.push(n)},replaceChildren(){this.children=[]},focus(){this.focused=true}});
+const node = () => ({value:'',style:{},children:[],textContent:'',appendChild(n){this.children.push(n)},replaceChildren(){this.children=[]},focus(){this.focused=true},scrollIntoView(){},setAttribute(k,v){this[k]=v}});
 function harness(fetch) {
  const elements={};
  const context=vm.createContext({URL,URLSearchParams,AbortController,setTimeout,clearTimeout,fetch,document:{getElementById(id){return elements[id] ||= node()},createElement:node}});
@@ -12,6 +12,19 @@ function harness(fetch) {
 (async()=>{
  let mode='success';let request;
  const h=harness(async url=>{request=url;if(mode==='failure')throw new Error('offline');return {ok:true,json:async()=>mode==='empty'?{}:{query:{pages:{1:{index:1,pageid:1,title:'Pousando no Amor',extract:'Série sul-coreana.'}}}}}});
+ h.run("switchTab('locator')");
+ assert.equal(h.elements.suggestionCards.children.length,6);
+ h.run("showSuggestions('dramas')");
+ assert.equal(h.elements.suggestionCards.children.length,4);
+ assert.equal(h.elements.suggestDramas['aria-pressed'],'true');
+ assert.equal(h.elements.suggestAll['aria-pressed'],'false');
+ h.elements.suggestionCards.children[0].onclick();
+ assert.equal(h.elements.titleInput.value,'Pousando no Amor');
+ await new Promise(resolve=>setTimeout(resolve,0));
+ h.run("document.getElementById('titleInput').value=''");
+ await h.run('searchTitles()');
+ assert.equal(h.elements.suggestionCards.children.length,6);
+ assert.match(h.elements.searchStatus.textContent,/Escolha uma das sugestões/);
  h.run("document.getElementById('titleInput').value='Pousando no Amor'");
  await h.run('searchTitles()');
  assert.equal(new URL(request).searchParams.get('gsrsearch'),'Pousando no Amor');
