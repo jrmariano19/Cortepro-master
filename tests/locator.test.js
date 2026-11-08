@@ -1,0 +1,36 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const script = fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+const node = () => ({value:'',style:{},children:[],textContent:'',appendChild(n){this.children.push(n)},replaceChildren(){this.children=[]},focus(){this.focused=true}});
+function harness(fetch) {
+ const elements={};
+ const context=vm.createContext({URL,URLSearchParams,AbortController,setTimeout,clearTimeout,fetch,document:{getElementById(id){return elements[id] ||= node()},createElement:node}});
+ vm.runInContext(script,context);
+ return {elements,run:code=>vm.runInContext(code,context)};
+}
+(async()=>{
+ let mode='success';let request;
+ const h=harness(async url=>{request=url;if(mode==='failure')throw new Error('offline');return {ok:true,json:async()=>mode==='empty'?{}:{query:{pages:{1:{index:1,pageid:1,title:'Pousando no Amor',extract:'Série sul-coreana.'}}}}}});
+ h.run("document.getElementById('titleInput').value='Pousando no Amor'");
+ await h.run('searchTitles()');
+ assert.equal(new URL(request).searchParams.get('gsrsearch'),'Pousando no Amor');
+ assert.equal(h.elements.titleResults.children.length,1);
+ assert.equal(h.elements.titleResults.children[0].children[0].textContent,'Pousando no Amor');
+ assert.equal(h.elements.searchLinks.children.length,3);
+ mode='empty';await h.run('searchTitles()');
+ assert.equal(h.elements.titleResults.children.length,0);
+ assert.match(h.elements.searchStatus.textContent,/Nenhuma correspondência/);
+ mode='failure';await h.run('searchTitles()');
+ assert.equal(h.elements.searchBtn.disabled,false);
+ assert.equal(h.elements.searchStatus.className,'alert-box error');
+ assert.equal(h.elements.searchLinks.children.length,3);
+ h.run("document.getElementById('foundUrl').value='https://youtube.com/watch?v=example';sendToDownloader()");
+ assert.equal(h.elements.urlInput.value,'https://youtube.com/watch?v=example');
+ assert.equal(h.elements.downloadSection.style.display,'block');
+ assert.equal(h.elements.urlInput.focused,true);
+ h.run("document.getElementById('foundUrl').value='javascript:alert(1)';sendToDownloader()");
+ assert.equal(h.elements.urlInput.value,'https://youtube.com/watch?v=example');
+ assert.match(h.elements.handoffStatus.textContent,/válido/);
+ console.log('Locator checks passed: results, empty search, network errors, encoded query, link transfer, unsafe URL.');
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -28,6 +28,16 @@
   .alert-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; display: block; text-align: center; }
   .result-link { display: inline-block; width: 100%; margin-top: 12px; padding: 14px; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 1rem; text-align: center; border: none; cursor: pointer; }
   .footer-note { font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.5; padding: 0 10px; }
+  input[type="search"] { width:100%; min-height:48px; padding:14px; background:#080c14; color:#f8fafc; border:1px solid #334155; border-radius:12px; margin-bottom:16px; font-size:16px; }
+  .locator-links { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+  .secondary-link { display:inline-flex; align-items:center; min-height:44px; padding:10px 12px; border:1px solid #475569; border-radius:10px; color:#c7d2fe; text-decoration:none; font-size:14px; }
+  .title-result { border-top:1px solid #334155; padding:16px 0; overflow-wrap:anywhere; }
+  .title-result img { width:72px; height:100px; object-fit:contain; float:left; margin:0 12px 8px 0; border-radius:8px; }
+  .title-result p { color:#94a3b8; font-size:14px; line-height:1.5; margin:8px 0; }
+  .title-result .locator-links { clear:both; }
+  details { margin-top:20px; } summary { cursor:pointer; padding:14px 0; min-height:48px; font-weight:600; }
+  hr { border:0; border-top:1px solid #334155; margin:24px 0; } h3 { font-size:1rem; margin-bottom:10px; }
+  #handoffStatus { margin-top:12px; color:#fca5a5; } :focus-visible { outline:2px solid #a5b4fc; outline-offset:3px; }
 </style>
 </head>
 <body>
@@ -35,12 +45,12 @@
     <div class="header-logo">
       <div class="logo-box">CP</div>
       <h1>CortePro Master</h1>
-      <p class="subtitle">Baixe vídeos e divida arquivos em partes</p>
+      <p class="subtitle">Encontre títulos e baixe seus vídeos</p>
     </div>
 
     <div class="tabs-container">
       <button class="tab-btn active" id="tabDownload" onclick="switchTab('download')">↓ Baixar vídeo</button>
-      <button class="tab-btn" id="tabSplitter" onclick="switchTab('splitter')">✂ Divisor</button>
+      <button class="tab-btn" id="tabLocator" onclick="switchTab('locator')">⌕ Localizador</button>
     </div>
 
     <div class="card" id="downloadSection">
@@ -56,14 +66,34 @@
 
     </div>
 
-    <div class="card" id="splitterSection" style="display: none;">
-      <h2 class="card-title">Divisor de Vídeos</h2>
-      <p class="card-desc">Selecione um vídeo do seu telemóvel para dividir em partes.</p>
-      <input type="file" id="videoFileInput" accept="video/*" style="width:100%; margin-bottom:15px; color:#94a3b8;">
-      <div class="alert-box success" style="display: block;">Selecione um ficheiro de vídeo acima para cortar.</div>
+    <div class="card" id="locatorSection" style="display: none;">
+      <h2 class="card-title">Localizador de títulos</h2>
+      <p class="card-desc">Encontre filmes, séries, doramas e dramas. Confirme a obra e procure onde assistir ou seus vídeos públicos.</p>
+      <form onsubmit="event.preventDefault(); searchTitles()">
+        <label for="titleInput">Nome ou parte do título</label>
+        <input id="titleInput" type="search" maxlength="160" placeholder="Ex.: Pousando no Amor" required>
+        <button class="action-btn" id="searchBtn" type="submit">Buscar títulos</button>
+      </form>
+      <div id="searchStatus" class="alert-box" role="status" aria-live="polite"></div>
+      <div id="searchLinks" class="locator-links"></div>
+      <div id="titleResults"></div>
+      <details>
+        <summary>Não sei o nome: buscar por imagem</summary>
+        <p class="card-desc">Abra o Google Lens e selecione uma captura da cena ou um pôster na sua galeria. Depois, volte e pesquise o título encontrado acima. A identificação acontece no Google, fora do CortePro.</p>
+        <a class="secondary-link" href="https://lens.google/" target="_blank" rel="noopener noreferrer">Abrir Google Lens ↗</a>
+      </details>
+      <hr>
+      <h3>Já encontrou o link do vídeo?</h3>
+      <p class="card-desc">Cole o link abaixo para enviar ao baixador. Páginas de catálogo e serviços de streaming podem não oferecer um vídeo compatível.</p>
+      <form onsubmit="event.preventDefault(); sendToDownloader()">
+        <label for="foundUrl">Link encontrado</label>
+        <input id="foundUrl" type="url" placeholder="https://..." required>
+        <button class="action-btn" type="submit">Enviar ao baixador</button>
+        <p id="handoffStatus" role="status" aria-live="polite"></p>
+      </form>
     </div>
 
-    <p class="footer-note">Versão 8.0.5</p>
+    <p class="footer-note">Versão 8.1.0 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -73,9 +103,82 @@
   <script>
     function switchTab(tab) {
       document.getElementById('tabDownload').className = tab === 'download' ? 'tab-btn active' : 'tab-btn';
-      document.getElementById('tabSplitter').className = tab === 'splitter' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('tabLocator').className = tab === 'locator' ? 'tab-btn active' : 'tab-btn';
       document.getElementById('downloadSection').style.display = tab === 'download' ? 'block' : 'none';
-      document.getElementById('splitterSection').style.display = tab === 'splitter' ? 'block' : 'none';
+      document.getElementById('locatorSection').style.display = tab === 'locator' ? 'block' : 'none';
+    }
+
+    function locatorLink(label, href, parent) {
+      const link = document.createElement('a');
+      link.textContent = label;
+      link.href = safeDownloadUrl(href);
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'secondary-link';
+      parent.appendChild(link);
+    }
+
+    function sourceLinks(title, parent) {
+      locatorLink('Onde assistir ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' onde assistir'), parent);
+      locatorLink('Vídeos no YouTube ↗', 'https://www.youtube.com/results?search_query=' + encodeURIComponent(title), parent);
+      locatorLink('Busca na web ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' filme série dorama'), parent);
+    }
+
+    async function searchTitles() {
+      const input = document.getElementById('titleInput');
+      const query = input.value.trim();
+      const button = document.getElementById('searchBtn');
+      const status = document.getElementById('searchStatus');
+      const results = document.getElementById('titleResults');
+      const links = document.getElementById('searchLinks');
+      if (button.disabled) return;
+      results.replaceChildren(); links.replaceChildren();
+      status.className = 'alert-box success';
+      if (query.length < 2) { status.textContent = 'Digite pelo menos duas letras do título.'; return; }
+      sourceLinks(query, links);
+      button.disabled = true; button.textContent = 'Buscando...';
+      status.textContent = 'Consultando títulos na Wikipédia...';
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      try {
+        const params = new URLSearchParams({action:'query', format:'json', origin:'*', generator:'search', gsrsearch:query, gsrnamespace:'0', gsrlimit:'8', prop:'pageimages|extracts', piprop:'thumbnail', pithumbsize:'160', exintro:'1', explaintext:'1', exsentences:'2', exlimit:'8'});
+        const response = await fetch('https://pt.wikipedia.org/w/api.php?' + params, {signal:controller.signal});
+        if (!response.ok) throw new Error('search unavailable');
+        const data = await response.json();
+        if (data.error) throw new Error('search unavailable');
+        const pages = Object.values(data.query?.pages || {}).sort((a,b) => a.index - b.index);
+        status.textContent = pages.length ? 'Possíveis correspondências da Wikipédia. Confirme o título pela descrição; os links de busca abrem em outra aba.' : 'Nenhuma correspondência no catálogo. Tente o nome original ou use a busca na web acima.';
+        for (const page of pages) {
+          const card = document.createElement('article'); card.className = 'title-result';
+          if (page.thumbnail?.source?.startsWith('https://')) {
+            const img = document.createElement('img'); img.src = page.thumbnail.source; img.alt = ''; img.loading = 'lazy'; card.appendChild(img);
+          }
+          const heading = document.createElement('h3'); heading.textContent = page.title; card.appendChild(heading);
+          const description = document.createElement('p'); description.textContent = page.extract || 'Abra a ficha para conferir os detalhes desta correspondência.'; card.appendChild(description);
+          const actions = document.createElement('div'); actions.className = 'locator-links';
+          locatorLink('Ficha na Wikipédia ↗', 'https://pt.wikipedia.org/?curid=' + encodeURIComponent(page.pageid), actions);
+          sourceLinks(page.title, actions); card.appendChild(actions); results.appendChild(card);
+        }
+      } catch (error) {
+        status.className = 'alert-box error';
+        status.textContent = 'Não foi possível consultar o catálogo agora. Use a busca na web acima ou tente novamente.';
+      } finally {
+        clearTimeout(timer); button.disabled = false; button.textContent = 'Buscar títulos';
+      }
+    }
+
+    function sendToDownloader() {
+      const status = document.getElementById('handoffStatus');
+      try {
+        const url = safeDownloadUrl(document.getElementById('foundUrl').value.trim());
+        document.getElementById('urlInput').value = url;
+        status.textContent = '';
+        const downloadStatus = document.getElementById('statusBox');
+        downloadStatus.className = 'alert-box success';
+        downloadStatus.textContent = 'Link recebido do Localizador. Toque em Processar e baixar.';
+        switchTab('download');
+        document.getElementById('urlInput').focus();
+      } catch (error) { status.textContent = 'Cole um link HTTP ou HTTPS válido.'; }
     }
 
     function safeDownloadUrl(value) {
