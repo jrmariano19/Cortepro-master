@@ -14,7 +14,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.0.5"
+VERSION = "8.1.5"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
@@ -125,10 +125,10 @@ def validate_url(value):
     except ValueError:
         raise ExtractionError("INVALID_URL", "Use um endereço HTTP ou HTTPS válido.", 400)
     host = parsed.hostname.lower().rstrip(".")
-    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS + SHOPEE_HOSTS)
+    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS + SHOPEE_HOSTS + ("netshort.com",))
     direct = parsed.path.lower().endswith(MEDIA_EXTENSIONS)
     if not social and not direct:
-        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai, Shopee ou de um arquivo de vídeo.", 400)
+        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai, Shopee, NetShort ou de um arquivo de vídeo.", 400)
     try:
         addresses = socket.getaddrinfo(host, parsed.port or 443, type=socket.SOCK_STREAM)
         if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
@@ -286,6 +286,14 @@ def extract_video(value):
     url, direct = validate_url(value)
     if direct:
         return {"success": True, "downloadUrl": url, "filename": "CortePro_Video" + urlsplit(url).path[urlsplit(url).path.rfind("."):].lower(), "version": VERSION}
+    if platform_is(url, ('netshort.com',)):
+        from lib.netshort import download_episode
+        try:
+            return {**download_episode(url), 'version': VERSION}
+        except ValueError as error:
+            raise ExtractionError('NETSHORT_UNAVAILABLE', str(error), 422) from None
+        except Exception:
+            raise ExtractionError('NETSHORT_UNAVAILABLE', 'Não foi possível obter o vídeo da NetShort agora. Tente novamente em instantes.', 502) from None
     if platform_is(url, SHOPEE_HOSTS):
         return shopee_video(url)
     if platform_is(url, ('kwai.com', 'kuaishou.com')):

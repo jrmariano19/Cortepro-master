@@ -121,7 +121,7 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.4 • Localizador</p>
+    <p class="footer-note">Versão 8.1.5 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -209,7 +209,7 @@
         const actions = document.createElement('div'); actions.className = 'locator-links';
         if (series) locatorLink('Ver lista dos ' + series.count + ' episódios ↗', series.url, actions);
         locatorLink('Abrir episódio individual ↗', item.url, actions);
-        const note = document.createElement('p'); note.textContent = 'Links para assistir na NetShort. O baixador do CortePro ainda não aceita páginas da NetShort. Abrir ou copiar um link não desbloqueia episódios.'; card.appendChild(note);
+        const note = document.createElement('p'); note.textContent = 'Episódios públicos podem ser enviados ao baixador. Episódios bloqueados dependem do acesso na NetShort. Cada link corresponde a um episódio.'; card.appendChild(note);
         const episodeButton = document.createElement('button'); episodeButton.type = 'button'; episodeButton.className = 'action-btn'; episodeButton.textContent = 'Mostrar links dos episódios';
         const episodeStatus = document.createElement('p'); episodeStatus.setAttribute('role', 'status'); episodeStatus.setAttribute('aria-live', 'polite');
         const episodeList = document.createElement('div'); episodeList.className = 'episode-list';
@@ -255,6 +255,7 @@
           const actions = document.createElement('div'); actions.className = 'locator-links';
           locatorLink('Abrir episódio ' + episode.number + ' ↗', episode.url, actions);
           const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'secondary-link'; copy.textContent = 'Copiar link'; copy.onclick = () => copyEpisodeLink(episode.url, copy, field); actions.appendChild(copy);
+          const download = document.createElement('button'); download.type = 'button'; download.className = 'secondary-link'; download.textContent = 'Enviar ao baixador'; download.onclick = () => { document.getElementById('foundUrl').value = episode.url; sendToDownloader(); }; actions.appendChild(download);
           row.appendChild(actions); list.appendChild(row);
         }
         const total = Number.isInteger(data.total) ? data.total : null;
@@ -344,6 +345,7 @@
       const url = safeDownloadUrl(result.downloadUrl);
       statusBox.className = 'alert-box success';
       statusBox.textContent = 'Vídeo encontrado. Toque no botão abaixo para baixar ou abrir o arquivo.';
+      if (result.episode) statusBox.textContent += ' Episódio ' + result.episode + (result.duration > 0 ? ' • ' + Math.floor(result.duration / 60) + 'min' + String(Math.floor(result.duration % 60)).padStart(2, '0') + 's.' : '.');
       if (result.originalSilent) statusBox.textContent += ' O vídeo original não possui faixa de áudio.';
       const link = document.createElement('a');
       link.className = 'result-link';
