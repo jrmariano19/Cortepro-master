@@ -59,5 +59,18 @@ function harness(fetch) {
  h.run("showSuggestions('shorts')");
  assert.equal(h.elements.suggestionCards.children[0].children[0].textContent,'O Grande Arquimago que Ninguém Levava a Sério');
  assert.equal(h.run("findShortTitles('arquimago').length > 0"),true);
+ const episodeBase = 'https://netshort.com/pt/episode/example-2108502039966322689';
+ const ep = harness(async () => ({ok:true,json:async()=>({total:2,complete:true,episodes:[{number:2,url:episodeBase+'-ep-2'},{number:1,url:episodeBase},{number:3,url:'https://evil.test/'}]})}));
+ ep.run("document.getElementById('epButton');document.getElementById('epStatus');document.getElementById('epList')");
+ await ep.run("loadEpisodeLinks('"+episodeBase+"',document.getElementById('epButton'),document.getElementById('epStatus'),document.getElementById('epList'))");
+ assert.equal(ep.elements.epList.children.length,2);
+ assert.equal(ep.elements.epList.children[0].children[0].textContent,'Episódio 1');
+ assert.equal(ep.elements.epList.children[1].children[1].value,episodeBase+'-ep-2');
+ assert.match(ep.elements.epStatus.textContent,/Lista completa/);
+ assert.equal(ep.elements.epButton.disabled,false);
+ const broken = harness(async () => {throw new Error('offline')});
+ await broken.run("loadEpisodeLinks('"+episodeBase+"',document.getElementById('epButton'),document.getElementById('epStatus'),document.getElementById('epList'))");
+ assert.equal(broken.elements.epButton.disabled,false);
+ assert.match(broken.elements.epStatus.textContent,/Não foi possível/);
  console.log('Locator checks passed: results, empty search, network errors, encoded query, link transfer, unsafe URL.');
 })().catch(e=>{console.error(e);process.exit(1)});

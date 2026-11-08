@@ -48,6 +48,10 @@
   .suggestion-card span { font-size:12px; color:#cbd5e1; line-height:1.4; }
   .suggestion-card .suggestion-action { color:#c7d2fe; margin-top:auto; }
   .suggestion-note { margin-top:10px; font-size:12px; color:#94a3b8; }
+  .episode-list { max-height:540px; overflow-y:auto; }
+  .episode-row { border:1px solid #334155; border-radius:10px; padding:12px; margin:10px 0; }
+  .episode-row input { width:100%; min-width:0; font-size:14px; background:#080c14; color:#cbd5e1; border:1px solid #475569; border-radius:8px; padding:12px; margin-top:10px; }
+  button.secondary-link { background:#121826; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -117,7 +121,7 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.3 • Localizador</p>
+    <p class="footer-note">Versão 8.1.4 • Localizador</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -205,11 +209,63 @@
         const actions = document.createElement('div'); actions.className = 'locator-links';
         if (series) locatorLink('Ver lista dos ' + series.count + ' episódios ↗', series.url, actions);
         locatorLink('Abrir episódio individual ↗', item.url, actions);
-        const note = document.createElement('p'); note.textContent = 'Os episódios são separados. O CortePro ainda não baixa nem reúne a série inteira automaticamente. O acesso a cada episódio depende da NetShort.'; card.appendChild(note);
-        card.appendChild(actions); container.appendChild(card);
+        const note = document.createElement('p'); note.textContent = 'Links para assistir na NetShort. O baixador do CortePro ainda não aceita páginas da NetShort. Abrir ou copiar um link não desbloqueia episódios.'; card.appendChild(note);
+        const episodeButton = document.createElement('button'); episodeButton.type = 'button'; episodeButton.className = 'action-btn'; episodeButton.textContent = 'Mostrar links dos episódios';
+        const episodeStatus = document.createElement('p'); episodeStatus.setAttribute('role', 'status'); episodeStatus.setAttribute('aria-live', 'polite');
+        const episodeList = document.createElement('div'); episodeList.className = 'episode-list';
+        episodeButton.onclick = () => loadEpisodeLinks(item.url, episodeButton, episodeStatus, episodeList);
+        card.appendChild(actions); card.appendChild(episodeButton); card.appendChild(episodeStatus); card.appendChild(episodeList); container.appendChild(card);
       }
       return matches.length;
     }
+    async function copyEpisodeLink(url, button, field) {
+      try {
+        await navigator.clipboard.writeText(url);
+        button.textContent = 'Copiado!';
+      } catch (error) {
+        field.focus(); field.select();
+        button.textContent = 'Selecione e copie o link';
+      }
+    }
+    async function loadEpisodeLinks(url, button, status, list) {
+      if (button.disabled) return;
+      button.disabled = true; status.textContent = 'Buscando links na página oficial...';
+      list.replaceChildren();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 55000);
+      try {
+        const response = await fetch('/api/episodes?url=' + encodeURIComponent(url), {signal:controller.signal});
+        if (!response.ok) throw new Error('provider unavailable');
+        const data = await response.json();
+        if (!Array.isArray(data.episodes) || !data.episodes.length) throw new Error('empty list');
+        const expectedPath = decodeURIComponent(new URL(url).pathname).replace(/-ep-\d+$/, '');
+        const episodes = data.episodes.filter(episode => {
+          try {
+            const parsed = new URL(episode.url);
+            const path = decodeURIComponent(parsed.pathname);
+            return Number.isInteger(episode.number) && episode.number > 0 && episode.number <= 1000 && parsed.origin === 'https://netshort.com' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && (path === expectedPath && episode.number === 1 || path === expectedPath + '-ep-' + episode.number);
+          } catch (error) { return false; }
+        });
+        if (!episodes.length) throw new Error('invalid list');
+        episodes.sort((a,b) => a.number - b.number);
+        for (const episode of episodes) {
+          const row = document.createElement('div'); row.className = 'episode-row';
+          const title = document.createElement('strong'); title.textContent = 'Episódio ' + episode.number; row.appendChild(title);
+          const field = document.createElement('input'); field.type = 'text'; field.readOnly = true; field.value = episode.url; field.setAttribute('aria-label', 'Link do episódio ' + episode.number); row.appendChild(field);
+          const actions = document.createElement('div'); actions.className = 'locator-links';
+          locatorLink('Abrir episódio ' + episode.number + ' ↗', episode.url, actions);
+          const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'secondary-link'; copy.textContent = 'Copiar link'; copy.onclick = () => copyEpisodeLink(episode.url, copy, field); actions.appendChild(copy);
+          row.appendChild(actions); list.appendChild(row);
+        }
+        const total = Number.isInteger(data.total) ? data.total : null;
+        status.textContent = episodes.length + (total ? ' de ' + total : '') + ' links encontrados. ' + (data.complete && episodes.length === total ? 'Lista completa de links. ' : 'A lista pode estar incompleta; atualize ou consulte a fonte. ') + 'São páginas de episódios, não arquivos de vídeo. O acesso depende da NetShort.';
+        button.textContent = 'Atualizar links dos episódios';
+      } catch (error) {
+        status.textContent = 'Não foi possível carregar os links. Tente novamente ou abra a lista oficial na NetShort.';
+        button.textContent = 'Tentar buscar episódios novamente';
+      } finally { clearTimeout(timer); button.disabled = false; }
+    }
+
     function sourceLinks(title, parent) {
       locatorLink('Buscar dramas curtos ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' (site:netshort.com OR site:reelshort.com OR site:dramabox.com)'), parent);
       locatorLink('Onde assistir ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' onde assistir'), parent);

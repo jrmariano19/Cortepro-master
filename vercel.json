@@ -1,5 +1,10 @@
 {
   "functions": {
-    "api/extract.py": { "maxDuration": 60 }
+    "api/extract.py": {
+      "maxDuration": 60
+    },
+    "api/episodes.py": {
+      "maxDuration": 60
+    }
   }
 }
