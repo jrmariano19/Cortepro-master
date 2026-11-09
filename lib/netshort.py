@@ -35,8 +35,11 @@ def current_episode(html, expected):
             if pos<0:continue
             episode,_=decoder.raw_decode(payload[pos+len(marker):])
             if not isinstance(episode,dict) or episode.get('episodeNo')!=expected:continue
+            # The public page's lock flag is not proof that playback is impossible
+            # in a user's authenticated browser session. Do not misreport it as
+            # a verified block or attempt to bypass access controls.
             if episode.get('isLock') is not False:
-                raise ValueError('Este episódio está bloqueado na NetShort. O CortePro não pode baixar o conteúdo bloqueado.')
+                raise ValueError('A página pública da NetShort não confirmou acesso livre a este episódio. Ele pode reproduzir no navegador com uma sessão ativa, mas o CortePro não recebeu uma fonte pública autorizada para download.')
             media=episode.get('playVoucher')
             if not isinstance(media,str) or not media.startswith('https://'):
                 raise ValueError('A NetShort não forneceu um vídeo público para este episódio.')
