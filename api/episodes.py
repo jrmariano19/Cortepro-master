@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlsplit, urljoin, unquote, quote, parse_qs
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from lib.netshort import current_episode
 
 
 def series_path(value):
@@ -64,6 +65,16 @@ def fetch_page(source):
     return data.decode('utf-8')
 
 
+def verify_free_episode(item):
+    """Only expose a download candidate when public page data explicitly marks it free."""
+    try:
+        page = fetch_page(item['url'])
+        episode = current_episode(page, item['number'])
+        return {**item, 'access': 'free'} if episode.get('isLock') is False else None
+    except Exception:
+        return None
+
+
 def get_episodes(value):
     base = series_path(value)
     source = 'https://netshort.com' + quote(base.replace('/episode/', '/full-episodes/'), safe='/')
@@ -87,7 +98,14 @@ def get_episodes(value):
     if not episodes:
         raise ValueError('A fonte não forneceu links de episódios nesta consulta. Abra a lista oficial.')
     complete = bool(total and not failed and set(episodes) == set(range(1, total + 1)))
-    return {'episodes':[episodes[n] for n in sorted(episodes)], 'source':source, 'total':total, 'complete':complete}
+    # Limit network work and do not advertise unverified or locked episodes.
+    # The first page is a bounded preview; it is not a complete free catalog.
+    candidates = [episodes[n] for n in sorted(episodes)][:20]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        checked = list(pool.map(verify_free_episode, candidates))
+    free = [item for item in checked if item is not None]
+    return {'episodes':free, 'source':source, 'total':total, 'complete':False,
+            'checked':len(candidates), 'freeOnly':True}
 
 
 class handler(BaseHTTPRequestHandler):
