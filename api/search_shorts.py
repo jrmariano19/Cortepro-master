@@ -28,15 +28,15 @@ def search_titles(query):
         path = unquote(parsed.path)
         if (parsed.scheme != 'https' or parsed.hostname not in ('netshort.com','www.netshort.com')
                 or parsed.username or parsed.password or parsed.port not in (None,443)
-                or not re.fullmatch(r'/pt/episode/[\\w-]+-\\d{10,25}(?:-ep-\\d+)?',path)):
+                or not re.fullmatch(r'/pt/episode/[\w-]+-\d{10,25}(?:-ep-\d+)?',path)):
             continue
         canonical = 'https://netshort.com' + quote(path, safe='/')
-        base = re.sub(r'-ep-\\d+$','',canonical)
+        base = re.sub(r'-ep-\d+$','',canonical)
         if base in seen:
             continue
         seen.add(base)
         title = (item.findtext('title') or '').strip()
-        title = re.sub(r'\\s*[-|]\\s*NetShort.*$', '', title, flags=re.I)[:150]
+        title = re.sub(r'\s*[-|]\s*NetShort.*$', '', title, flags=re.I)[:150]
         results.append({'title':title or 'Drama curto', 'url':canonical, 'access':'unverified'})
         if len(results) >= 15:
             break
