@@ -282,6 +282,126 @@ def shopee_video(url):
         raise ExtractionError('SHOPEE_UNAVAILABLE', 'Não foi possível conectar à Shopee. Tente novamente em instantes.', 502) from None
 
 
+def resolve_facebook_share(url):
+    """Resolve Facebook share links only through public redirects on Facebook domains."""
+    parsed = urlsplit(url)
+    if not platform_is(url, ('facebook.com', 'fb.com')) or not re.match(r'^/share/(?:v|r)/[^/]+/?
+    url, direct = validate_url(value)
+    if direct:
+        return {"success": True, "downloadUrl": url, "filename": "CortePro_Video" + urlsplit(url).path[urlsplit(url).path.rfind("."):].lower(), "version": VERSION}
+    if platform_is(url, ('facebook.com', 'fb.com')):
+        url = resolve_facebook_share(url)
+    if platform_is(url, ('netshort.com',)):
+        from lib.netshort import download_episode
+        try:
+            return {**download_episode(url), 'version': VERSION}
+        except ValueError as error:
+            raise ExtractionError('NETSHORT_UNAVAILABLE', str(error), 422) from None
+        except Exception:
+            raise ExtractionError('NETSHORT_UNAVAILABLE', 'Não foi possível obter o vídeo da NetShort agora. Tente novamente em instantes.', 502) from None
+    if platform_is(url, SHOPEE_HOSTS):
+        return shopee_video(url)
+    if platform_is(url, ('kwai.com', 'kuaishou.com')):
+        native = kwai_video(url)
+        if native:
+            return native
+    fallback = legacy_provider(url)
+    if fallback:
+        return fallback
+    options = {
+        "quiet": True, "no_warnings": True, "logger": QuietLogger(),
+        "skip_download": True, "noplaylist": True, "cachedir": False,
+        "socket_timeout": 8, "retries": 0, "extractor_retries": 0,
+        # Only complete HTTP files with audio and video; no silent adaptive tracks
+        # or manifests that would require ffmpeg to assemble on the phone.
+        "format": FORMAT,
+    }
+    try:
+        with YoutubeDL(options) as extractor:
+            info = extractor.extract_info(url, download=False)
+    except DownloadError as exc:
+        detail = re.sub(r"https?://\S+", "[url]", str(exc))[:500]
+        logging.warning("extractor_error detail=%s", detail)
+        raise classify_error(exc) from None
+    if info and info.get("entries") is not None:
+        info = next((entry for entry in info["entries"] if entry), None)
+    if not info or not info.get("url") or urlsplit(info["url"]).scheme not in ("http", "https"):
+        raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Este link não retornou um arquivo de vídeo com áudio para baixar.")
+    formats = info.get("formats") or []
+    original_silent = bool(formats) and all(fmt.get("acodec") == "none" for fmt in formats)
+    if info.get("has_drm") or info.get("vcodec") == "none" or (info.get("acodec") == "none" and not original_silent):
+        raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Não há um arquivo completo com áudio e vídeo disponível neste link.")
+    if platform_is(url, ('tiktok.com', 'douyin.com', 'kwai.com', 'kuaishou.com')) and not usable_media(info['url']):
+        raise ExtractionError('MEDIA_UNAVAILABLE', 'O endereço do vídeo foi recusado pela rede social. Tente novamente em instantes.', 502)
+    extension = info.get("ext", "mp4")
+    if extension not in ("mp4", "webm", "mov", "m4v"):
+        raise ExtractionError("NO_DOWNLOADABLE_VIDEO", "Este vídeo não está disponível em um formato de arquivo compatível.")
+    name = re.sub(r"[^\w .-]", "_", info.get("title") or "Video")[:100]
+    return {"success": True, "downloadUrl": info["url"], "filename": f"CortePro_{name}.{extension}", "originalSilent": original_silent, "version": VERSION}
+
+
+class handler(BaseHTTPRequestHandler):
+    def respond(self, status, payload):
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        query = parse_qs(urlsplit(self.path).query)
+        if query.get("health") == ["1"]:
+            return self.respond(200, {"version": VERSION, "extractorVersion": extractor_version})
+        self.process(query.get("url", [None])[0])
+
+    def do_POST(self):
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if size < 1 or size > 8192:
+                raise ValueError()
+            payload = json.loads(self.rfile.read(size))
+            if not isinstance(payload, dict):
+                raise ValueError()
+        except (ValueError, UnicodeDecodeError):
+            return self.respond(400, {"success": False, "code": "INVALID_BODY", "error": "Envie um link de vídeo válido."})
+        self.process(payload.get("url"))
+
+    def process(self, value):
+        try:
+            self.respond(200, extract_video(value))
+        except ExtractionError as exc:
+            logging.warning("video_extraction_failed code=%s", exc.code)
+            self.respond(exc.status, {"success": False, "code": exc.code, "error": str(exc), "version": VERSION})
+        except Exception:
+            logging.error("video_extraction_failed code=INTERNAL_ERROR")
+            self.respond(500, {"success": False, "code": "INTERNAL_ERROR", "error": "O servidor não conseguiu processar o vídeo. Tente novamente.", "version": VERSION})
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Allow", "GET, POST, OPTIONS")
+        self.end_headers()
+, parsed.path):
+        return url
+    class SafeFacebookRedirect(HTTPRedirectHandler):
+        def redirect_request(self, request, fp, code, msg, headers, newurl):
+            target = urlsplit(newurl)
+            if target.scheme != 'https' or not platform_is(newurl, ('facebook.com', 'fb.com', 'fb.watch')):
+                raise ExtractionError('FACEBOOK_REDIRECT_BLOCKED', 'O Facebook redirecionou para um endereço não permitido.', 422)
+            return super().redirect_request(request, fp, code, msg, headers, newurl)
+    try:
+        opener = build_opener(SafeFacebookRedirect())
+        request = Request(url, headers={'User-Agent': USER_AGENT, 'Accept': 'text/html'})
+        with opener.open(request, timeout=8) as response:
+            resolved = response.geturl()
+            return resolved if platform_is(resolved, ('facebook.com', 'fb.com', 'fb.watch')) else url
+    except (ExtractionError, HTTPError):
+        return url
+    except Exception:
+        return url
+
+
 def extract_video(value):
     url, direct = validate_url(value)
     if direct:
