@@ -209,8 +209,8 @@
         const actions = document.createElement('div'); actions.className = 'locator-links';
         if (series) locatorLink('Ver lista dos ' + series.count + ' episódios ↗', series.url, actions);
         locatorLink('Abrir episódio individual ↗', item.url, actions);
-        const note = document.createElement('p'); note.textContent = 'Episódios públicos podem ser enviados ao baixador. Episódios bloqueados dependem do acesso na NetShort. Cada link corresponde a um episódio.'; card.appendChild(note);
-        const episodeButton = document.createElement('button'); episodeButton.type = 'button'; episodeButton.className = 'action-btn'; episodeButton.textContent = 'Mostrar links dos episódios';
+        const note = document.createElement('p'); note.textContent = 'Somente episódios com acesso público gratuito confirmado serão exibidos na verificação. A lista pode ser parcial.'; card.appendChild(note);
+        const episodeButton = document.createElement('button'); episodeButton.type = 'button'; episodeButton.className = 'action-btn'; episodeButton.textContent = 'Buscar episódios gratuitos';
         const episodeStatus = document.createElement('p'); episodeStatus.setAttribute('role', 'status'); episodeStatus.setAttribute('aria-live', 'polite');
         const episodeList = document.createElement('div'); episodeList.className = 'episode-list';
         episodeButton.onclick = () => loadEpisodeLinks(item.url, episodeButton, episodeStatus, episodeList);
@@ -237,13 +237,14 @@
         const response = await fetch('/api/episodes?url=' + encodeURIComponent(url), {signal:controller.signal});
         if (!response.ok) throw new Error('provider unavailable');
         const data = await response.json();
-        if (!Array.isArray(data.episodes) || !data.episodes.length) throw new Error('empty list');
+        if (!Array.isArray(data.episodes) || data.freeOnly !== true) throw new Error('invalid free list');
+        if (!data.episodes.length) { status.textContent = 'Nenhum episódio gratuito confirmado entre os ' + (data.checked || 0) + ' verificados. Isso não significa que todos estejam pagos.'; button.textContent = 'Verificar novamente'; return; }
         const expectedPath = decodeURIComponent(new URL(url).pathname).replace(/-ep-\d+$/, '');
         const episodes = data.episodes.filter(episode => {
           try {
             const parsed = new URL(episode.url);
             const path = decodeURIComponent(parsed.pathname);
-            return Number.isInteger(episode.number) && episode.number > 0 && episode.number <= 1000 && parsed.origin === 'https://netshort.com' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && (path === expectedPath && episode.number === 1 || path === expectedPath + '-ep-' + episode.number);
+            return episode.access === 'free' && Number.isInteger(episode.number) && episode.number > 0 && episode.number <= 1000 && parsed.origin === 'https://netshort.com' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && (path === expectedPath && episode.number === 1 || path === expectedPath + '-ep-' + episode.number);
           } catch (error) { return false; }
         });
         if (!episodes.length) throw new Error('invalid list');
@@ -259,8 +260,8 @@
           row.appendChild(actions); list.appendChild(row);
         }
         const total = Number.isInteger(data.total) ? data.total : null;
-        status.textContent = episodes.length + (total ? ' de ' + total : '') + ' links encontrados. ' + (data.complete && episodes.length === total ? 'Lista completa de links. ' : 'A lista pode estar incompleta; atualize ou consulte a fonte. ') + 'São páginas de episódios, não arquivos de vídeo. O acesso depende da NetShort.';
-        button.textContent = 'Atualizar links dos episódios';
+        status.textContent = episodes.length + ' episódios com acesso público confirmado entre ' + (data.checked || episodes.length) + ' verificados. A busca é parcial e não cobre toda a série. O download depende de uma fonte de arquivo autorizada.';
+        button.textContent = 'Atualizar episódios gratuitos';
       } catch (error) {
         status.textContent = 'Não foi possível carregar os links. Tente novamente ou abra a lista oficial na NetShort.';
         button.textContent = 'Tentar buscar episódios novamente';
