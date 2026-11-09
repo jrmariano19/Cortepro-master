@@ -129,7 +129,9 @@
   </div>
 
   <script>
+    let selectedLocatorCategory = 'all';
     function showSuggestions(category = 'all') {
+      selectedLocatorCategory = category;
       const titles = [
         ['O Grande Arquimago que Ninguém Levava a Sério', 'shorts', 'Drama curto • NetShort'],
         ['Pousando no Amor', 'dramas', 'Dorama • romance'],
@@ -287,9 +289,14 @@
       status.className = 'alert-box success';
       if (!query) { showSuggestions(); status.textContent = 'Escolha uma das sugestões acima ou digite o nome de uma obra.'; return; }
       if (query.length < 2) { status.textContent = 'Digite pelo menos duas letras do título.'; return; }
-      sourceLinks(query, links);
+      if (selectedLocatorCategory !== 'shorts') sourceLinks(query, links);
       button.disabled = true; button.textContent = 'Buscando...';
-      const shortCount = renderShortTitles(query, results);
+      const shortCount = selectedLocatorCategory === 'all' || selectedLocatorCategory === 'shorts' ? renderShortTitles(query, results) : 0;
+      if (selectedLocatorCategory === 'shorts') {
+        status.textContent = shortCount ? 'Dramas curtos encontrados. Abra a lista de episódios gratuitos em cada resultado.' : 'Nenhum drama curto encontrado na seleção NetShort. Tente parte do título. A seleção ainda não cobre todo o catálogo.';
+        button.disabled = false; button.textContent = 'Buscar títulos';
+        return;
+      }
       status.textContent = shortCount ? 'Encontrado na seleção NetShort. Consultando também a Wikipédia...' : 'Consultando a seleção NetShort e a Wikipédia...';
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
