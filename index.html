@@ -93,7 +93,7 @@
           <button type="button" class="filter-btn" id="suggestDramas" aria-pressed="false" onclick="showSuggestions('dramas')">Doramas</button>
           <button type="button" class="filter-btn" id="suggestShorts" aria-pressed="false" onclick="showSuggestions('shorts')">Dramas curtos</button>
         </div>
-        <p class="suggestion-note">A busca inclui uma seleção de títulos da NetShort verificada em 08/11/2026, além da Wikipédia. Não cobre todos os catálogos.</p>
+        <p class="suggestion-note">Filtro obrigatório: áudio dublado em português brasileiro (PT-BR) e acesso gratuito confirmado. Resultados sem confirmação não serão oferecidos como disponíveis.</p>
         <div id="suggestionCards" class="suggestion-grid"></div>
         <p class="suggestion-note">Seleção do CortePro • não é um ranking em tempo real.</p>
       </section>
@@ -287,7 +287,8 @@
         const data = await response.json();
         if (!Array.isArray(data.results)) throw new Error('invalid response');
         results.replaceChildren();
-        for (const item of data.results) {
+        const verified = data.results.filter(item => item.audioLanguage === 'pt-BR' && item.dubbed === true && item.free === true);
+        for (const item of verified) {
           const card = document.createElement('article'); card.className = 'title-result';
           const heading = document.createElement('h3'); heading.textContent = item.title; card.appendChild(heading);
           const note = document.createElement('p'); note.textContent = 'Resultado da pesquisa pública. A gratuidade ainda não foi confirmada.'; card.appendChild(note);
@@ -300,7 +301,7 @@
           card.appendChild(actions); card.appendChild(button); card.appendChild(episodeStatus); card.appendChild(episodeList);
           results.appendChild(card);
         }
-        status.textContent = data.results.length ? data.results.length + ' títulos encontrados na pesquisa pública. Verifique os episódios gratuitos de cada título.' : 'Nenhum título encontrado na pesquisa pública. Tente outro nome.';
+        status.textContent = verified.length ? verified.length + ' títulos gratuitos com dublagem PT-BR confirmada.' : 'Nenhum resultado com dublagem PT-BR e acesso gratuito confirmados. A pesquisa encontrou ' + data.results.length + ' candidatos, mas não há comprovação do idioma e da gratuidade. Não serão apresentados como disponíveis.';
       } catch (error) {
         status.className = 'alert-box error';
         status.textContent = 'A pesquisa em tempo real está indisponível. Tente novamente.';
@@ -327,6 +328,13 @@
         button.disabled = false; button.textContent = 'Buscar títulos';
         return;
       }
+      // Wikipedia provides title descriptions, not evidence of dubbed PT-BR audio or free access.
+      // Do not advertise those matches under the user's mandatory strict filter.
+      results.replaceChildren();
+      links.replaceChildren();
+      status.textContent = 'A pesquisa de ' + ({films:'filmes',series:'séries',dramas:'doramas',all:'títulos'}[selectedLocatorCategory] || 'títulos') + ' ainda não dispõe de uma fonte que confirme simultaneamente dublagem PT-BR e acesso gratuito. Nenhum resultado não verificado será exibido.';
+      button.disabled = false; button.textContent = 'Buscar títulos';
+      return;
       status.textContent = shortCount ? 'Encontrado na seleção NetShort. Consultando também a Wikipédia...' : 'Consultando a seleção NetShort e a Wikipédia...';
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
