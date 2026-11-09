@@ -257,12 +257,20 @@
           const field = document.createElement('input'); field.type = 'text'; field.readOnly = true; field.value = episode.url; field.setAttribute('aria-label', 'Link do episódio ' + episode.number); row.appendChild(field);
           const actions = document.createElement('div'); actions.className = 'locator-links';
           locatorLink('Abrir episódio ' + episode.number + ' ↗', episode.url, actions);
+          const external = document.createElement('a');
+          external.className = 'secondary-link';
+          external.href = episode.url;
+          external.target = '_blank';
+          external.rel = 'noopener noreferrer';
+          external.textContent = 'Abrir fonte externa';
+          external.setAttribute('aria-label', 'Abrir fonte oficial do episódio ' + episode.number + ' no navegador');
+          actions.appendChild(external);
           const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'secondary-link'; copy.textContent = 'Copiar link'; copy.onclick = () => copyEpisodeLink(episode.url, copy, field); actions.appendChild(copy);
           const download = document.createElement('button'); download.type = 'button'; download.className = 'secondary-link'; download.textContent = 'Enviar ao baixador'; download.onclick = () => { document.getElementById('foundUrl').value = episode.url; sendToDownloader(); }; actions.appendChild(download);
           row.appendChild(actions); list.appendChild(row);
         }
         const total = Number.isInteger(data.total) ? data.total : null;
-        status.textContent = episodes.length + ' episódios com acesso público confirmado entre ' + (data.checked || episodes.length) + ' verificados. A busca é parcial e não cobre toda a série. O download depende de uma fonte de arquivo autorizada.';
+        status.textContent = episodes.length + ' episódios com acesso público confirmado entre ' + (data.checked || episodes.length) + ' verificados. A busca é parcial e não cobre toda a série. Abrir fonte externa não garante download: o site precisa disponibilizar um arquivo autorizado.';
         button.textContent = 'Atualizar episódios gratuitos';
       } catch (error) {
         status.textContent = 'Não foi possível carregar os links. Tente novamente ou abra a lista oficial na NetShort.';
