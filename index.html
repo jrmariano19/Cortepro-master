@@ -277,6 +277,36 @@
       locatorLink('Busca na web ↗', 'https://www.google.com/search?q=' + encodeURIComponent(title + ' filme série dorama'), parent);
     }
 
+    async function searchLiveShorts(query, results, status) {
+      status.textContent = 'Pesquisando dramas curtos na web em tempo real...';
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 18000);
+      try {
+        const response = await fetch('/api/search_shorts?q=' + encodeURIComponent(query), {signal:controller.signal});
+        if (!response.ok) throw new Error('live search unavailable');
+        const data = await response.json();
+        if (!Array.isArray(data.results)) throw new Error('invalid response');
+        results.replaceChildren();
+        for (const item of data.results) {
+          const card = document.createElement('article'); card.className = 'title-result';
+          const heading = document.createElement('h3'); heading.textContent = item.title; card.appendChild(heading);
+          const note = document.createElement('p'); note.textContent = 'Resultado da pesquisa pública. A gratuidade ainda não foi confirmada.'; card.appendChild(note);
+          const actions = document.createElement('div'); actions.className = 'locator-links';
+          locatorLink('Abrir na NetShort', item.url, actions);
+          const button = document.createElement('button'); button.type = 'button'; button.className = 'action-btn'; button.textContent = 'Verificar episódios gratuitos';
+          const episodeStatus = document.createElement('p'); episodeStatus.setAttribute('role','status');
+          const episodeList = document.createElement('div'); episodeList.className = 'episode-list';
+          button.onclick = () => loadEpisodeLinks(item.url, button, episodeStatus, episodeList);
+          card.appendChild(actions); card.appendChild(button); card.appendChild(episodeStatus); card.appendChild(episodeList);
+          results.appendChild(card);
+        }
+        status.textContent = data.results.length ? data.results.length + ' títulos encontrados na pesquisa pública. Verifique os episódios gratuitos de cada título.' : 'Nenhum título encontrado na pesquisa pública. Tente outro nome.';
+      } catch (error) {
+        status.className = 'alert-box error';
+        status.textContent = 'A pesquisa em tempo real está indisponível. Tente novamente.';
+      } finally { clearTimeout(timer); }
+    }
+
     async function searchTitles() {
       const input = document.getElementById('titleInput');
       const query = input.value.trim();
@@ -293,7 +323,7 @@
       button.disabled = true; button.textContent = 'Buscando...';
       const shortCount = selectedLocatorCategory === 'all' || selectedLocatorCategory === 'shorts' ? renderShortTitles(query, results) : 0;
       if (selectedLocatorCategory === 'shorts') {
-        status.textContent = shortCount ? 'Dramas curtos encontrados. Abra a lista de episódios gratuitos em cada resultado.' : 'Nenhum drama curto encontrado na seleção NetShort. Tente parte do título. A seleção ainda não cobre todo o catálogo.';
+        await searchLiveShorts(query, results, status);
         button.disabled = false; button.textContent = 'Buscar títulos';
         return;
       }
