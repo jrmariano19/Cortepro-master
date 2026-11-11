@@ -52,6 +52,14 @@
   .episode-row { border:1px solid #334155; border-radius:10px; padding:12px; margin:10px 0; }
   .episode-row input { width:100%; min-width:0; font-size:14px; background:#080c14; color:#cbd5e1; border:1px solid #475569; border-radius:8px; padding:12px; margin-top:10px; }
   button.secondary-link { background:#121826; cursor:pointer; }
+  .tabs-container { flex-wrap:wrap; }
+  .tab-btn { min-height:48px; padding:10px 6px; font-size:.82rem; min-width:0; }
+  #converterSection input, #converterSection select { width:100%; min-width:0; margin-bottom:16px; padding:12px; border:1px solid #334155; border-radius:10px; background:#080c14; color:#f8fafc; font-size:16px; }
+  #converterSection input::file-selector-button { padding:10px; margin-right:8px; border:0; border-radius:8px; background:#30375b; color:white; }
+  #convertStatus { margin:16px 0; color:#cbd5e1; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+  #convertProgress, #convertPreview { width:100%; margin-top:12px; accent-color:#6366f1; }
+  #convertPreview { max-height:280px; border-radius:10px; background:#080c14; }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
@@ -59,12 +67,13 @@
     <div class="header-logo">
       <div class="logo-box">CP</div>
       <h1>CortePro Master</h1>
-      <p class="subtitle">Encontre títulos e baixe seus vídeos</p>
+      <p class="subtitle">Encontre, baixe e converta seus vídeos</p>
     </div>
 
     <div class="tabs-container">
       <button class="tab-btn active" id="tabDownload" onclick="switchTab('download')">↓ Baixar vídeo</button>
       <button class="tab-btn" id="tabLocator" onclick="switchTab('locator')">⌕ Localizador</button>
+      <button class="tab-btn" id="tabConverter" onclick="switchTab('converter')">⇄ Converter</button>
     </div>
 
     <div class="card" id="downloadSection">
@@ -121,7 +130,24 @@
       </form>
     </div>
 
-    <p class="footer-note">Versão 8.1.5 • Localizador</p>
+    <div class="card" id="converterSection" style="display:none">
+      <h2 class="card-title">Converter para MP4</h2>
+      <p class="card-desc">Selecione um vídeo do celular. O arquivo é processado aqui, sem envio ao servidor. Saída em MP4 com vídeo H.264 e áudio AAC.</p>
+      <label for="convertFile">Vídeo original</label>
+      <input id="convertFile" type="file" aria-describedby="convertHelp">
+      <p id="convertHelp" class="card-desc">Até 200 MB. Aceita formatos comuns como MKV, MOV, AVI, WebM, FLV, MPEG, TS, 3GP e MP4, conforme o codec. Arquivos protegidos ou danificados não são suportados.</p>
+      <label for="convertQuality">Resolução</label>
+      <select id="convertQuality"><option value="720">Até 720p • mais leve no celular</option><option value="original">Manter resolução original • mais lento</option></select>
+      <button id="convertBtn" class="action-btn" disabled>Converter para MP4</button>
+      <button id="convertCancel" class="secondary-link" style="margin-top:12px" hidden>Cancelar conversão</button>
+      <p id="convertStatus" role="status" aria-live="polite">Escolha um arquivo para começar.</p>
+      <progress id="convertProgress" max="100" hidden aria-label="Progresso da conversão"></progress>
+      <video id="convertPreview" controls playsinline preload="metadata" hidden></video>
+      <a id="convertDownload" class="result-link" hidden>Baixar MP4</a>
+      <p class="suggestion-note">Na primeira conversão, será baixado um componente de aproximadamente 32 MB. Mantenha esta aba aberta e a tela ligada. Vídeos longos podem demorar ou exceder a memória do aparelho.</p>
+    </div>
+
+    <p class="footer-note">Versão 8.2.0 • Conversor MP4</p>
     <p class="footer-note">
       Use somente vídeos que você tenha autorização para baixar ou editar.<br>
       O CortePro Master não remove DRM nem contorna autenticação ou restrições de acesso.
@@ -165,6 +191,8 @@
     }
 
     function switchTab(tab) {
+      document.getElementById('tabConverter').className = tab === 'converter' ? 'tab-btn active' : 'tab-btn';
+      document.getElementById('converterSection').style.display = tab === 'converter' ? 'block' : 'none';
       if (tab === 'locator' && !document.getElementById('suggestionCards').children.length) showSuggestions();
       document.getElementById('tabDownload').className = tab === 'download' ? 'tab-btn active' : 'tab-btn';
       document.getElementById('tabLocator').className = tab === 'locator' ? 'tab-btn active' : 'tab-btn';
@@ -425,5 +453,6 @@
       }
     }
   </script>
+<script src="/assets/converter.js" defer></script>
 </body>
 </html>
