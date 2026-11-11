@@ -14,7 +14,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.1.5"
+VERSION = "8.2.0"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",

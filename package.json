@@ -1,6 +1,13 @@
 {
   "name": "cortepro-master",
-  "version": "8.1.5",
+  "version": "8.2.0",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "0.12.15",
+    "@ffmpeg/core": "0.12.10"
+  },
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "test": "node tests/frontend.test.js && node tests/locator.test.js"
+  }
 }
