@@ -14,13 +14,15 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.2.0"
+VERSION = "8.3.0"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
                 "kwai.com", "kuaishou.com")
 SHOPEE_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36'
 SHOPEE_HOSTS = ("shopee.com.br", "shp.ee")
+MELI_HOSTS = ("meli.la", "mercadolivre.com.br", "mercadolibre.com")
+MELI_MEDIA_HOSTS = ("mlstatic.com", "mercadolivre.com.br", "mercadolibre.com")
 SHOPEE_MEDIA_HOSTS = ("susercontent.com", "shopeemobile.com")
 MEDIA_EXTENSIONS = (".mp4", ".webm", ".mov", ".m4v")
 FORMAT = "best[ext=mp4][protocol=https]/best[ext=mp4][protocol=http]/best[protocol=https]/best[protocol=http]"
@@ -125,10 +127,10 @@ def validate_url(value):
     except ValueError:
         raise ExtractionError("INVALID_URL", "Use um endereço HTTP ou HTTPS válido.", 400)
     host = parsed.hostname.lower().rstrip(".")
-    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS + SHOPEE_HOSTS + ("netshort.com",))
+    social = any(host == domain or host.endswith("." + domain) for domain in SOCIAL_HOSTS + SHOPEE_HOSTS + MELI_HOSTS + ("netshort.com",))
     direct = parsed.path.lower().endswith(MEDIA_EXTENSIONS)
     if not social and not direct:
-        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai, Shopee, NetShort ou de um arquivo de vídeo.", 400)
+        raise ExtractionError("UNSUPPORTED_URL", "Use um link do Instagram, TikTok, Facebook, YouTube, Kwai, Shopee, Mercado Livre, NetShort ou de um arquivo de vídeo.", 400)
     try:
         addresses = socket.getaddrinfo(host, parsed.port or 443, type=socket.SOCK_STREAM)
         if not addresses or any(not ipaddress.ip_address(item[4][0]).is_global for item in addresses):
@@ -282,6 +284,87 @@ def shopee_video(url):
         raise ExtractionError('SHOPEE_UNAVAILABLE', 'Não foi possível conectar à Shopee. Tente novamente em instantes.', 502) from None
 
 
+
+class MercadoLivreVideoPage(HTMLParser):
+    """Only consider video metadata attached to the product page."""
+    def __init__(self):
+        super().__init__()
+        self.videos = []
+        self.active = False
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == 'meta' and attrs.get('property', '').lower() in ('og:video', 'og:video:url', 'og:video:secure_url'):
+            self.videos.append(attrs.get('content', ''))
+        if tag == 'script' and attrs.get('type') == 'application/ld+json':
+            self.active, self.parts = True, []
+
+    def handle_data(self, data):
+        if self.active:
+            self.parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag != 'script' or not self.active:
+            return
+        self.active = False
+        try:
+            self.collect(json.loads(''.join(self.parts)))
+        except (ValueError, TypeError):
+            pass
+
+    def collect(self, node):
+        if isinstance(node, list):
+            for item in node:
+                self.collect(item)
+        elif isinstance(node, dict):
+            types = node.get('@type', [])
+            if isinstance(types, str):
+                types = [types]
+            if 'VideoObject' in types:
+                for key in ('contentUrl', 'embedUrl'):
+                    if isinstance(node.get(key), str):
+                        self.videos.append(node[key])
+            if '@graph' in node:
+                self.collect(node['@graph'])
+            if 'video' in node:
+                self.collect(node['video'])
+
+
+def mercadolivre_video(url):
+    """Read public product metadata, never authenticated/private application APIs."""
+    try:
+        page, final_url = shopee_request(url, MELI_HOSTS, 2 * 1024 * 1024)
+        parser = MercadoLivreVideoPage()
+        parser.feed(page.decode('utf-8', 'replace'))
+        for candidate in parser.videos:
+            if not isinstance(candidate, str) or not candidate:
+                continue
+            parsed = urlsplit(candidate)
+            if not parsed.path.lower().endswith('.mp4'):
+                continue
+            if not platform_is(candidate, MELI_MEDIA_HOSTS):
+                continue
+            try:
+                prefix, media_url = shopee_request(candidate, MELI_MEDIA_HOSTS, 64, media=True)
+                if prefix[4:8] == b'ftyp':
+                    return {'success': True, 'downloadUrl': media_url,
+                            'filename': 'CortePro_MercadoLivre.mp4', 'version': VERSION}
+            except ExtractionError:
+                continue
+        raise ExtractionError('MELI_NO_PUBLIC_VIDEO',
+                              'O anúncio não disponibilizou um MP4 público nos metadados. O vídeo pode estar acessível apenas no aplicativo.')
+    except ExtractionError as exc:
+        if exc.code.startswith('SHOPEE_'):
+            raise ExtractionError('MELI_UNAVAILABLE',
+                                  'Não foi possível acessar o anúncio ou o vídeo público do Mercado Livre.', exc.status) from None
+        raise
+    except Exception:
+        logging.warning('meli_public_metadata_failed')
+        raise ExtractionError('MELI_UNAVAILABLE',
+                              'Não foi possível consultar o anúncio do Mercado Livre.', 502) from None
+
+
 def extract_video(value):
     url, direct = validate_url(value)
     if direct:
@@ -296,6 +379,8 @@ def extract_video(value):
             raise ExtractionError('NETSHORT_UNAVAILABLE', 'Não foi possível obter o vídeo da NetShort agora. Tente novamente em instantes.', 502) from None
     if platform_is(url, SHOPEE_HOSTS):
         return shopee_video(url)
+    if platform_is(url, MELI_HOSTS):
+        return mercadolivre_video(url)
     if platform_is(url, ('kwai.com', 'kuaishou.com')):
         native = kwai_video(url)
         if native:
