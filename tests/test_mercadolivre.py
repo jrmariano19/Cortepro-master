@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from api.extract import MercadoLivreVideoPage, mercadolivre_video, validate_url, ExtractionError
+from api.extract import MercadoLivreVideoPage, meli_inline_video_urls, mercadolivre_video, validate_url, ExtractionError
 
 PUBLIC_DNS = [(2, 1, 6, '', ('93.184.216.34', 443))]
 MEDIA = 'https://video.mlstatic.com/product.mp4'
@@ -17,6 +17,10 @@ class MercadoLivreTests(unittest.TestCase):
         parser = MercadoLivreVideoPage()
         parser.feed('<script type="application/ld+json">{"@type":"Product","video":{"@type":"VideoObject","contentUrl":"'+MEDIA+'"}}'+'</script>')
         self.assertEqual(parser.videos, [MEDIA])
+
+    def test_inline_gallery_metadata(self):
+        html = '<script>window.__DATA__={"video_url":"https://video.mlstatic.com/gallery.mp4","image_url":"https://video.mlstatic.com/photo.jpg"};</script>'
+        self.assertEqual(meli_inline_video_urls(html), ['https://video.mlstatic.com/gallery.mp4'])
 
     @patch('api.extract.shopee_request')
     def test_public_mp4(self, request):

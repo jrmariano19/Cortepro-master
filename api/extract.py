@@ -14,7 +14,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.version import __version__ as extractor_version
 
-VERSION = "8.3.0"
+VERSION = "8.3.1"
 USER_AGENT = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36'
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "fb.watch", "fb.com",
                 "youtube.com", "youtu.be", "tiktok.com", "douyin.com",
@@ -331,13 +331,27 @@ class MercadoLivreVideoPage(HTMLParser):
                 self.collect(node['video'])
 
 
+
+def meli_inline_video_urls(page):
+    """Inspect public inline video metadata, excluding unrelated image links."""
+    candidates = []
+    pattern = re.compile(r'["\x27](?:video_url|videoUrl|video_url_hd|videoUrlHd|contentUrl|playback_url|playbackUrl)["\x27]\s*:\s*["\x27](https?:[^"\x27]+)["\x27]', re.I)
+    for script in re.findall(r'<script\b[^>]*>(.*?)</script\s*>', page, re.I | re.S):
+        for match in pattern.finditer(script):
+            candidate = match.group(1).replace('\\/', '/').replace('&amp;', '&')
+            if candidate not in candidates:
+                candidates.append(candidate)
+    return candidates[:30]
+
+
 def mercadolivre_video(url):
     """Read public product metadata, never authenticated/private application APIs."""
     try:
         page, final_url = shopee_request(url, MELI_HOSTS, 2 * 1024 * 1024)
         parser = MercadoLivreVideoPage()
-        parser.feed(page.decode('utf-8', 'replace'))
-        for candidate in parser.videos:
+        html = page.decode('utf-8', 'replace')
+        parser.feed(html)
+        for candidate in parser.videos + meli_inline_video_urls(html):
             if not isinstance(candidate, str) or not candidate:
                 continue
             parsed = urlsplit(candidate)
