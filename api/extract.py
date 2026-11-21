@@ -270,6 +270,19 @@ class ShopeeVideoPage(HTMLParser):
             pass
 
 
+def shopee_gallery_media(page):
+    """Look for public gallery video fields without fetching third-party URLs."""
+    html = page.decode('utf-8', 'replace')
+    candidates = []
+    for key in ('video_url', 'videoUrl', 'video_url_hd', 'videoUrlHd', 'videoPlayUrl'):
+        pattern = re.compile(r'"' + key + r'"\s*:\s*"(https?[^\"]+)"')
+        for match in pattern.finditer(html):
+            url = match.group(1).replace('\\/', '/').replace('\\u0026', '&')
+            if urlsplit(url).scheme == 'https' and platform_is(url, SHOPEE_MEDIA_HOSTS):
+                candidates.append(url)
+    return list(dict.fromkeys(candidates))
+
+
 def shopee_video(url):
     try:
         page, final_url = shopee_request(url, SHOPEE_HOSTS, 2 * 1024 * 1024)
@@ -277,6 +290,9 @@ def shopee_video(url):
         parser.feed(page.decode('utf-8', 'replace'))
         video = parser.video or {}
         media = video.get('watermarkVideoUrl') or parser.public_meta_video
+        if not media:
+            gallery = shopee_gallery_media(page)
+            media = gallery[0] if gallery else None
         if not isinstance(media, str) or not media:
             if '/opaanlp/' in urlsplit(final_url).path:
                 raise ExtractionError('SHOPEE_PRODUCT_VIDEO_UNAVAILABLE', 'Este link abre um anúncio da Shopee, mas a página pública não fornece o arquivo do vídeo. Compartilhe o vídeo diretamente pelo botão Compartilhar do próprio vídeo.')
