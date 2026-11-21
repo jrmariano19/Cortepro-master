@@ -241,9 +241,15 @@ class ShopeeVideoPage(HTMLParser):
         self.active = False
         self.parts = []
         self.video = None
+        self.public_meta_video = None
 
     def handle_starttag(self, tag, attrs):
-        if tag == 'script' and dict(attrs).get('id') == '__NEXT_DATA__':
+        attributes = dict(attrs)
+        if tag == 'meta' and attributes.get('property') in ('og:video', 'og:video:url', 'og:video:secure_url'):
+            candidate = attributes.get('content', '')
+            if candidate.startswith('https://') and platform_is(candidate, SHOPEE_MEDIA_HOSTS):
+                self.public_meta_video = candidate
+        if tag == 'script' and attributes.get('id') == '__NEXT_DATA__':
             self.active, self.parts = True, []
 
     def handle_data(self, data):
@@ -270,8 +276,10 @@ def shopee_video(url):
         parser = ShopeeVideoPage()
         parser.feed(page.decode('utf-8', 'replace'))
         video = parser.video or {}
-        media = video.get('watermarkVideoUrl')
+        media = video.get('watermarkVideoUrl') or parser.public_meta_video
         if not isinstance(media, str) or not media:
+            if '/opaanlp/' in urlsplit(final_url).path:
+                raise ExtractionError('SHOPEE_PRODUCT_VIDEO_UNAVAILABLE', 'Este link abre um anúncio da Shopee, mas a página pública não fornece o arquivo do vídeo. Compartilhe o vídeo diretamente pelo botão Compartilhar do próprio vídeo.')
             raise ExtractionError('SHOPEE_NO_PUBLIC_VIDEO', 'Não encontramos um vídeo público neste link. Na Shopee, abra o vídeo e use Compartilhar → Copiar link.')
         prefix, media_url = shopee_request(media, SHOPEE_MEDIA_HOSTS, 64, media=True)
         if prefix[4:8] != b'ftyp':
