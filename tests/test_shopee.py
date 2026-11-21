@@ -33,6 +33,19 @@ class ShopeeTests(unittest.TestCase):
         parser.feed('<script id="__NEXT_DATA__">not json</script>')
         self.assertIsNone(parser.video)
 
+    def test_public_meta_video_is_supported(self):
+        parser = ShopeeVideoPage()
+        parser.feed('<meta property="og:video" content="' + MEDIA + '">')
+        self.assertEqual(parser.public_meta_video, MEDIA)
+
+    @patch('api.extract.shopee_request')
+    def test_product_landing_page_reports_specific_error(self, request):
+        request.return_value = (b'<html><title>Produto</title></html>',
+                                'https://shopee.com.br/opaanlp/874507048/20998684272')
+        with self.assertRaises(ExtractionError) as ctx:
+            shopee_video('https://s.shopee.com.br/6L6Bublpho')
+        self.assertEqual(ctx.exception.code, 'SHOPEE_PRODUCT_VIDEO_UNAVAILABLE')
+
     @patch('api.extract.shopee_request')
     def test_returns_probed_mp4_with_watermark_url_unchanged(self, request):
         request.side_effect = [(PAGE, 'https://sv.shopee.com.br/share-video/x'),
